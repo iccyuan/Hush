@@ -36,6 +36,8 @@ class SideEffectExecutor(
                 is SideEffect.Webhook -> fireWebhook(effect.url, effect.method, effect.body)
                 is SideEffect.MuteApp ->
                     VariableStore.muteApp(effect.pkg, nowPlusMinutes(effect.minutes))
+                is SideEffect.Danmaku ->
+                    DanmakuController.show(context, effect.text, effect.durationMs)
                 is SideEffect.AutoReply -> Unit // handled by the service with the sbn
             }
         }

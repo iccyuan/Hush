@@ -235,6 +235,11 @@
     <string name="cat_act_webhook_desc">发送 HTTP 请求</string>
     <string name="cat_act_mute">静音应用</string>
     <string name="cat_act_mute_desc">暂时屏蔽该应用</string>
+    <string name="cat_act_danmaku">弹幕显示</string>
+    <string name="cat_act_danmaku_desc">以弹幕悬浮滚动显示，替代原生通知</string>
+    <string name="danmaku_template">弹幕文本</string>
+    <string name="grant_overlay">授予悬浮窗权限</string>
+    <string name="overlay_granted">已获得悬浮窗权限</string>
 
     <!-- Summaries -->
     <string name="sum_not_prefix">非 </string>
@@ -271,6 +276,7 @@
     <string name="sum_act_tasker">运行 Tasker 任务「%s」</string>
     <string name="sum_act_webhook">%1$s %2$s</string>
     <string name="sum_act_mute">静音该应用 %d 分钟</string>
+    <string name="sum_act_danmaku">弹幕「%s」</string>
 
     <string-array name="weekday_full">
         <item>周一</item>

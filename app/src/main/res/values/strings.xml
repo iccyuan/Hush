@@ -235,6 +235,11 @@
     <string name="cat_act_webhook_desc">Send an HTTP request</string>
     <string name="cat_act_mute">Mute app</string>
     <string name="cat_act_mute_desc">Suppress this app for a while</string>
+    <string name="cat_act_danmaku">Danmaku</string>
+    <string name="cat_act_danmaku_desc">Show as a scrolling overlay instead of native</string>
+    <string name="danmaku_template">Danmaku text</string>
+    <string name="grant_overlay">Grant overlay permission</string>
+    <string name="overlay_granted">Overlay permission granted</string>
 
     <!-- Summaries -->
     <string name="sum_not_prefix">NOT </string>
@@ -271,6 +276,7 @@
     <string name="sum_act_tasker">Run Tasker task \"%s\"</string>
     <string name="sum_act_webhook">%1$s %2$s</string>
     <string name="sum_act_mute">Mute this app for %dm</string>
+    <string name="sum_act_danmaku">Danmaku \"%s\"</string>
 
     <string-array name="weekday_full">
         <item>Monday</item>

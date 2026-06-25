@@ -195,6 +195,10 @@ class RuleEngine {
                 )
             is Action.MuteAppAction ->
                 decision.sideEffects.add(SideEffect.MuteApp(ctx.packageName, action.minutes))
+            is Action.DanmakuAction ->
+                decision.sideEffects.add(
+                    SideEffect.Danmaku(TemplateEngine.render(action.template, ctx), action.durationMs)
+                )
         }
     }
 

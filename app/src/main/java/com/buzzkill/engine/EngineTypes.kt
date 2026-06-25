@@ -51,6 +51,7 @@ sealed class SideEffect {
     data class RunTasker(val taskName: String) : SideEffect()
     data class Webhook(val url: String, val method: HttpMethod, val body: String) : SideEffect()
     data class MuteApp(val pkg: String, val minutes: Int) : SideEffect()
+    data class Danmaku(val text: String, val durationMs: Long) : SideEffect()
 }
 
 /** Desired changes to the reposted notification's alerting behaviour. */

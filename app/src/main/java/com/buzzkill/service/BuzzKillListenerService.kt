@@ -149,6 +149,13 @@ class BuzzKillListenerService : NotificationListenerService() {
         }
         sideEffects.execute(decision.sideEffects)
 
+        // Danmaku replaces the native notification — but only suppress the native one
+        // if the danmaku can actually be shown (overlay permission granted), otherwise
+        // the notification would silently vanish.
+        if (decision.sideEffects.any { it is SideEffect.Danmaku } && DanmakuController.canShow(this)) {
+            safeCancel(sbn.key)
+        }
+
         when {
             decision.discard -> safeCancel(sbn.key)
             decision.needsRepost -> {
