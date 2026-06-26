@@ -53,7 +53,11 @@ import java.util.Calendar
 private enum class Grouping { DAY, WEEK }
 
 @Composable
-fun HistoryScreen(onBack: () -> Unit, vm: HistoryViewModel = viewModel()) {
+fun HistoryScreen(
+    onBack: (() -> Unit)? = null,
+    bottomBar: (@Composable () -> Unit)? = null,
+    vm: HistoryViewModel = viewModel(),
+) {
     val logs by vm.logs.collectAsStateWithLifecycle()
     var grouping by remember { mutableStateOf(Grouping.DAY) }
     var selectedApp by remember { mutableStateOf<String?>(null) }
@@ -72,6 +76,7 @@ fun HistoryScreen(onBack: () -> Unit, vm: HistoryViewModel = viewModel()) {
     GlassScaffold(
         title = stringResource(R.string.nav_history),
         onBack = onBack,
+        bottomBar = bottomBar,
         actions = {
             if (logs.isNotEmpty()) {
                 TextButton(onClick = { vm.clear() }) { Text(stringResource(R.string.history_clear)) }

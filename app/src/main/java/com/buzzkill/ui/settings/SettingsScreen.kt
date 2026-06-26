@@ -53,7 +53,8 @@ import com.buzzkill.ui.findActivity
 
 @Composable
 fun SettingsScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
+    bottomBar: (@Composable () -> Unit)? = null,
     vm: SettingsViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -63,7 +64,7 @@ fun SettingsScreen(
     var showImport by remember { mutableStateOf(false) }
     val currentLang by LanguageStore.language.collectAsStateWithLifecycle()
 
-    GlassScaffold(title = stringResource(R.string.settings), onBack = onBack) { padding ->
+    GlassScaffold(title = stringResource(R.string.settings), onBack = onBack, bottomBar = bottomBar) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

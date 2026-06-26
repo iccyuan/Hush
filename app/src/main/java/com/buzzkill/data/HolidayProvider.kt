@@ -48,8 +48,18 @@ object HolidayProvider {
     @Volatile private var workdaySet: Set<String> = emptySet()
     @Volatile private var loaded = false
 
+    // Manual "today is rest / today is work" override (tied to a specific date so it
+    // auto-expires the next day).
+    @Volatile private var overrideDate: String = ""
+    @Volatile private var overrideType: String = ""
+
+    const val OVERRIDE_REST = "rest"
+    const val OVERRIDE_WORK = "work"
+
     private const val PREFS = "buzzkill_holiday"
     private const val KEY_UPDATED = "last_update"
+    private const val KEY_OVERRIDE_DATE = "override_date"
+    private const val KEY_OVERRIDE_TYPE = "override_type"
 
     fun ensureLoaded(context: Context) {
         if (loaded) return
@@ -63,6 +73,9 @@ object HolidayProvider {
     /** Reloads in-memory sets from asset + cache (cache overrides covered years). */
     private fun rebuild(context: Context) {
         val app = context.applicationContext
+        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        overrideDate = prefs.getString(KEY_OVERRIDE_DATE, "").orEmpty()
+        overrideType = prefs.getString(KEY_OVERRIDE_TYPE, "").orEmpty()
         val (aH, aW) = readAsset(app)
         val cache = readCache(app)
         if (cache == null) {
@@ -150,11 +163,42 @@ object HolidayProvider {
      */
     fun dayType(year: Int, month: Int, day: Int, isoDayOfWeek: Int): DayType {
         val key = "%04d-%02d-%02d".format(year, month, day)
+        // Manual override for a specific date wins over the calendar.
+        if (key == overrideDate && overrideType.isNotEmpty()) {
+            return if (overrideType == OVERRIDE_REST) DayType.LEGAL_HOLIDAY else DayType.WORKDAY
+        }
         return when {
             holidaySet.contains(key) -> DayType.LEGAL_HOLIDAY
             workdaySet.contains(key) -> DayType.MAKEUP_WORKDAY
             isoDayOfWeek == 6 || isoDayOfWeek == 7 -> DayType.WEEKEND
             else -> DayType.WORKDAY
         }
+    }
+
+    private fun todayKey(): String {
+        val c = Calendar.getInstance()
+        return "%04d-%02d-%02d".format(
+            c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH)
+        )
+    }
+
+    /** Sets (or clears, when [type] is null) the manual day-type override for today. */
+    fun setTodayOverride(context: Context, type: String?) {
+        ensureLoaded(context)
+        if (type == null) {
+            overrideDate = ""; overrideType = ""
+        } else {
+            overrideDate = todayKey(); overrideType = type
+        }
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(KEY_OVERRIDE_DATE, overrideDate)
+            .putString(KEY_OVERRIDE_TYPE, overrideType)
+            .apply()
+    }
+
+    /** The override active for today ([OVERRIDE_REST]/[OVERRIDE_WORK]), or null. */
+    fun todayOverride(context: Context): String? {
+        ensureLoaded(context)
+        return if (overrideDate == todayKey() && overrideType.isNotEmpty()) overrideType else null
     }
 }

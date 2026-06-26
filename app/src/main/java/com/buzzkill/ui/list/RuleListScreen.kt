@@ -17,12 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
@@ -63,8 +62,7 @@ import com.buzzkill.ui.components.cardFrost
 fun RuleListScreen(
     onOpenRule: (Long) -> Unit,
     onNewRule: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenHistory: () -> Unit,
+    bottomBar: (@Composable () -> Unit)? = null,
     vm: RuleListViewModel = viewModel(),
 ) {
     val rules by vm.rules.collectAsStateWithLifecycle()
@@ -74,13 +72,7 @@ fun RuleListScreen(
 
     GlassScaffold(
         title = stringResource(R.string.rules_title),
-        actions = {
-            NavCircleButton(Icons.Default.History, stringResource(R.string.nav_history), onClick = onOpenHistory)
-            Spacer(Modifier.width(8.dp))
-            NavCircleButton(Icons.Default.Add, stringResource(R.string.new_rule), prominent = true, onClick = onNewRule)
-            Spacer(Modifier.width(8.dp))
-            NavCircleButton(Icons.Default.Settings, stringResource(R.string.settings), onClick = onOpenSettings)
-        },
+        bottomBar = bottomBar,
         overlay = {
             pendingDelete?.let { rule ->
                 DeleteRuleDialog(
@@ -96,6 +88,8 @@ fun RuleListScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item { Spacer(Modifier.height(4.dp)) }
+
+            item { TodayOverrideCard() }
 
             if (!accessGranted) {
                 item {
@@ -171,27 +165,79 @@ private fun SwipeableRuleRow(
     }
 }
 
-/** iOS-style circular nav-bar button: a faint tinted disc with a tinted glyph. The
- *  primary action (new rule) is a filled accent disc with a white glyph. */
+/** Quick "today is rest / today is work" toggles that override today's day-type for
+ *  the holiday condition. Tapping the active one again clears the override. */
 @Composable
-private fun NavCircleButton(
+private fun TodayOverrideCard() {
+    val context = LocalContext.current
+    var override by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        override = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.buzzkill.data.HolidayProvider.todayOverride(context)
+        }
+    }
+    InsetGroupedSection(header = stringResource(R.string.today_header)) {
+        Row(
+            Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TodayButton(
+                label = stringResource(R.string.today_rest),
+                icon = Icons.Filled.BeachAccess,
+                color = Color(0xFFFF3B30),
+                active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_REST,
+                modifier = Modifier.weight(1f),
+            ) {
+                val next = if (override == com.buzzkill.data.HolidayProvider.OVERRIDE_REST) null
+                else com.buzzkill.data.HolidayProvider.OVERRIDE_REST
+                com.buzzkill.data.HolidayProvider.setTodayOverride(context, next)
+                override = next
+            }
+            TodayButton(
+                label = stringResource(R.string.today_work),
+                icon = Icons.Filled.Work,
+                color = Color(0xFFFF9500),
+                active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_WORK,
+                modifier = Modifier.weight(1f),
+            ) {
+                val next = if (override == com.buzzkill.data.HolidayProvider.OVERRIDE_WORK) null
+                else com.buzzkill.data.HolidayProvider.OVERRIDE_WORK
+                com.buzzkill.data.HolidayProvider.setTodayOverride(context, next)
+                override = next
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodayButton(
+    label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    contentDescription: String,
-    prominent: Boolean = false,
+    color: Color,
+    active: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val primary = MaterialTheme.colorScheme.primary
-    val bg = if (prominent) primary else primary.copy(alpha = 0.12f)
-    val tint = if (prominent) Color.White else primary
-    Box(
-        Modifier
-            .size(34.dp)
-            .clip(CircleShape)
+    val bg = if (active) color.copy(alpha = 0.16f)
+    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
+    val fg = if (active) color else MaterialTheme.colorScheme.onSurface
+    Row(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
             .background(bg)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = fg,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+        )
     }
 }
 

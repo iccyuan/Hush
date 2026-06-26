@@ -17,6 +17,13 @@
     <string name="edit_rule">编辑规则</string>
     <string name="settings">设置</string>
     <string name="nav_history">通知记录</string>
+    <string name="tab_add">添加</string>
+    <string name="today_header">今日</string>
+    <string name="today_rest">今日休息</string>
+    <string name="today_work">今日工作</string>
+    <string name="today_auto">跟随日历</string>
+    <string name="today_rest_on">今日已设为休息日</string>
+    <string name="today_work_on">今日已设为工作日</string>
     <string name="history_clear">清空</string>
     <string name="history_empty">还没有记录任何通知活动。</string>
     <string name="group_by_day">按天</string>
