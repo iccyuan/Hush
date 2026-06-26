@@ -17,6 +17,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -172,7 +181,216 @@ private fun HolidayConditionFields(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.height(8.dp))
+        // Tap to expand an inline month calendar with holidays marked (one dialog).
+        var showCalendar by remember { mutableStateOf(false) }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                .clickable { showCalendar = !showCalendar }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.Icon(
+                androidx.compose.material.icons.Icons.Filled.CalendarMonth,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(R.string.holiday_view_calendar),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            androidx.compose.material3.Icon(
+                if (showCalendar) androidx.compose.material.icons.Icons.Filled.ExpandLess
+                else androidx.compose.material.icons.Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        androidx.compose.animation.AnimatedVisibility(visible = showCalendar) {
+            HolidayCalendar()
+        }
     }
+}
+
+/** An inline month calendar with each day classified/marked via [com.buzzkill.data.HolidayProvider]. */
+@Composable
+private fun HolidayCalendar() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Ensure holiday data is loaded (no-op if already loaded).
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.buzzkill.data.HolidayProvider.ensureLoaded(context)
+        }
+    }
+    val now = remember { java.util.Calendar.getInstance() }
+    var ym by remember { mutableStateOf(now.get(java.util.Calendar.YEAR) to (now.get(java.util.Calendar.MONTH) + 1)) }
+    val (year, month) = ym
+    val todayKey = remember {
+        "%04d-%02d-%02d".format(
+            now.get(java.util.Calendar.YEAR),
+            now.get(java.util.Calendar.MONTH) + 1,
+            now.get(java.util.Calendar.DAY_OF_MONTH),
+        )
+    }
+
+    Column(Modifier.padding(top = 4.dp)) {
+        // Month header with prev/next navigation.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CalNavButton(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowLeft) {
+                ym = if (month == 1) (year - 1) to 12 else year to (month - 1)
+            }
+            Text(
+                "%d-%02d".format(year, month),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            CalNavButton(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight) {
+                ym = if (month == 12) (year + 1) to 1 else year to (month + 1)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        // Weekday header (Mon..Sun).
+        val abbr = stringArrayResource(R.array.weekday_abbr)
+        Row(Modifier.fillMaxWidth()) {
+            for (i in 0..6) {
+                Text(
+                    abbr[i],
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        // Day grid.
+        for (week in monthCells(year, month).chunked(7)) {
+            Row(Modifier.fillMaxWidth()) {
+                for (day in week) {
+                    Box(Modifier.weight(1f).padding(2.dp), contentAlignment = Alignment.Center) {
+                        if (day != null) {
+                            val iso = isoDayOfWeek(year, month, day)
+                            val type = com.buzzkill.data.HolidayProvider.dayType(year, month, day, iso)
+                            val key = "%04d-%02d-%02d".format(year, month, day)
+                            DayCell(day, type, isToday = key == todayKey)
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        // Legend.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LegendDot(Color(0xFFFF3B30), stringResource(R.string.daytype_legal_holiday))
+            LegendDot(Color(0xFFFF9500), stringResource(R.string.daytype_makeup_workday))
+        }
+    }
+}
+
+@Composable
+private fun CalNavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(32.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+@Composable
+private fun DayCell(day: Int, type: com.buzzkill.data.model.DayType, isToday: Boolean) {
+    val red = Color(0xFFFF3B30)
+    val orange = Color(0xFFFF9500)
+    val (bg, fg, mark) = when (type) {
+        com.buzzkill.data.model.DayType.LEGAL_HOLIDAY ->
+            Triple(red.copy(alpha = 0.14f), red, stringResource(R.string.holiday_mark_off))
+        com.buzzkill.data.model.DayType.MAKEUP_WORKDAY ->
+            Triple(orange.copy(alpha = 0.14f), orange, stringResource(R.string.holiday_mark_work))
+        com.buzzkill.data.model.DayType.WEEKEND ->
+            Triple(Color.Transparent, MaterialTheme.colorScheme.onSurfaceVariant, null)
+        com.buzzkill.data.model.DayType.WORKDAY ->
+            Triple(Color.Transparent, MaterialTheme.colorScheme.onSurface, null)
+    }
+    Box(
+        Modifier
+            .size(36.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(9.dp))
+            .background(bg)
+            .then(
+                if (isToday) Modifier.border(
+                    1.5.dp, MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.RoundedCornerShape(9.dp)
+                ) else Modifier
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            day.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = fg,
+            fontWeight = if (type == com.buzzkill.data.model.DayType.LEGAL_HOLIDAY) FontWeight.SemiBold else FontWeight.Normal,
+        )
+        if (mark != null) {
+            Text(
+                mark,
+                style = MaterialTheme.typography.labelSmall,
+                color = fg,
+                fontSize = androidx.compose.ui.unit.TextUnit(8f, androidx.compose.ui.unit.TextUnitType.Sp),
+                modifier = Modifier.align(Alignment.TopEnd),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .size(10.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(color),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Cells for a month grid: leading nulls to align the 1st under its weekday (Mon-first), then days. */
+private fun monthCells(year: Int, month: Int): List<Int?> {
+    val daysInMonth = run {
+        val c = java.util.Calendar.getInstance()
+        c.clear(); c.set(year, month - 1, 1)
+        c.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    }
+    val leading = isoDayOfWeek(year, month, 1) - 1
+    val cells = ArrayList<Int?>(leading + daysInMonth)
+    repeat(leading) { cells.add(null) }
+    for (d in 1..daysInMonth) cells.add(d)
+    while (cells.size % 7 != 0) cells.add(null)
+    return cells
+}
+
+/** ISO day of week (Mon=1 … Sun=7) for a date. */
+private fun isoDayOfWeek(year: Int, month: Int, day: Int): Int {
+    val c = java.util.Calendar.getInstance()
+    c.clear(); c.set(year, month - 1, day)
+    return ((c.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7) + 1
 }
 
 /** A tappable HH:MM chip; tapping toggles the inline wheel for this field. */

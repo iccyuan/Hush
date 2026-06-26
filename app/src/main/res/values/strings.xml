@@ -123,6 +123,9 @@
     <string name="daytype_weekend">Weekend</string>
     <string name="daytype_workday">Workday</string>
     <string name="holiday_coverage">CN holiday data: 2025 (verified), 2026 (provisional).</string>
+    <string name="holiday_view_calendar">Holiday calendar</string>
+    <string name="holiday_mark_off">Off</string>
+    <string name="holiday_mark_work">Work</string>
 
     <!-- Settings -->
     <string name="settings_general">General</string>

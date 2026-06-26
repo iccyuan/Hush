@@ -123,6 +123,9 @@
     <string name="daytype_weekend">周末</string>
     <string name="daytype_workday">工作日</string>
     <string name="holiday_coverage">中国节假日数据：2025（已核对）、2026（暂定）。</string>
+    <string name="holiday_view_calendar">查看节假日日历</string>
+    <string name="holiday_mark_off">休</string>
+    <string name="holiday_mark_work">班</string>
 
     <!-- Settings -->
     <string name="settings_general">通用</string>
