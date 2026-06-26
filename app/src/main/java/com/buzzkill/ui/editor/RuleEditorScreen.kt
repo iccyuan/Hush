@@ -60,6 +60,7 @@ import com.buzzkill.ui.components.IOSSegmented
 import com.buzzkill.ui.components.IOSSwitch
 import com.buzzkill.ui.components.IOSTintedButton
 import com.buzzkill.ui.components.InsetGroupedSection
+import com.buzzkill.ui.theme.IOSColors
 
 private enum class AddKind { TRIGGER, CONDITION, ACTION }
 
@@ -87,7 +88,7 @@ fun RuleEditorScreen(
             text = { Text(stringResource(R.string.delete_rule_msg)) },
             confirmButton = {
                 TextButton(onClick = { showDeleteConfirm = false; vm.delete(onDone) }) {
-                    Text(stringResource(R.string.delete), color = Color(0xFFFF3B30))
+                    Text(stringResource(R.string.delete), color = IOSColors.Red)
                 }
             },
             dismissButton = {
@@ -152,7 +153,7 @@ fun RuleEditorScreen(
                     IOSRow(
                         title = stringResource(R.string.applies_all_apps),
                         icon = Icons.Filled.Apps,
-                        iconColor = Color(0xFF007AFF),
+                        iconColor = IOSColors.Blue,
                         onClick = { showAppPicker = true },
                     )
                 } else {
@@ -182,7 +183,7 @@ fun RuleEditorScreen(
                     IOSRow(title = Localize.summary(trigger), icon = ic, iconColor = col, onClick = { editingTrigger = trigger })
                 }
                 HairlineDivider(startInset = 16.dp)
-                AddRow(stringResource(R.string.add_trigger), Icons.Filled.FilterAlt, Color(0xFF007AFF)) {
+                AddRow(stringResource(R.string.add_trigger), Icons.Filled.FilterAlt, IOSColors.Blue) {
                     addKind = AddKind.TRIGGER
                 }
             }
@@ -195,7 +196,7 @@ fun RuleEditorScreen(
                     IOSRow(title = Localize.summary(condition), icon = ic, iconColor = col, onClick = { editingCondition = condition })
                 }
                 if (rule.conditions.isNotEmpty()) HairlineDivider(startInset = 16.dp)
-                AddRow(stringResource(R.string.add_condition), Icons.Filled.Tune, Color(0xFFFF9500)) {
+                AddRow(stringResource(R.string.add_condition), Icons.Filled.Tune, IOSColors.Orange) {
                     addKind = AddKind.CONDITION
                 }
             }
@@ -211,7 +212,7 @@ fun RuleEditorScreen(
                     IOSRow(title = Localize.summary(action), icon = ic, iconColor = col, onClick = { editingAction = action })
                 }
                 if (rule.actions.isNotEmpty()) HairlineDivider(startInset = 16.dp)
-                AddRow(stringResource(R.string.add_action), Icons.Filled.Bolt, Color(0xFF34C759)) {
+                AddRow(stringResource(R.string.add_action), Icons.Filled.Bolt, IOSColors.Green) {
                     addKind = AddKind.ACTION
                 }
             }
@@ -232,7 +233,7 @@ fun RuleEditorScreen(
                     title = stringResource(R.string.danmaku_switch),
                     subtitle = stringResource(R.string.danmaku_switch_hint),
                     icon = Icons.Filled.Subtitles,
-                    iconColor = Color(0xFFAF52DE),
+                    iconColor = IOSColors.Purple,
                     trailing = { IOSSwitch(rule.showDanmaku) { vm.setShowDanmaku(it) } },
                 )
                 // When danmaku is on but the overlay permission is missing, offer to grant it.
@@ -242,7 +243,7 @@ fun RuleEditorScreen(
                     IOSRow(
                         title = stringResource(R.string.grant_overlay),
                         icon = Icons.Filled.OpenInNew,
-                        iconColor = Color(0xFFFF9500),
+                        iconColor = IOSColors.Orange,
                         onClick = {
                             ctx.startActivity(com.buzzkill.service.DanmakuController.overlaySettingsIntent(ctx))
                         },

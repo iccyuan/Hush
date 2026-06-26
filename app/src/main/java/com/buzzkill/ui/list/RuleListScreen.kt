@@ -57,6 +57,8 @@ import com.buzzkill.ui.components.IOSRow
 import com.buzzkill.ui.components.IOSSwitch
 import com.buzzkill.ui.components.InsetGroupedSection
 import com.buzzkill.ui.components.cardFrost
+import com.buzzkill.ui.theme.Alpha
+import com.buzzkill.ui.theme.IOSColors
 
 @Composable
 fun RuleListScreen(
@@ -144,7 +146,7 @@ private fun SwipeableRuleRow(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFFF3B30))
+                    .background(IOSColors.Red)
                     .padding(end = 24.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
@@ -184,7 +186,7 @@ private fun TodayOverrideCard() {
             TodayButton(
                 label = stringResource(R.string.today_rest),
                 icon = Icons.Outlined.Weekend,
-                color = Color(0xFFFF3B30),
+                color = IOSColors.Red,
                 active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_REST,
                 modifier = Modifier.weight(1f),
             ) {
@@ -196,7 +198,7 @@ private fun TodayOverrideCard() {
             TodayButton(
                 label = stringResource(R.string.today_work),
                 icon = Icons.Outlined.Work,
-                color = Color(0xFFFF9500),
+                color = IOSColors.Orange,
                 active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_WORK,
                 modifier = Modifier.weight(1f),
             ) {
@@ -218,8 +220,8 @@ private fun TodayButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    // Always use the accent colour (not black) so the buttons stay light and uncluttered.
-    val bg = color.copy(alpha = if (active) 0.18f else 0.08f)
+    // 始终用强调色（而非黑色），让按钮保持轻盈、不杂乱。
+    val bg = color.copy(alpha = if (active) Alpha.FillStrong else Alpha.FillFaint)
     val fg = color
     Row(
         modifier
@@ -264,7 +266,7 @@ private fun DeleteRuleDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             Spacer(Modifier.width(8.dp))
             TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.delete), color = Color(0xFFFF3B30), fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.delete), color = IOSColors.Red, fontWeight = FontWeight.SemiBold)
             }
         }
     }

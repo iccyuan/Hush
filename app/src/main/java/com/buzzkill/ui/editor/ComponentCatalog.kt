@@ -28,21 +28,22 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.buzzkill.R
+import com.buzzkill.ui.theme.IOSColors
 import com.buzzkill.data.model.Action
 import com.buzzkill.data.model.Condition
 import com.buzzkill.data.model.Trigger
 import com.buzzkill.ui.Ids
 
-// iOS system accent palette for the icon badges.
-private val Blue = Color(0xFF007AFF)
-private val Green = Color(0xFF34C759)
-private val Orange = Color(0xFFFF9500)
-private val Red = Color(0xFFFF3B30)
-private val Purple = Color(0xFFAF52DE)
-private val Indigo = Color(0xFF5856D6)
-private val Teal = Color(0xFF32ADE6)
-private val Pink = Color(0xFFFF2D55)
-private val Gray = Color(0xFF8E8E93)
+// iOS 系统强调色取自统一的 [IOSColors] 调色板，避免在各处硬编码色值。
+private val Blue = IOSColors.Blue
+private val Green = IOSColors.Green
+private val Orange = IOSColors.Orange
+private val Red = IOSColors.Red
+private val Purple = IOSColors.Purple
+private val Indigo = IOSColors.Indigo
+private val Teal = IOSColors.Teal
+private val Pink = IOSColors.Pink
+private val Gray = IOSColors.Gray
 
 /** Definitions for the "add component" picker: localized label/desc + icon badge + factory. */
 data class CatalogEntry<T>(

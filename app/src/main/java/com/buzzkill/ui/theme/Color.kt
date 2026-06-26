@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
  * the app a native-iOS feel rather than Material You.
  */
 object IOSColors {
-    // Accents
+    // Accents (single source of truth for the iOS system palette)
     val Blue = Color(0xFF007AFF)
     val BlueDark = Color(0xFF0A84FF)
     val Green = Color(0xFF34C759)
@@ -16,6 +16,10 @@ object IOSColors {
     val RedDark = Color(0xFFFF453A)
     val Orange = Color(0xFFFF9500)
     val Purple = Color(0xFFAF52DE)
+    val Indigo = Color(0xFF5856D6)
+    val Teal = Color(0xFF32ADE6)
+    val Pink = Color(0xFFFF2D55)
+    val Gray = Color(0xFF8E8E93)
 
     // Light theme backgrounds
     val GroupedBgLight = Color(0xFFF2F2F7)      // systemGroupedBackground

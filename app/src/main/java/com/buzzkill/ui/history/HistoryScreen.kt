@@ -47,6 +47,8 @@ import com.buzzkill.ui.components.GlassScaffold
 import com.buzzkill.ui.components.HairlineDivider
 import com.buzzkill.ui.components.InsetGroupedSection
 import com.buzzkill.ui.components.cardFrost
+import com.buzzkill.ui.theme.Alpha
+import com.buzzkill.ui.theme.IOSColors
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -246,7 +248,7 @@ private fun SwipeableLogRow(log: NotificationLog, onDelete: () -> Unit) {
     Box(Modifier.fillMaxWidth()) {
         // Delete button revealed behind the row on the trailing edge.
         Box(
-            Modifier.matchParentSize().background(Color(0xFFFF3B30)),
+            Modifier.matchParentSize().background(IOSColors.Red),
             contentAlignment = Alignment.CenterEnd,
         ) {
             Column(
@@ -371,16 +373,16 @@ private fun DetailLine(label: String, value: String) {
 private fun OutcomeBadge(log: NotificationLog) {
     if (!log.matched) return
     val (label, color) = when (log.outcome) {
-        NotificationLog.OUTCOME_MODIFIED -> stringResource(R.string.outcome_modified) to Color(0xFF007AFF)
-        NotificationLog.OUTCOME_DISCARDED -> stringResource(R.string.outcome_discarded) to Color(0xFFFF3B30)
-        NotificationLog.OUTCOME_DISMISSED -> stringResource(R.string.outcome_dismissed) to Color(0xFFFF9500)
-        NotificationLog.OUTCOME_SNOOZED -> stringResource(R.string.outcome_snoozed) to Color(0xFF5856D6)
-        else -> stringResource(R.string.outcome_matched) to Color(0xFF34C759)
+        NotificationLog.OUTCOME_MODIFIED -> stringResource(R.string.outcome_modified) to IOSColors.Blue
+        NotificationLog.OUTCOME_DISCARDED -> stringResource(R.string.outcome_discarded) to IOSColors.Red
+        NotificationLog.OUTCOME_DISMISSED -> stringResource(R.string.outcome_dismissed) to IOSColors.Orange
+        NotificationLog.OUTCOME_SNOOZED -> stringResource(R.string.outcome_snoozed) to IOSColors.Indigo
+        else -> stringResource(R.string.outcome_matched) to IOSColors.Green
     }
     Box(
         Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(color.copy(alpha = 0.15f))
+            .background(color.copy(alpha = Alpha.Badge))
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = color)

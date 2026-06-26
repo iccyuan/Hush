@@ -31,7 +31,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -49,6 +48,7 @@ import com.buzzkill.ui.components.IOSSwitch
 import com.buzzkill.ui.components.IOSTintedButton
 import com.buzzkill.ui.components.InsetGroupedSection
 import com.buzzkill.ui.common.rememberNotificationAccessGranted
+import com.buzzkill.ui.theme.IOSColors
 import com.buzzkill.ui.findActivity
 
 @Composable
@@ -79,14 +79,14 @@ fun SettingsScreen(
                 IOSRow(
                     title = stringResource(R.string.settings_master),
                     icon = Icons.Filled.Bolt,
-                    iconColor = Color(0xFF34C759),
+                    iconColor = IOSColors.Green,
                     trailing = { IOSSwitch(masterEnabled) { vm.setMasterEnabled(it) } },
                 )
                 HairlineDivider(startInset = 16.dp)
                 IOSRow(
                     title = stringResource(R.string.settings_log),
                     icon = Icons.AutoMirrored.Filled.ListAlt,
-                    iconColor = Color(0xFF007AFF),
+                    iconColor = IOSColors.Blue,
                     trailing = { IOSSwitch(logActivity) { vm.setLogActivity(it) } },
                 )
             }
@@ -133,7 +133,7 @@ fun SettingsScreen(
                         stringResource(R.string.holiday_last_updated, formatTime(holUpdated))
                     else stringResource(R.string.holiday_never),
                     icon = Icons.Filled.CalendarMonth,
-                    iconColor = Color(0xFFFF3B30),
+                    iconColor = IOSColors.Red,
                 )
                 HairlineDivider(startInset = 16.dp)
                 Column(Modifier.padding(16.dp)) {

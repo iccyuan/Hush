@@ -50,6 +50,8 @@ import com.buzzkill.ui.common.SwitchRow
 import com.buzzkill.ui.components.DialogActions
 import com.buzzkill.ui.components.GlassDialog
 import com.buzzkill.ui.components.TimeWheel
+import com.buzzkill.ui.theme.FontSizes
+import com.buzzkill.ui.theme.IOSColors
 
 @Composable
 fun ConditionEditorDialog(
@@ -289,8 +291,8 @@ private fun HolidayCalendar() {
         Spacer(Modifier.height(8.dp))
         // Legend.
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LegendDot(Color(0xFFFF3B30), stringResource(R.string.daytype_legal_holiday))
-            LegendDot(Color(0xFFFF9500), stringResource(R.string.daytype_makeup_workday))
+            LegendDot(IOSColors.Red, stringResource(R.string.daytype_legal_holiday))
+            LegendDot(IOSColors.Orange, stringResource(R.string.daytype_makeup_workday))
         }
     }
 }
@@ -315,8 +317,8 @@ private fun CalNavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 
 @Composable
 private fun DayCell(day: Int, type: com.buzzkill.data.model.DayType, isToday: Boolean) {
-    val red = Color(0xFFFF3B30)
-    val orange = Color(0xFFFF9500)
+    val red = IOSColors.Red
+    val orange = IOSColors.Orange
     val (bg, fg, mark) = when (type) {
         com.buzzkill.data.model.DayType.LEGAL_HOLIDAY ->
             Triple(red.copy(alpha = 0.14f), red, stringResource(R.string.holiday_mark_off))
@@ -350,7 +352,7 @@ private fun DayCell(day: Int, type: com.buzzkill.data.model.DayType, isToday: Bo
                 mark,
                 style = MaterialTheme.typography.labelSmall,
                 color = fg,
-                fontSize = androidx.compose.ui.unit.TextUnit(8f, androidx.compose.ui.unit.TextUnitType.Sp),
+                fontSize = FontSizes.Tiny,
                 modifier = Modifier.align(Alignment.TopEnd),
             )
         }
