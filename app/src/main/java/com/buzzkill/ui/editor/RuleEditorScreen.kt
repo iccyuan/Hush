@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
@@ -222,6 +224,27 @@ fun RuleEditorScreen(
                     title = stringResource(R.string.stop_processing),
                     trailing = { IOSSwitch(rule.stopProcessing) { vm.setStopProcessing(it) } },
                 )
+                HairlineDivider(startInset = 16.dp)
+                IOSRow(
+                    title = stringResource(R.string.danmaku_switch),
+                    subtitle = stringResource(R.string.danmaku_switch_hint),
+                    icon = Icons.Filled.Subtitles,
+                    iconColor = Color(0xFFAF52DE),
+                    trailing = { IOSSwitch(rule.showDanmaku) { vm.setShowDanmaku(it) } },
+                )
+                // When danmaku is on but the overlay permission is missing, offer to grant it.
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                if (rule.showDanmaku && !com.buzzkill.service.DanmakuController.canShow(ctx)) {
+                    HairlineDivider(startInset = 16.dp)
+                    IOSRow(
+                        title = stringResource(R.string.grant_overlay),
+                        icon = Icons.Filled.OpenInNew,
+                        iconColor = Color(0xFFFF9500),
+                        onClick = {
+                            ctx.startActivity(com.buzzkill.service.DanmakuController.overlaySettingsIntent(ctx))
+                        },
+                    )
+                }
                 HairlineDivider(startInset = 16.dp)
                 Column(Modifier.padding(12.dp)) {
                     LabeledTextField(stringResource(R.string.notes), rule.notes, singleLine = false) {

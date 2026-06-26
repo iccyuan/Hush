@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import com.buzzkill.data.model.NotificationLog
 import com.buzzkill.data.model.Rule
 
-@Database(entities = [Rule::class, NotificationLog::class], version = 2, exportSchema = false)
+@Database(entities = [Rule::class, NotificationLog::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao

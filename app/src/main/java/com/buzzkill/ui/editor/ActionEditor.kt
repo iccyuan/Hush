@@ -183,21 +183,6 @@ private fun ActionFields(action: Action, onChange: (Action) -> Unit) {
         is Action.MuteAppAction -> IntField(stringResource(R.string.minutes), a.minutes) {
             onChange(a.copy(minutes = it))
         }
-        is Action.DanmakuAction -> Column {
-            LabeledTextField(stringResource(R.string.danmaku_template), a.template, singleLine = false) {
-                onChange(a.copy(template = it))
-            }
-            TemplateHint()
-            val context = androidx.compose.ui.platform.LocalContext.current
-            if (!com.buzzkill.service.DanmakuController.canShow(context)) {
-                Spacer(Modifier.height(4.dp))
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        context.startActivity(com.buzzkill.service.DanmakuController.overlaySettingsIntent(context))
-                    },
-                ) { Text(stringResource(R.string.grant_overlay)) }
-            }
-        }
     }
 }
 
@@ -229,6 +214,5 @@ private fun actionTitle(action: Action): String = stringResource(
         is Action.RunTaskerAction -> R.string.cat_act_tasker
         is Action.WebhookAction -> R.string.cat_act_webhook
         is Action.MuteAppAction -> R.string.cat_act_mute
-        is Action.DanmakuAction -> R.string.cat_act_danmaku
     }
 )

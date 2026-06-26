@@ -26,6 +26,11 @@ data class Rule(
     val actions: List<Action> = emptyList(),
     /** If true, no later rules are evaluated once this one fires. */
     val stopProcessing: Boolean = false,
+    /**
+     * If true, a matching notification is shown as a scrolling "danmaku" overlay bullet
+     * instead of the native notification (requires draw-over-other-apps permission).
+     */
+    val showDanmaku: Boolean = false,
     /** Lifetime count of how many notifications this rule has acted on. */
     val fireCount: Long = 0,
     val notes: String = "",

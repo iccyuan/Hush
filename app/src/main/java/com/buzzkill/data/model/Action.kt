@@ -183,19 +183,4 @@ sealed class Action {
     ) : Action() {
         override fun summary() = "Mute this app for ${minutes}m"
     }
-
-    /**
-     * Show the notification as a scrolling "danmaku" bullet across the screen via an
-     * overlay window, instead of the native notification (the native one is suppressed).
-     * Requires the draw-over-other-apps permission.
-     */
-    @Serializable
-    @SerialName("danmaku")
-    data class DanmakuAction(
-        override val id: String,
-        val template: String = "{app}: {title} {text}",
-        val durationMs: Long = 7000,
-    ) : Action() {
-        override fun summary() = "Danmaku \"$template\""
-    }
 }

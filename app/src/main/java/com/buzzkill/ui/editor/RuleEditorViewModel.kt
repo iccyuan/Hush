@@ -40,6 +40,7 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setNotes(notes: String) = update { it.copy(notes = notes) }
     fun setEnabled(enabled: Boolean) = update { it.copy(enabled = enabled) }
     fun setStopProcessing(stop: Boolean) = update { it.copy(stopProcessing = stop) }
+    fun setShowDanmaku(show: Boolean) = update { it.copy(showDanmaku = show) }
     fun setTriggerLogic(logic: LogicMode) = update { it.copy(triggerLogic = logic) }
     fun setApps(packages: List<String>) = update { it.copy(appPackages = packages) }
 

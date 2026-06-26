@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Snooze
-import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.graphics.Color
@@ -135,9 +134,6 @@ object ComponentCatalog {
         CatalogEntry(R.string.cat_act_mute, R.string.cat_act_mute_desc, Icons.Filled.NotificationsOff, Red) {
             Action.MuteAppAction(Ids.next())
         },
-        CatalogEntry(R.string.cat_act_danmaku, R.string.cat_act_danmaku_desc, Icons.Filled.Subtitles, Purple) {
-            Action.DanmakuAction(Ids.next())
-        },
     )
 }
 
@@ -174,6 +170,5 @@ object ComponentVisuals {
         is Action.RunTaskerAction -> Icons.Filled.Bolt to Orange
         is Action.WebhookAction -> Icons.Filled.Cloud to Blue
         is Action.MuteAppAction -> Icons.Filled.NotificationsOff to Red
-        is Action.DanmakuAction -> Icons.Filled.Subtitles to Purple
     }
 }

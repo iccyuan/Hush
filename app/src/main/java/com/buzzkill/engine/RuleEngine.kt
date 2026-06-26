@@ -46,6 +46,14 @@ class RuleEngine {
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision)
 
+            // Danmaku is a per-rule switch (not an action): show the notification as a
+            // scrolling overlay bullet when the rule matches.
+            if (rule.showDanmaku) {
+                decision.sideEffects.add(
+                    SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
+                )
+            }
+
             decision.matched = true
             decision.firedRuleIds.add(rule.id)
             startCooldownIfAny(rule, ctx)
@@ -195,10 +203,6 @@ class RuleEngine {
                 )
             is Action.MuteAppAction ->
                 decision.sideEffects.add(SideEffect.MuteApp(ctx.packageName, action.minutes))
-            is Action.DanmakuAction ->
-                decision.sideEffects.add(
-                    SideEffect.Danmaku(TemplateEngine.render(action.template, ctx), action.durationMs)
-                )
         }
     }
 
@@ -236,6 +240,10 @@ class RuleEngine {
     }
 
     private companion object {
+        /** Default danmaku rendering for the per-rule switch. */
+        const val DANMAKU_TEMPLATE = "{app}: {title} {text}"
+        const val DANMAKU_DURATION_MS = 7000L
+
         /** Neutral device state for content-only preview matching. */
         val PREVIEW_DEVICE = DeviceContext(
             charging = false,
