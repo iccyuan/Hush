@@ -53,6 +53,7 @@ import com.buzzkill.ui.components.HairlineDivider
 import com.buzzkill.ui.components.IOSRow
 import com.buzzkill.ui.components.IOSSwitch
 import com.buzzkill.ui.components.InsetGroupedSection
+import com.buzzkill.ui.components.cardFrost
 
 @Composable
 fun RuleListScreen(
@@ -165,8 +166,9 @@ private fun SwipeableRuleRow(
             }
         },
     ) {
-        // Opaque surface so the red background only shows while swiping.
-        Box(Modifier.background(MaterialTheme.colorScheme.surface)) {
+        // Frosted-glass surface (not flat colour) so the card blur shows through, while
+        // still fully covering the red delete background until the row is swiped.
+        Box(Modifier.cardFrost()) {
             IOSRow(
                 title = rule.name,
                 subtitle = summarize(rule),
