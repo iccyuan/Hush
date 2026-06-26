@@ -20,10 +20,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.buzzkill.ui.editor.RuleEditorScreen
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -35,27 +37,50 @@ import com.buzzkill.ui.history.HistoryScreen
 import com.buzzkill.ui.list.RuleListScreen
 import com.buzzkill.ui.settings.SettingsScreen
 
-enum class MainTab { RULES, HISTORY, SETTINGS }
+enum class MainTab { RULES, HISTORY, ADD, SETTINGS }
 
 /**
- * The tabbed home: Rules / History / Settings share a frosted bottom tab bar, with a
- * prominent Add action between History and Settings that pushes the rule editor.
+ * The tabbed home: Rules / History / Add / Settings share a frosted bottom tab bar.
+ * Add is a real tab page hosting the new-rule editor (no jarring page push); it gets a
+ * fresh editor session each time it's opened.
+ *
+ * (Swipe-to-page between tabs is intentionally NOT used: the Rules and History lists use
+ * horizontal swipe-to-delete, which can't be disambiguated from a tab-paging swipe.)
  */
 @Composable
-fun MainScaffold(onOpenRule: (Long) -> Unit, onNewRule: () -> Unit) {
+fun MainScaffold(onOpenRule: (Long) -> Unit) {
     var tab by rememberSaveable { mutableStateOf(MainTab.RULES) }
+    var addSession by remember { mutableIntStateOf(0) }
     val bar: @Composable () -> Unit = {
-        BottomTabBar(current = tab, onSelect = { tab = it }, onAdd = onNewRule)
+        BottomTabBar(
+            current = tab,
+            onSelect = { selected ->
+                if (selected == MainTab.ADD && tab != MainTab.ADD) addSession++
+                tab = selected
+            },
+        )
     }
     when (tab) {
-        MainTab.RULES -> RuleListScreen(onOpenRule = onOpenRule, onNewRule = onNewRule, bottomBar = bar)
+        MainTab.RULES -> RuleListScreen(
+            onOpenRule = onOpenRule,
+            onNewRule = { addSession++; tab = MainTab.ADD },
+            bottomBar = bar,
+        )
         MainTab.HISTORY -> HistoryScreen(bottomBar = bar)
+        MainTab.ADD -> androidx.compose.runtime.key(addSession) {
+            RuleEditorScreen(
+                ruleId = 0L,
+                onDone = { tab = MainTab.RULES },
+                bottomBar = bar,
+                vm = androidx.lifecycle.viewmodel.compose.viewModel(key = "new-rule-$addSession"),
+            )
+        }
         MainTab.SETTINGS -> SettingsScreen(bottomBar = bar)
     }
 }
 
 @Composable
-private fun BottomTabBar(current: MainTab, onSelect: (MainTab) -> Unit, onAdd: () -> Unit) {
+private fun BottomTabBar(current: MainTab, onSelect: (MainTab) -> Unit) {
     Row(
         Modifier.fillMaxWidth().height(54.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -68,12 +93,10 @@ private fun BottomTabBar(current: MainTab, onSelect: (MainTab) -> Unit, onAdd: (
             Icons.Filled.History, stringResource(R.string.nav_history),
             current == MainTab.HISTORY, Modifier.weight(1f),
         ) { onSelect(MainTab.HISTORY) }
-        // Add is an action, not a destination — rendered like an inactive tab so it
-        // sits quietly in the bar rather than shouting.
         TabItem(
             Icons.Filled.AddCircleOutline, stringResource(R.string.tab_add),
-            selected = false, modifier = Modifier.weight(1f),
-        ) { onAdd() }
+            current == MainTab.ADD, Modifier.weight(1f),
+        ) { onSelect(MainTab.ADD) }
         TabItem(
             Icons.Filled.Settings, stringResource(R.string.settings),
             current == MainTab.SETTINGS, Modifier.weight(1f),

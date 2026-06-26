@@ -67,6 +67,7 @@ private enum class AddKind { TRIGGER, CONDITION, ACTION }
 fun RuleEditorScreen(
     ruleId: Long,
     onDone: () -> Unit,
+    bottomBar: (@Composable () -> Unit)? = null,
     vm: RuleEditorViewModel = viewModel(),
 ) {
     LaunchedEffect(ruleId) { vm.load(ruleId) }
@@ -97,7 +98,9 @@ fun RuleEditorScreen(
 
     GlassScaffold(
         title = stringResource(if (ruleId == 0L) R.string.new_rule else R.string.edit_rule),
-        onBack = onDone,
+        // As a tab (bottomBar present) there's no back arrow; as a push it has one.
+        onBack = if (bottomBar != null) null else onDone,
+        bottomBar = bottomBar,
         actions = {
             TextButton(onClick = { vm.save(onDone) }) { Text(stringResource(R.string.save)) }
         },

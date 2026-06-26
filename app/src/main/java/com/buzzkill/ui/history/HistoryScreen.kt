@@ -83,18 +83,16 @@ fun HistoryScreen(
             }
         },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (logs.isEmpty()) {
-                item { EmptyHistory() }
-                return@LazyColumn
-            }
-            item { Spacer(Modifier.height(4.dp)) }
-            item { StatsCard(filtered) }
-            item {
+        if (logs.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding)) { EmptyHistory() }
+            return@GlassScaffold
+        }
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Fixed header: stats + grouping toggle + app filter stay pinned so you never
+            // have to scroll back up to change them.
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Spacer(Modifier.height(4.dp))
+                StatsCard(filtered)
                 Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     com.buzzkill.ui.components.IOSSegmented(
                         options = listOf(Grouping.DAY, Grouping.WEEK),
@@ -103,10 +101,16 @@ fun HistoryScreen(
                         onSelect = { grouping = it },
                     )
                 }
+                AppFilterChips(appList, selectedApp) { selectedApp = it }
             }
-            item { AppFilterChips(appList, selectedApp) { selectedApp = it } }
+            Spacer(Modifier.height(12.dp))
 
+            // Only the grouped log list scrolls.
             val groups = groupLogs(filtered, grouping)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
             groups.forEach { (header, items) ->
                 item {
                     Text(
@@ -126,6 +130,7 @@ fun HistoryScreen(
                 }
             }
             item { Spacer(Modifier.height(24.dp)) }
+            }
         }
     }
 }

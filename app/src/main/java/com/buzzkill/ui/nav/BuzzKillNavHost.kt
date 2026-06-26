@@ -32,7 +32,6 @@ fun BuzzKillNavHost() {
         composable(Routes.MAIN) {
             MainScaffold(
                 onOpenRule = { id -> nav.navigate(Routes.editor(id)) },
-                onNewRule = { nav.navigate(Routes.editor(0L)) },
             )
         }
         composable(

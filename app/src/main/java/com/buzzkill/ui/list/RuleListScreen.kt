@@ -20,8 +20,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Weekend
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.outlined.Weekend
+import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
@@ -183,7 +183,7 @@ private fun TodayOverrideCard() {
         ) {
             TodayButton(
                 label = stringResource(R.string.today_rest),
-                icon = Icons.Filled.Weekend,
+                icon = Icons.Outlined.Weekend,
                 color = Color(0xFFFF3B30),
                 active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_REST,
                 modifier = Modifier.weight(1f),
@@ -195,7 +195,7 @@ private fun TodayOverrideCard() {
             }
             TodayButton(
                 label = stringResource(R.string.today_work),
-                icon = Icons.Filled.Work,
+                icon = Icons.Outlined.Work,
                 color = Color(0xFFFF9500),
                 active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_WORK,
                 modifier = Modifier.weight(1f),
@@ -218,9 +218,9 @@ private fun TodayButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val bg = if (active) color.copy(alpha = 0.16f)
-    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.08f)
-    val fg = if (active) color else MaterialTheme.colorScheme.onSurface
+    // Always use the accent colour (not black) so the buttons stay light and uncluttered.
+    val bg = color.copy(alpha = if (active) 0.18f else 0.08f)
+    val fg = color
     Row(
         modifier
             .clip(RoundedCornerShape(12.dp))
