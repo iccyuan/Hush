@@ -317,22 +317,31 @@ private fun PreviewSection(rule: com.buzzkill.data.model.Rule) {
             com.buzzkill.data.NotificationLogRepository.get(context).recent(200)
         }
     }
-    val matches = remember(rule, logs) {
-        logs.filter { engine.previewMatches(rule, it.packageName, it.title, it.text) }
+    // A rule with no triggers and no app filter matches *everything*, so previewing it
+    // would just dump the whole log — not a meaningful preview. Treat that as unconstrained.
+    val unconstrained = rule.matchesEverything && rule.appPackages.isEmpty()
+    val matches = remember(rule, logs, unconstrained) {
+        if (unconstrained) emptyList()
+        else logs
+            // Skip blank notifications (no title and no text) — they render as empty rows.
+            .filter { it.title.isNotBlank() || it.text.isNotBlank() }
+            .filter { engine.previewMatches(rule, it.packageName, it.title, it.text) }
             .distinctBy { it.packageName + "|" + it.title + "|" + it.text }
             .take(15)
     }
     InsetGroupedSection(
         header = stringResource(R.string.preview_title),
-        footer = stringResource(R.string.preview_hint),
+        footer = if (matches.isNotEmpty())
+            stringResource(R.string.preview_match_count, matches.size)
+        else stringResource(R.string.preview_hint),
     ) {
-        if (matches.isEmpty()) {
-            IOSRow(title = stringResource(R.string.preview_none))
-        } else {
-            matches.forEachIndexed { i, log ->
+        when {
+            unconstrained -> IOSRow(title = stringResource(R.string.preview_unconstrained))
+            matches.isEmpty() -> IOSRow(title = stringResource(R.string.preview_none))
+            else -> matches.forEachIndexed { i, log ->
                 if (i > 0) HairlineDivider(startInset = 16.dp)
                 val sub = listOf(log.title, log.text).filter { it.isNotBlank() }.joinToString(" · ")
-                IOSRow(title = log.appName, subtitle = sub.ifBlank { null })
+                IOSRow(title = log.appName.ifBlank { log.packageName }, subtitle = sub.ifBlank { null })
             }
         }
     }
