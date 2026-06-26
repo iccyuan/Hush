@@ -5,7 +5,11 @@
 
 package com.buzzkill.ui.editor
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -15,8 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,18 +90,40 @@ fun ConditionEditorDialog(
 
 @Composable
 private fun TimeConditionFields(c: Condition.TimeCondition, onChange: (Condition.TimeCondition) -> Unit) {
+    // Which field the inline wheel is editing (0 = start, 1 = end, null = collapsed).
+    var editing by remember { mutableStateOf<Int?>(null) }
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TimeField(
+            TimeChip(
                 label = stringResource(R.string.start_time),
                 minuteOfDay = c.startMinute,
+                active = editing == 0,
                 modifier = Modifier.weight(1f),
-            ) { onChange(c.copy(startMinute = it)) }
-            TimeField(
+            ) { editing = if (editing == 0) null else 0 }
+            TimeChip(
                 label = stringResource(R.string.end_time),
                 minuteOfDay = c.endMinute,
+                active = editing == 1,
                 modifier = Modifier.weight(1f),
-            ) { onChange(c.copy(endMinute = it)) }
+            ) { editing = if (editing == 1) null else 1 }
+        }
+        // Inline wheel — expands within this same dialog (no second popup).
+        androidx.compose.animation.AnimatedVisibility(visible = editing != null) {
+            val minutes = if (editing == 1) c.endMinute else c.startMinute
+            androidx.compose.runtime.key(editing) {
+                Column {
+                    Spacer(Modifier.height(8.dp))
+                    TimeWheel(
+                        hour = minutes / 60,
+                        minute = minutes % 60,
+                        onChange = { h, m ->
+                            val v = h * 60 + m
+                            if (editing == 1) onChange(c.copy(endMinute = v))
+                            else onChange(c.copy(startMinute = v))
+                        },
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(10.dp))
         Text(stringResource(R.string.cond_days), style = MaterialTheme.typography.labelLarge)
@@ -149,40 +175,39 @@ private fun HolidayConditionFields(
     }
 }
 
-/** A clickable HH:MM field backed by an iOS-style wheel time picker. */
+/** A tappable HH:MM chip; tapping toggles the inline wheel for this field. */
 @Composable
-private fun TimeField(
+private fun TimeChip(
     label: String,
     minuteOfDay: Int,
+    active: Boolean,
     modifier: Modifier = Modifier,
-    onChange: (Int) -> Unit,
+    onClick: () -> Unit,
 ) {
-    var showPicker by remember { mutableStateOf(false) }
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = { showPicker = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60))
-        }
-    }
-    if (showPicker) {
-        var hour by remember { mutableStateOf(minuteOfDay / 60) }
-        var minute by remember { mutableStateOf(minuteOfDay % 60) }
-        GlassDialog(onDismiss = { showPicker = false }) {
+        Spacer(Modifier.height(4.dp))
+        val border by androidx.compose.animation.animateColorAsState(
+            if (active) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+            label = "timeChipBorder",
+        )
+        val bg = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f) else androidx.compose.ui.graphics.Color.Transparent
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                .background(bg)
+                .border(1.dp, border, androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
             Text(
-                label,
+                "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(8.dp))
-            TimeWheel(hour = hour, minute = minute, onChange = { h, m -> hour = h; minute = m })
-            DialogActions(
-                confirmText = stringResource(R.string.done),
-                onConfirm = {
-                    onChange(hour * 60 + minute)
-                    showPicker = false
-                },
-                secondaryText = stringResource(R.string.cancel),
-                onSecondary = { showPicker = false },
+                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
         }
     }
