@@ -296,7 +296,7 @@ fun IOSTintedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bg = if (LocalIsDarkTheme.current) Color(0x33787880) else Color(0x1F787880)
+    val bg = if (LocalIsDarkTheme.current) IOSColors.ControlFillDark else IOSColors.ControlFillLight
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -320,7 +320,7 @@ fun IOSSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
             checkedThumbColor = Color.White,
             checkedTrackColor = IOSColors.Green,
             uncheckedThumbColor = Color.White,
-            uncheckedTrackColor = if (LocalIsDarkTheme.current) Color(0xFF39393D) else Color(0xFFE9E9EA),
+            uncheckedTrackColor = if (LocalIsDarkTheme.current) IOSColors.SwitchTrackOffDark else IOSColors.SwitchTrackOffLight,
             uncheckedBorderColor = Color.Transparent,
         ),
     )
@@ -339,8 +339,8 @@ fun <T> IOSSegmented(
     modifier: Modifier = Modifier,
 ) {
     val dark = LocalIsDarkTheme.current
-    val trackColor = if (dark) Color(0xFF2C2C2E) else Color(0xFF787880).copy(alpha = 0.12f)
-    val pillColor = if (dark) Color(0xFF636366) else Color.White
+    val trackColor = if (dark) IOSColors.SegmentTrackDark else IOSColors.ControlFillLight
+    val pillColor = if (dark) IOSColors.SegmentPillDark else Color.White
     val count = options.size
     val selIndex = options.indexOf(selected).coerceAtLeast(0)
     val anim by animateFloatAsState(

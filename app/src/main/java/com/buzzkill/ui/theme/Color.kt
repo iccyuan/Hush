@@ -41,4 +41,12 @@ object IOSColors {
     val GradientBottomLight = Color(0xFFF2F2F7)
     val GradientTopDark = Color(0xFF15151A)
     val GradientBottomDark = Color(0xFF000000)
+
+    // iOS 控件专用的灰色填充/轨道色（取自原先散落在各控件里的硬编码值）
+    val ControlFillLight = Color(0x1F787880)     // 浅色：分段控件轨道 / 描边按钮底
+    val ControlFillDark = Color(0x33787880)      // 深色：描边按钮底
+    val SegmentTrackDark = Color(0xFF2C2C2E)     // 深色：分段控件轨道
+    val SegmentPillDark = Color(0xFF636366)      // 深色：分段控件选中胶囊
+    val SwitchTrackOffLight = Color(0xFFE9E9EA)  // 浅色：开关关闭态轨道
+    val SwitchTrackOffDark = Color(0xFF39393D)   // 深色：开关关闭态轨道
 }
