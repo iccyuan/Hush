@@ -2,7 +2,7 @@ package com.buzzkill.data.model
 
 import kotlinx.serialization.Serializable
 
-/** Which part of a notification a trigger or action targets. */
+/** 触发器或动作所针对的通知部位。 */
 @Serializable
 enum class NotificationField(val label: String) {
     TITLE("Title"),
@@ -15,7 +15,7 @@ enum class NotificationField(val label: String) {
     ANY("Any field");
 }
 
-/** How a [TextTrigger] / [ReplaceTextAction] query is compared against text. */
+/** [TextTrigger] / [ReplaceTextAction] 的查询内容与文本进行比较的方式。 */
 @Serializable
 enum class MatchMode(val label: String) {
     CONTAINS("contains"),
@@ -26,14 +26,14 @@ enum class MatchMode(val label: String) {
     WILDCARD("matches wildcard");
 }
 
-/** Whether ALL or ANY triggers/conditions must hold for a rule to fire. */
+/** 规则触发时，是要求所有（ALL）还是任意（ANY）触发器/条件成立。 */
 @Serializable
 enum class LogicMode(val label: String) {
     ALL("Match all"),
     ANY("Match any");
 }
 
-/** Notification importance levels mapped onto NotificationManager constants. */
+/** 映射到 NotificationManager 常量的通知重要性级别。 */
 @Serializable
 enum class Importance(val label: String) {
     MIN("Min — no sound, collapsed"),
@@ -43,7 +43,7 @@ enum class Importance(val label: String) {
     URGENT("Urgent — peek + sound");
 }
 
-/** Vibration intensity presets for [SoundVibrationAction]. */
+/** [SoundVibrationAction] 的振动强度预设。 */
 @Serializable
 enum class VibrationPreset(val label: String, val pattern: LongArray) {
     NONE("None", longArrayOf(0)),
@@ -54,22 +54,22 @@ enum class VibrationPreset(val label: String, val pattern: LongArray) {
     HEARTBEAT("Heartbeat", longArrayOf(0, 100, 80, 100, 80, 300));
 }
 
-/** HTTP verb for [WebhookAction]. */
+/** [WebhookAction] 使用的 HTTP 方法。 */
 @Serializable
 enum class HttpMethod { GET, POST, PUT }
 
 /**
- * Classification of a calendar day for the holiday condition. Determined by the
- * bundled Chinese statutory-holiday calendar plus weekday/weekend fallback.
+ * 用于节假日条件的日历日期分类。由内置的中国法定节假日日历
+ * 加上工作日/周末的兜底规则决定。
  */
 @Serializable
 enum class DayType {
-    /** A statutory day off (法定节假日). */
+    /** 法定休息日（法定节假日）。 */
     LEGAL_HOLIDAY,
-    /** A weekend day that the calendar declares a working day (调休上班). */
+    /** 日历将其声明为工作日的周末（调休上班）。 */
     MAKEUP_WORKDAY,
-    /** An ordinary Saturday/Sunday with no override. */
+    /** 没有特殊调整的普通周六/周日。 */
     WEEKEND,
-    /** An ordinary Monday–Friday working day. */
+    /** 普通的周一至周五工作日。 */
     WORKDAY,
 }

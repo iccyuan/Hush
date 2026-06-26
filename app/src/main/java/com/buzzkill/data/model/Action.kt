@@ -4,20 +4,20 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * An action mutates the notification or performs a side effect once a rule fires.
- * Actions run in order. Some actions ([DiscardAction], [DismissAction]) short-circuit
- * further posting of the notification.
+ * 当规则触发后，动作会修改通知或执行副作用。
+ * 动作按顺序执行。某些动作（[DiscardAction]、[DismissAction]）会中断
+ * 通知的后续发布。
  *
- * Templates ([SetFieldAction.template], [ReadAloudAction.template], …) support
- * placeholders resolved by the template engine: {title} {text} {app} {1}…{9}
- * (regex captures) and {var:name} (user variables).
+ * 模板（[SetFieldAction.template]、[ReadAloudAction.template] 等）支持
+ * 由模板引擎解析的占位符：{title} {text} {app} {1}…{9}
+ *（正则捕获组）以及 {var:name}（用户变量）。
  */
 @Serializable
 sealed class Action {
     abstract val id: String
     abstract fun summary(): String
 
-    /** Find/replace inside a field; supports regex with $1 back-references. */
+    /** 在某个字段内进行查找/替换；支持使用 $1 反向引用的正则表达式。 */
     @Serializable
     @SerialName("replace")
     data class ReplaceTextAction(
@@ -32,7 +32,7 @@ sealed class Action {
             "Replace \"$pattern\" → \"$replacement\" in ${field.label}"
     }
 
-    /** Overwrite a field with a rendered template. */
+    /** 用渲染后的模板覆盖某个字段。 */
     @Serializable
     @SerialName("setField")
     data class SetFieldAction(
@@ -43,14 +43,14 @@ sealed class Action {
         override fun summary() = "Set ${field.label} to \"$template\""
     }
 
-    /** Suppress the notification entirely — it never reaches the shade. */
+    /** 完全抑制该通知——它永远不会出现在通知栏中。 */
     @Serializable
     @SerialName("discard")
     data class DiscardAction(override val id: String) : Action() {
         override fun summary() = "Discard notification"
     }
 
-    /** Cancel/dismiss the notification, optionally after a delay (ms). */
+    /** 取消/移除该通知，可选择在延迟（毫秒）之后执行。 */
     @Serializable
     @SerialName("dismiss")
     data class DismissAction(
@@ -61,7 +61,7 @@ sealed class Action {
             if (delayMs > 0) "Dismiss after ${delayMs}ms" else "Dismiss notification"
     }
 
-    /** Snooze the notification for [minutes]; it returns to the shade later. */
+    /** 将通知延后 [minutes] 分钟；稍后它会重新回到通知栏。 */
     @Serializable
     @SerialName("snooze")
     data class SnoozeAction(
@@ -71,7 +71,7 @@ sealed class Action {
         override fun summary() = "Snooze for ${minutes}m"
     }
 
-    /** Change importance / DND bypass of the reposted notification. */
+    /** 修改重新发布通知的重要性 / 免打扰绕过设置。 */
     @Serializable
     @SerialName("importance")
     data class MarkImportantAction(
@@ -83,7 +83,7 @@ sealed class Action {
             "Set importance ${importance.name}" + if (bypassDnd) " + bypass DND" else ""
     }
 
-    /** Override sound / vibration of the reposted notification. */
+    /** 覆盖重新发布通知的声音 / 振动设置。 */
     @Serializable
     @SerialName("soundVibration")
     data class SoundVibrationAction(
@@ -98,7 +98,7 @@ sealed class Action {
         }
     }
 
-    /** Auto-reply using the notification's inline RemoteInput, if present. */
+    /** 若通知存在内联 RemoteInput，则使用它进行自动回复。 */
     @Serializable
     @SerialName("autoReply")
     data class AutoReplyAction(
@@ -108,7 +108,7 @@ sealed class Action {
         override fun summary() = "Auto-reply \"$message\""
     }
 
-    /** Speak a rendered template aloud through text-to-speech. */
+    /** 通过文字转语音朗读渲染后的模板。 */
     @Serializable
     @SerialName("readAloud")
     data class ReadAloudAction(
@@ -118,7 +118,7 @@ sealed class Action {
         override fun summary() = "Read aloud \"$template\""
     }
 
-    /** Briefly turn the screen on. */
+    /** 短暂点亮屏幕。 */
     @Serializable
     @SerialName("wakeScreen")
     data class WakeScreenAction(
@@ -128,7 +128,7 @@ sealed class Action {
         override fun summary() = "Wake screen for ${durationMs}ms"
     }
 
-    /** Show a transient toast with a rendered template. */
+    /** 用渲染后的模板显示一个短暂的 toast 提示。 */
     @Serializable
     @SerialName("toast")
     data class ToastAction(
@@ -138,7 +138,7 @@ sealed class Action {
         override fun summary() = "Toast \"$template\""
     }
 
-    /** Set/update a user variable from a rendered template. */
+    /** 根据渲染后的模板设置/更新一个用户变量。 */
     @Serializable
     @SerialName("setVariable")
     data class SetVariableAction(
@@ -149,7 +149,7 @@ sealed class Action {
         override fun summary() = "Set \$$name = \"$valueTemplate\""
     }
 
-    /** Broadcast an intent to trigger a Tasker task by name. */
+    /** 广播一个 intent，按名称触发指定的 Tasker 任务。 */
     @Serializable
     @SerialName("tasker")
     data class RunTaskerAction(
@@ -159,7 +159,7 @@ sealed class Action {
         override fun summary() = "Run Tasker task \"$taskName\""
     }
 
-    /** Fire an HTTP request, e.g. to a webhook / home automation. */
+    /** 发起一个 HTTP 请求，例如发送到 webhook / 智能家居自动化。 */
     @Serializable
     @SerialName("webhook")
     data class WebhookAction(
@@ -172,8 +172,8 @@ sealed class Action {
     }
 
     /**
-     * Mute every notification from the triggering app for [minutes]. Implemented
-     * as a temporary discard window keyed by package name.
+     * 在 [minutes] 分钟内静音触发应用的所有通知。该功能实现为
+     * 以包名为键的临时丢弃时间窗口。
      */
     @Serializable
     @SerialName("muteApp")

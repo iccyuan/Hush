@@ -22,25 +22,25 @@ import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.HazeMaterials
 
 /**
- * All Haze (frosted-glass) usage is funnelled through this file. The blur source is a
- * very faint coloured backdrop ([GlassBackdrop]); the cards, bars and dialogs frost it.
- * A smooth/empty backdrop blurs to nothing, so a touch of colour is what makes the
- * glass actually read — kept deliberately subtle here.
+ * 所有 Haze（毛玻璃）的使用都集中通过此文件处理。模糊源是一个
+ * 非常淡的彩色背景（[GlassBackdrop]）；卡片、栏和对话框对其进行磨砂处理。
+ * 平滑/空白的背景模糊后什么也看不到，所以一点点颜色才能让
+ * 玻璃效果真正显现——这里特意保持得很微妙。
  */
 
-/** The single backdrop blur source provided to bars/dialogs. */
+/** 提供给栏/对话框的单一背景模糊源。 */
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
-/** Same source, exposed to cards (kept separate so call sites read clearly). */
+/** 同一来源，暴露给卡片使用（单独保留以便调用处更清晰易读）。 */
 val LocalCardHazeState = staticCompositionLocalOf<HazeState?> { null }
 
 @Composable
 fun rememberAppHazeState(): HazeState = remember { HazeState() }
 
-/** Marks a composable as the blur source. */
+/** 将某个可组合项标记为模糊源。 */
 fun Modifier.hazeSourceLayer(state: HazeState): Modifier = this.haze(state)
 
-/** Frosted-glass material over whatever [state] captured (used by bars and dialogs). */
+/** 在 [state] 所捕获内容之上叠加的毛玻璃材质（由栏和对话框使用）。 */
 @Composable
 fun Modifier.frostedOverlay(state: HazeState): Modifier {
     val dark = LocalIsDarkTheme.current
@@ -48,7 +48,7 @@ fun Modifier.frostedOverlay(state: HazeState): Modifier {
     return this.hazeChild(state = state, style = HazeMaterials.thin(container))
 }
 
-/** Card surface as translucent frosted glass over the faint backdrop. */
+/** 卡片表面作为半透明毛玻璃叠加在淡色背景之上。 */
 @Composable
 fun Modifier.cardFrost(): Modifier {
     val dark = LocalIsDarkTheme.current
@@ -62,9 +62,9 @@ fun Modifier.cardFrost(): Modifier {
 }
 
 /**
- * The blur source: a soft gradient plus a few VERY FAINT coloured circles. Drawn in a
- * child [Canvas] so Haze captures it. Faint enough not to be a loud wallpaper, but the
- * hard circle edges still give the frosted glass something to soften.
+ * 模糊源：一个柔和的渐变加上几个非常淡的彩色圆形。绘制在
+ * 子 [Canvas] 中以便 Haze 捕获它。足够淡以免成为喧闹的壁纸，但
+ * 圆形的硬边缘仍能给毛玻璃提供可供柔化的内容。
  */
 @Composable
 fun GlassBackdrop(state: HazeState, modifier: Modifier = Modifier) {
@@ -74,9 +74,9 @@ fun GlassBackdrop(state: HazeState, modifier: Modifier = Modifier) {
     } else {
         listOf(IOSColors.GradientTopLight, IOSColors.GradientBottomLight)
     }
-    // Coloured blobs give the frosted glass something to actually blur — without enough
-    // colour/contrast here, the bars and cards read as flat white. Kept colourful but
-    // softened by a heavy blur into a dreamy wash.
+    // 彩色色块给毛玻璃提供真正可供模糊的内容——如果这里没有足够的
+    // 颜色/对比度，栏和卡片就会显得是一片平白。保持色彩丰富，但
+    // 通过重度模糊柔化成梦幻般的色晕。
     val a = if (dark) 0.24f else 0.18f
     val blue = IOSColors.Blue.copy(alpha = a)
     val purple = IOSColors.Purple.copy(alpha = a)
@@ -84,7 +84,7 @@ fun GlassBackdrop(state: HazeState, modifier: Modifier = Modifier) {
     val teal = Color(0xFF32D6C8).copy(alpha = a)
     val orange = IOSColors.Orange.copy(alpha = a)
     Box(modifier.fillMaxSize().hazeSourceLayer(state)) {
-        // Heavily blur the circles into a soft, dreamy colour wash.
+        // 将圆形重度模糊成柔和、梦幻的色晕。
         Canvas(Modifier.fillMaxSize().blur(60.dp, BlurredEdgeTreatment.Rectangle)) {
             drawRect(Brush.verticalGradient(grad))
             fun disc(color: Color, cx: Float, cy: Float, r: Float) {

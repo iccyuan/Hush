@@ -74,7 +74,7 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            // General
+            // 通用
             InsetGroupedSection(header = stringResource(R.string.settings_general)) {
                 IOSRow(
                     title = stringResource(R.string.settings_master),
@@ -91,7 +91,7 @@ fun SettingsScreen(
                 )
             }
 
-            // Appearance: theme + language
+            // 外观：主题 + 语言
             val themeMode by ThemeStore.mode.collectAsStateWithLifecycle()
             InsetGroupedSection(header = stringResource(R.string.settings_appearance)) {
                 Column(Modifier.padding(16.dp)) {
@@ -123,7 +123,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Holidays (China) — official-derived data, fetched & cached locally.
+            // 节假日（中国）——来源于官方的数据，在本地获取并缓存。
             val holUpdated by vm.holidayUpdated.collectAsStateWithLifecycle()
             val holUpdating by vm.holidayUpdating.collectAsStateWithLifecycle()
             InsetGroupedSection(header = stringResource(R.string.settings_holidays)) {
@@ -153,7 +153,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Notification access
+            // 通知访问权限
             InsetGroupedSection(header = stringResource(R.string.settings_access)) {
                 IOSRow(
                     title = stringResource(R.string.settings_access),
@@ -170,7 +170,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Backup
+            // 备份
             InsetGroupedSection(header = stringResource(R.string.settings_backup)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     IOSTintedButton(

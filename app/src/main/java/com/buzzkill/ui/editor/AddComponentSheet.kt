@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.buzzkill.ui.components.GlassSheet
 import com.buzzkill.ui.components.IconBadge
 
-/** Frosted bottom sheet listing catalog entries of one component kind. */
+/** 磨砂底部弹层，列出某一类组件的目录条目。 */
 @Composable
 fun <T> AddComponentSheet(
     title: String,

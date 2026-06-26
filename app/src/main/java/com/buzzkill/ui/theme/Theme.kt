@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.core.view.WindowCompat
 
-/** Exposes whether the current theme is dark to non-color-scheme consumers (glass tints). */
+/** 向非配色方案的消费者（玻璃色调）暴露当前主题是否为深色。 */
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
 
 private val IOSDarkColors = darkColorScheme(
@@ -47,7 +47,7 @@ private val IOSLightColors = lightColorScheme(
     outline = IOSColors.SeparatorLight,
 )
 
-/** Rounded, iOS-like continuous-corner approximation. */
+/** 圆角的、近似 iOS 连续圆角的形状。 */
 private val IOSShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(10.dp),

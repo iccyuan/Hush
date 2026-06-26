@@ -12,10 +12,9 @@ import android.view.WindowManager
 import android.widget.TextView
 
 /**
- * Shows scrolling "danmaku" bullet text across the top of the screen via an overlay
- * window. Each call adds one bullet that animates from the right edge to off the left,
- * then removes itself. Bullets are placed on a few rotating rows so they don't overlap.
- * Requires the draw-over-other-apps permission.
+ * 通过悬浮窗在屏幕顶部显示滚动的"弹幕"文字。每次调用都会添加一条弹幕，使其从右边缘动画移动
+ * 到左侧屏幕外，然后将自身移除。弹幕会被放置在若干轮换的行上，以避免相互重叠。
+ * 需要"在其他应用上层显示"的权限。
  */
 object DanmakuController {
 
@@ -69,7 +68,7 @@ object DanmakuController {
 
         runCatching { wm.addView(tv, lp) } .onFailure { return }
 
-        // Start off the right edge, then translate left until fully off-screen.
+        // 从右边缘外开始，然后向左平移，直至完全移出屏幕。
         tv.translationX = screenWidth.toFloat()
         tv.post {
             tv.animate()

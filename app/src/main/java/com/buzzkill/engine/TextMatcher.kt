@@ -3,10 +3,10 @@ package com.buzzkill.engine
 import com.buzzkill.data.model.MatchMode
 import java.util.regex.Pattern
 
-/** Result of a text comparison, carrying any regex capture groups. */
+/** 文本比较的结果，携带任意正则捕获组。 */
 data class MatchResult(val matched: Boolean, val groups: Map<String, String> = emptyMap())
 
-/** Stateless comparison helpers shared by triggers and replace actions. */
+/** 由触发器和替换动作共享的无状态比较辅助方法。 */
 object TextMatcher {
 
     fun evaluate(
@@ -42,12 +42,12 @@ object TextMatcher {
                 MatchResult(false)
             }
         } catch (_: Exception) {
-            // An invalid pattern simply never matches rather than crashing the listener.
+            // 无效的模式只会永不匹配，而不会导致监听器崩溃。
             MatchResult(false)
         }
     }
 
-    /** Convert a glob (`*`, `?`) into an anchored regex. */
+    /** 将通配符（`*`、`?`）转换为带锚点的正则表达式。 */
     private fun wildcardToRegex(glob: String): String {
         val sb = StringBuilder("^")
         for (c in glob) {

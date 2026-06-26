@@ -67,8 +67,8 @@ fun HistoryScreen(
     val filtered = remember(logs, selectedApp) {
         if (selectedApp == null) logs else logs.filter { it.packageName == selectedApp }
     }
-    // Apps that appear in the log, most frequent first (so the common ones lead the
-    // horizontally-scrollable filter row even when there are many apps).
+    // 日志中出现过的应用，按出现频率从高到低排列（这样即使应用很多，
+    // 常用应用也会排在可横向滚动的过滤行靠前的位置）。
     val appList = remember(logs) {
         logs.groupingBy { it.packageName }.eachCount()
             .entries.sortedByDescending { it.value }
@@ -90,8 +90,8 @@ fun HistoryScreen(
             return@GlassScaffold
         }
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // Fixed header: stats + grouping toggle + app filter stay pinned so you never
-            // have to scroll back up to change them.
+            // 固定表头：统计 + 分组切换 + 应用过滤始终保持固定，这样无需
+            // 滚回顶部就能更改它们。
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Spacer(Modifier.height(4.dp))
                 StatsCard(filtered)
@@ -107,7 +107,7 @@ fun HistoryScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            // Only the grouped log list scrolls.
+            // 只有分组后的日志列表会滚动。
             val groups = groupLogs(filtered, grouping)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -146,7 +146,7 @@ private fun StatsCard(logs: List<NotificationLog>) {
     logs.forEach {
         cal.timeInMillis = it.time
         hours[cal.get(Calendar.HOUR_OF_DAY)]++
-        days[((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7)]++ // ISO 0=Mon
+        days[((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7)]++ // ISO 0=周一
     }
     val peakHour = hours.indices.maxByOrNull { hours[it] } ?: 0
     val busiestDay = days.indices.maxByOrNull { days[it] } ?: 0
@@ -174,7 +174,7 @@ private fun StatsCard(logs: List<NotificationLog>) {
                 )
             }
             Spacer(Modifier.height(12.dp))
-            // 24-hour histogram.
+            // 24 小时直方图。
             Row(
                 Modifier.fillMaxWidth().height(48.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -204,8 +204,7 @@ private fun AppFilterChips(
     selected: String?,
     onSelect: (String?) -> Unit,
 ) {
-    // A single horizontally-scrollable row keeps the filter compact no matter how many
-    // apps have produced notifications.
+    // 单行可横向滚动，无论有多少应用产生过通知，都能让过滤行保持紧凑。
     androidx.compose.foundation.lazy.LazyRow(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -237,7 +236,7 @@ private fun Chip(label: String, active: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** A log row that slides left to reveal a tappable delete button. */
+/** 一条日志行，向左滑动可露出一个可点击的删除按钮。 */
 @Composable
 private fun SwipeableLogRow(log: NotificationLog, onDelete: () -> Unit) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -246,7 +245,7 @@ private fun SwipeableLogRow(log: NotificationLog, onDelete: () -> Unit) {
     val offsetX = remember { androidx.compose.animation.core.Animatable(0f) }
 
     Box(Modifier.fillMaxWidth()) {
-        // Delete button revealed behind the row on the trailing edge.
+        // 在行后方的尾部边缘露出删除按钮。
         Box(
             Modifier.matchParentSize().background(IOSColors.Red),
             contentAlignment = Alignment.CenterEnd,
@@ -270,7 +269,7 @@ private fun SwipeableLogRow(log: NotificationLog, onDelete: () -> Unit) {
                 Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelSmall, color = Color.White)
             }
         }
-        // Foreground (frosted so it hides the red button when closed), slides on drag.
+        // 前景（磨砂效果，关闭时遮住红色按钮），拖动时随之滑动。
         Box(
             Modifier
                 .offset { androidx.compose.ui.unit.IntOffset(offsetX.value.toInt(), 0) }
@@ -295,7 +294,7 @@ private fun SwipeableLogRow(log: NotificationLog, onDelete: () -> Unit) {
 
 @Composable
 private fun LogRow(log: NotificationLog) {
-    // Keyed by id so the expanded row follows its log when the list changes (e.g. after a delete).
+    // 以 id 作为 key，这样当列表发生变化（例如删除后）时，展开状态能跟随其对应的日志。
     var expanded by remember(log.id) { mutableStateOf(false) }
     Column(
         Modifier

@@ -44,7 +44,7 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setTriggerLogic(logic: LogicMode) = update { it.copy(triggerLogic = logic) }
     fun setApps(packages: List<String>) = update { it.copy(appPackages = packages) }
 
-    // --- Triggers ---
+    // --- 触发器 ---
     fun addTrigger(trigger: Trigger) = update { it.copy(triggers = it.triggers + trigger) }
     fun updateTrigger(trigger: Trigger) = update {
         it.copy(triggers = it.triggers.map { t -> if (t.id == trigger.id) trigger else t })
@@ -53,7 +53,7 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
         it.copy(triggers = it.triggers.filterNot { t -> t.id == id })
     }
 
-    // --- Conditions ---
+    // --- 条件 ---
     fun addCondition(condition: Condition) = update { it.copy(conditions = it.conditions + condition) }
     fun updateCondition(condition: Condition) = update {
         it.copy(conditions = it.conditions.map { c -> if (c.id == condition.id) condition else c })
@@ -62,7 +62,7 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
         it.copy(conditions = it.conditions.filterNot { c -> c.id == id })
     }
 
-    // --- Actions ---
+    // --- 动作 ---
     fun addAction(action: Action) = update { it.copy(actions = it.actions + action) }
     fun updateAction(action: Action) = update {
         it.copy(actions = it.actions.map { a -> if (a.id == action.id) action else a })

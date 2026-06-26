@@ -5,9 +5,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * App language override. Backed by SharedPreferences (read synchronously in
- * Activity.attachBaseContext) and mirrored into a StateFlow so the UI re-localizes
- * instantly — no Activity recreate.
+ * 应用语言覆盖设置。基于 SharedPreferences（在 Activity.attachBaseContext 中同步读取），
+ * 并同步镜像到一个 StateFlow，使 UI 能即时重新本地化——无需重建 Activity。
  */
 object LanguageStore {
     const val SYSTEM = "system"
@@ -30,7 +29,7 @@ object LanguageStore {
         loaded = true
     }
 
-    /** Synchronous read for attachBaseContext (before any flow could resolve). */
+    /** 供 attachBaseContext 使用的同步读取（在任何 flow 能完成解析之前）。 */
     fun get(context: Context): String = read(context)
 
     fun set(context: Context, language: String) {

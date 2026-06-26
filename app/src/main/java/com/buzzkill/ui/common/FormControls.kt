@@ -21,7 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Single-line / multi-line labelled text input. */
+/** 单行 / 多行带标签的文本输入框。 */
 @Composable
 fun LabeledTextField(
     label: String,
@@ -41,7 +41,7 @@ fun LabeledTextField(
     )
 }
 
-/** Integer input that ignores non-numeric edits. */
+/** 忽略非数字输入的整数输入框。 */
 @Composable
 fun IntField(
     label: String,
@@ -62,7 +62,7 @@ fun IntField(
     )
 }
 
-/** Label + trailing switch row. */
+/** 标签 + 尾部开关的行布局。 */
 @Composable
 fun SwitchRow(
     label: String,
@@ -80,7 +80,7 @@ fun SwitchRow(
     }
 }
 
-/** Generic enum dropdown selector built on the Material3 exposed dropdown. */
+/** 基于 Material3 暴露式下拉菜单构建的通用枚举下拉选择器。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> EnumDropdown(

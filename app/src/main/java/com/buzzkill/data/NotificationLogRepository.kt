@@ -6,11 +6,11 @@ import com.buzzkill.data.db.NotificationLogDao
 import com.buzzkill.data.model.NotificationLog
 import kotlinx.coroutines.flow.Flow
 
-/** Access to the rolling notification-activity log. */
+/** 访问滚动式的通知活动日志。 */
 class NotificationLogRepository private constructor(private val dao: NotificationLogDao) {
 
-    // Inserts since the last prune. We prune every PRUNE_EVERY inserts instead of running
-    // a COUNT(*) on every notification — the hot path stays a single INSERT.
+    // 自上次清理以来的插入次数。我们每插入 PRUNE_EVERY 次才清理一次，而不是在每条通知上
+    // 都执行 COUNT(*)——这样热路径上始终只有一次 INSERT。
     private val sincePrune = java.util.concurrent.atomic.AtomicInteger(0)
 
     fun observeRecent(limit: Int = MAX_ROWS): Flow<List<NotificationLog>> = dao.observeRecent(limit)
@@ -20,7 +20,7 @@ class NotificationLogRepository private constructor(private val dao: Notificatio
 
     suspend fun add(log: NotificationLog) {
         dao.insert(log)
-        // Keep the table bounded without counting on every insert.
+        // 在不对每次插入都计数的情况下，使表的大小保持有界。
         if (sincePrune.incrementAndGet() >= PRUNE_EVERY) {
             sincePrune.set(0)
             dao.prune(MAX_ROWS)

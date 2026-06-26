@@ -4,8 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * A condition gates a rule on device/context state, evaluated only after the
- * triggers already matched. All conditions on a rule must hold (AND semantics).
+ * 条件根据设备/上下文状态对规则进行限制，仅在触发器已匹配之后才进行评估。
+ * 规则上的所有条件都必须成立（AND 语义）。
  */
 @Serializable
 sealed class Condition {
@@ -13,9 +13,9 @@ sealed class Condition {
     abstract fun summary(): String
 
     /**
-     * Active only between [startMinute] and [endMinute] (minutes from midnight) on
-     * the selected [days] (1 = Monday … 7 = Sunday, ISO). A start after the end wraps
-     * past midnight.
+     * 仅在所选 [days]（1 = 周一 … 7 = 周日，ISO 标准）的 [startMinute] 与
+     * [endMinute]（从午夜起算的分钟数）之间生效。若开始时间晚于结束时间，
+     * 则时间窗口会跨越午夜。
      */
     @Serializable
     @SerialName("time")
@@ -37,7 +37,7 @@ sealed class Condition {
         }
     }
 
-    /** Active only while the device is (or is not) charging. */
+    /** 仅在设备正在充电（或未在充电）时生效。 */
     @Serializable
     @SerialName("charging")
     data class ChargingCondition(
@@ -47,7 +47,7 @@ sealed class Condition {
         override fun summary() = if (mustBeCharging) "While charging" else "While on battery"
     }
 
-    /** Active only while the screen is on/off. */
+    /** 仅在屏幕开启/关闭时生效。 */
     @Serializable
     @SerialName("screen")
     data class ScreenCondition(
@@ -57,7 +57,7 @@ sealed class Condition {
         override fun summary() = if (mustBeOn) "While screen is on" else "While screen is off"
     }
 
-    /** Active only when battery is below/above a threshold. */
+    /** 仅在电量低于/高于某个阈值时生效。 */
     @Serializable
     @SerialName("battery")
     data class BatteryLevelCondition(
@@ -70,8 +70,8 @@ sealed class Condition {
     }
 
     /**
-     * Rate-limit: the rule may only fire once per [seconds]. Prevents repeated
-     * actions from chatty apps.
+     * 速率限制：规则每 [seconds] 秒只能触发一次。可防止来自频繁推送应用的
+     * 重复动作。
      */
     @Serializable
     @SerialName("cooldown")
@@ -83,9 +83,9 @@ sealed class Condition {
     }
 
     /**
-     * Active only when today's [DayType] (per the bundled Chinese statutory-holiday
-     * calendar) is one of [dayTypes]. Combine with [TimeCondition] (AND) to express
-     * e.g. "during 09:00–18:00 on legal holidays".
+     * 仅当今天的 [DayType]（依据内置的中国法定节假日日历）属于 [dayTypes]
+     * 之一时生效。可与 [TimeCondition] 组合（AND）以表达诸如
+     *“在法定节假日的 09:00–18:00 期间”之类的条件。
      */
     @Serializable
     @SerialName("holiday")

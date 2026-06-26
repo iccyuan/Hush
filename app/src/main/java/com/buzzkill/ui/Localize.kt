@@ -16,9 +16,9 @@ import com.buzzkill.data.model.Trigger
 import com.buzzkill.data.model.VibrationPreset
 
 /**
- * Locale-aware display strings for model types. The model itself stays English /
- * Android-free; all user-facing wording is resolved here through string resources
- * so the same rule renders in the user's chosen language.
+ * 模型类型的区域感知显示字符串。模型本身保持英文 /
+ * 不依赖 Android；所有面向用户的措辞都在这里通过字符串资源解析，
+ * 以便同一条规则以用户选择的语言渲染。
  */
 object Localize {
 
@@ -83,7 +83,7 @@ object Localize {
     @Composable fun vibration(v: VibrationPreset) = stringResource(vibrationRes(v))
     @Composable fun dayType(d: DayType) = stringResource(dayTypeRes(d))
 
-    // --- Component summaries (localized) ---
+    // --- 组件摘要（已本地化）---
 
     @Composable
     fun summary(t: Trigger): String = when (t) {
@@ -115,8 +115,8 @@ object Localize {
         is Condition.CooldownCondition ->
             stringResource(R.string.sum_cooldown, c.seconds)
         is Condition.HolidayCondition -> {
-            // for-loop (not joinToString) so the @Composable dayType() stays in a
-            // composable context.
+            // 使用 for 循环（而非 joinToString），以便 @Composable 的 dayType() 保持在
+            // 可组合上下文中。
             val parts = ArrayList<String>(c.dayTypes.size)
             for (type in c.dayTypes) parts.add(dayType(type))
             stringResource(R.string.sum_holiday, parts.joinToString("/"))

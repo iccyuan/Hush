@@ -5,8 +5,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Appearance (light/dark/system) preference. Backed by SharedPreferences and mirrored
- * into a StateFlow so the theme switches instantly (no Activity recreate needed).
+ * 外观（浅色/深色/跟随系统）偏好设置。基于 SharedPreferences，并同步镜像到一个 StateFlow，
+ * 使主题能即时切换（无需重建 Activity）。
  */
 object ThemeStore {
     const val SYSTEM = "system"

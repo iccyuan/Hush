@@ -6,7 +6,7 @@ import android.content.pm.PackageManager
 import android.service.notification.StatusBarNotification
 import com.buzzkill.data.model.NotificationField
 
-/** Extracts editable text fields from a posted notification. */
+/** 从已发布的通知中提取可编辑的文本字段。 */
 object NotificationFields {
 
     fun extract(sbn: StatusBarNotification): MutableMap<NotificationField, String> {
@@ -27,7 +27,7 @@ object NotificationFields {
     fun hasReplyAction(sbn: StatusBarNotification): Boolean =
         sbn.notification.actions?.any { it.remoteInputs?.isNotEmpty() == true } == true
 
-    /** Resolves a user-facing app label, falling back to the package name. */
+    /** 解析面向用户的应用标签，若失败则回退为包名。 */
     fun appLabel(context: Context, packageName: String): String = try {
         val pm = context.packageManager
         pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()

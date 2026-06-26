@@ -23,7 +23,7 @@ fun BuzzKillNavHost() {
     NavHost(
         navController = nav,
         startDestination = Routes.MAIN,
-        // iOS-style push/pop: new screen slides in from the right, back slides it out.
+        // iOS 风格的推入/弹出：新页面从右侧滑入，返回时再向右滑出。
         enterTransition = { slideIntoContainer(SlideDirection.Start, tween(dur)) },
         exitTransition = { slideOutOfContainer(SlideDirection.Start, tween(dur)) },
         popEnterTransition = { slideIntoContainer(SlideDirection.End, tween(dur)) },

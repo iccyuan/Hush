@@ -41,7 +41,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         onResult(count)
     }
 
-    /** Last holiday-data update time (epoch ms), 0 if never. */
+    /** 节假日数据上次更新的时间（epoch 毫秒），从未更新则为 0。 */
     val holidayUpdated = MutableStateFlow(HolidayProvider.lastUpdated(getApplication()))
     val holidayUpdating = MutableStateFlow(false)
 

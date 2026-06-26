@@ -9,7 +9,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
-/** Shared lenient JSON used for both persistence and import/export. */
+/** 用于持久化与导入/导出的共享宽松 JSON 实例。 */
 val BuzzJson: Json = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
@@ -17,7 +17,7 @@ val BuzzJson: Json = Json {
     prettyPrint = false
 }
 
-/** Room converters that store rule component lists as JSON text columns. */
+/** 将规则组件列表以 JSON 文本列形式存储的 Room 转换器。 */
 class Converters {
     @TypeConverter
     fun fromStringList(value: List<String>): String =

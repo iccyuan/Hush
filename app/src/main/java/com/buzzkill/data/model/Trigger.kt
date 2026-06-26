@@ -4,17 +4,17 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * A trigger decides whether an incoming notification is a candidate for a rule.
- * A rule's [Rule.triggerLogic] combines multiple triggers with ALL/ANY semantics.
+ * 触发器决定一条传入通知是否为某条规则的候选。
+ * 规则的 [Rule.triggerLogic] 以 ALL/ANY 语义组合多个触发器。
  */
 @Serializable
 sealed class Trigger {
     abstract val id: String
 
-    /** Human readable one-line description for the editor list. */
+    /** 供编辑器列表使用的、便于人阅读的一行描述。 */
     abstract fun summary(): String
 
-    /** Match text in a notification field, optionally capturing regex groups. */
+    /** 匹配通知某个字段中的文本，可选地捕获正则分组。 */
     @Serializable
     @SerialName("text")
     data class TextTrigger(
@@ -31,7 +31,7 @@ sealed class Trigger {
         }
     }
 
-    /** Match based on whether the notification is ongoing (e.g. music, downloads). */
+    /** 根据通知是否为常驻通知（例如音乐、下载）进行匹配。 */
     @Serializable
     @SerialName("ongoing")
     data class OngoingTrigger(
@@ -42,7 +42,7 @@ sealed class Trigger {
             if (mustBeOngoing) "Notification is ongoing" else "Notification is dismissible"
     }
 
-    /** Match when the notification carries an inline reply action (chats). */
+    /** 当通知带有内联回复动作（聊天类）时进行匹配。 */
     @Serializable
     @SerialName("hasReply")
     data class HasReplyTrigger(

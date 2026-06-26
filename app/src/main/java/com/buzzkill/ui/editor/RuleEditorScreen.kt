@@ -99,7 +99,7 @@ fun RuleEditorScreen(
 
     GlassScaffold(
         title = stringResource(if (ruleId == 0L) R.string.new_rule else R.string.edit_rule),
-        // As a tab (bottomBar present) there's no back arrow; as a push it has one.
+        // 作为标签页时（存在 bottomBar）不显示返回箭头；作为推入页面时则显示。
         onBack = if (bottomBar != null) null else onDone,
         bottomBar = bottomBar,
         actions = {
@@ -140,14 +140,14 @@ fun RuleEditorScreen(
         ) {
             Spacer(Modifier.height(4.dp))
 
-            // Name
+            // 名称
             InsetGroupedSection {
                 Column(Modifier.padding(12.dp)) {
                     LabeledTextField(stringResource(R.string.rule_name), rule.name) { vm.setName(it) }
                 }
             }
 
-            // Apps
+            // 应用
             InsetGroupedSection(header = stringResource(R.string.section_apps)) {
                 if (rule.appPackages.isEmpty()) {
                     IOSRow(
@@ -164,7 +164,7 @@ fun RuleEditorScreen(
                 }
             }
 
-            // Triggers
+            // 触发器
             InsetGroupedSection(
                 header = stringResource(R.string.section_triggers),
                 footer = if (rule.triggers.isEmpty()) stringResource(R.string.no_triggers_hint) else null,
@@ -188,7 +188,7 @@ fun RuleEditorScreen(
                 }
             }
 
-            // Conditions
+            // 条件
             InsetGroupedSection(header = stringResource(R.string.section_conditions)) {
                 rule.conditions.forEachIndexed { i, condition ->
                     if (i > 0) HairlineDivider(startInset = 16.dp)
@@ -201,7 +201,7 @@ fun RuleEditorScreen(
                 }
             }
 
-            // Actions
+            // 动作
             InsetGroupedSection(
                 header = stringResource(R.string.section_actions),
                 footer = if (rule.actions.isEmpty()) stringResource(R.string.no_actions_hint) else null,
@@ -217,7 +217,7 @@ fun RuleEditorScreen(
                 }
             }
 
-            // Options
+            // 选项
             InsetGroupedSection(header = stringResource(R.string.section_options)) {
                 IOSRow(
                     title = stringResource(R.string.enabled),
@@ -236,7 +236,7 @@ fun RuleEditorScreen(
                     iconColor = IOSColors.Purple,
                     trailing = { IOSSwitch(rule.showDanmaku) { vm.setShowDanmaku(it) } },
                 )
-                // When danmaku is on but the overlay permission is missing, offer to grant it.
+                // 当弹幕已开启但缺少悬浮窗权限时，提供授予权限的入口。
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 if (rule.showDanmaku && !com.buzzkill.service.DanmakuController.canShow(ctx)) {
                     HairlineDivider(startInset = 16.dp)
@@ -257,7 +257,7 @@ fun RuleEditorScreen(
                 }
             }
 
-            // Live preview of recent notifications that match this rule.
+            // 实时预览匹配该规则的近期通知。
             PreviewSection(rule)
 
             if (ruleId != 0L) {
@@ -275,7 +275,7 @@ fun RuleEditorScreen(
 
 }
 
-/** All editor dialogs/sheets, rendered inside GlassScaffold's overlay slot so they frost. */
+/** 所有编辑器对话框/弹层，渲染在 GlassScaffold 的 overlay 插槽内，从而获得磨砂效果。 */
 @Composable
 private fun EditorOverlays(
     editingTrigger: Trigger?,
@@ -332,7 +332,7 @@ private fun AddRow(
     IOSRow(title = label, icon = icon, iconColor = color, onClick = onClick)
 }
 
-/** Recent logged notifications that match the current (unsaved) rule's app + triggers. */
+/** 匹配当前（未保存）规则的应用 + 触发器的近期已记录通知。 */
 @Composable
 private fun PreviewSection(rule: com.buzzkill.data.model.Rule) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -344,13 +344,13 @@ private fun PreviewSection(rule: com.buzzkill.data.model.Rule) {
             com.buzzkill.data.NotificationLogRepository.get(context).recent(200)
         }
     }
-    // A rule with no triggers and no app filter matches *everything*, so previewing it
-    // would just dump the whole log — not a meaningful preview. Treat that as unconstrained.
+    // 既没有触发器也没有应用过滤的规则会匹配*所有内容*，因此预览它
+    // 只会把整个日志全部倒出来——并非有意义的预览。将这种情况视为无约束。
     val unconstrained = rule.matchesEverything && rule.appPackages.isEmpty()
     val matches = remember(rule, logs, unconstrained) {
         if (unconstrained) emptyList()
         else logs
-            // Skip blank notifications (no title and no text) — they render as empty rows.
+            // 跳过空白通知（既无标题也无正文）——它们会渲染为空行。
             .filter { it.title.isNotBlank() || it.text.isNotBlank() }
             .filter { engine.previewMatches(rule, it.packageName, it.title, it.text) }
             .distinctBy { it.packageName + "|" + it.title + "|" + it.text }
@@ -374,7 +374,7 @@ private fun PreviewSection(rule: com.buzzkill.data.model.Rule) {
     }
 }
 
-/** Selected apps shown as logo + name chips; tapping anywhere opens the picker. */
+/** 已选应用以图标 + 名称标签的形式展示；点击任意位置都会打开选择器。 */
 @Composable
 private fun SelectedAppsChips(packages: List<String>, onClick: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current

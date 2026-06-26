@@ -45,7 +45,7 @@ private val Teal = IOSColors.Teal
 private val Pink = IOSColors.Pink
 private val Gray = IOSColors.Gray
 
-/** Definitions for the "add component" picker: localized label/desc + icon badge + factory. */
+/** "添加组件"选择器的定义：本地化的标签/描述 + 图标徽章 + 工厂函数。 */
 data class CatalogEntry<T>(
     @StringRes val labelRes: Int,
     @StringRes val descRes: Int,
@@ -89,8 +89,8 @@ object ComponentCatalog {
         },
     )
 
-    // Ordered by how often they're used: the everyday notification-management actions
-    // first, niche/power-user actions (field editing, variables, integrations) last.
+    // 按使用频率排序：日常的通知管理动作排在前面，
+    // 小众/高级用户动作（字段编辑、变量、集成）排在最后。
     val actions: List<CatalogEntry<Action>> = listOf(
         CatalogEntry(R.string.cat_act_discard, R.string.cat_act_discard_desc, Icons.Filled.VisibilityOff, Gray) {
             Action.DiscardAction(Ids.next())
@@ -140,7 +140,7 @@ object ComponentCatalog {
     )
 }
 
-/** Icon + colour for a configured component, shown on its row in the editor. */
+/** 已配置组件的图标 + 颜色，显示在编辑器中对应的行上。 */
 object ComponentVisuals {
     fun of(t: Trigger): Pair<ImageVector, Color> = when (t) {
         is Trigger.TextTrigger -> Icons.Filled.Search to Blue

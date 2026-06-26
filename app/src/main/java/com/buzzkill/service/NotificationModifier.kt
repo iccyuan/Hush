@@ -10,12 +10,10 @@ import com.buzzkill.data.model.NotificationField
 import com.buzzkill.engine.Decision
 
 /**
- * Turns a [Decision] into concrete notification operations. Because a
- * NotificationListenerService cannot edit another app's notification in place, a
- * modified notification is rebuilt under our own channel (so we control alerting),
- * the original is cancelled, and the copy is reposted — preserving icon, intent,
- * actions and styling. The original app's name is shown via the substitute-name
- * extra so the rebuilt notification still looks native.
+ * 将 [Decision] 转化为具体的通知操作。由于 NotificationListenerService 无法就地编辑
+ * 其他应用的通知，因此会在我们自己的通知渠道下重建一条经过修改的通知（以便我们控制提醒方式），
+ * 取消原通知，并重新发布该副本——同时保留图标、intent、操作和样式。原应用的名称会通过
+ * 替代名称（substitute-name）附加项显示，使重建后的通知看起来仍然是原生的。
  */
 class NotificationModifier(
     private val context: Context,
@@ -23,7 +21,7 @@ class NotificationModifier(
 ) {
     private val nm = context.getSystemService(NotificationManager::class.java)
 
-    /** Stable notify id derived from the original key so updates replace cleanly. */
+    /** 由原始 key 派生的稳定通知 id，使更新能够干净地替换原通知。 */
     private fun notifyId(sbn: StatusBarNotification): Int = sbn.key.hashCode()
 
     fun repost(sbn: StatusBarNotification, decision: Decision, appName: String) {
@@ -57,22 +55,22 @@ class NotificationModifier(
             setShowWhen(true)
             if (original.color != 0) setColor(original.color)
             original.group?.let { setGroup(it) }
-            // Preserve interactive actions (reply, mark-as-read, etc.).
+            // 保留交互式操作（回复、标记为已读等）。
             original.actions?.forEach { addAction(it) }
-            // Make the rebuilt notification still read as the source app. DND bypass
-            // and importance are governed by the chosen channel, not the builder.
+            // 使重建后的通知仍然显示为源应用。绕过勿扰模式和重要性由所选通知渠道
+            // 控制，而非由 builder 控制。
             addExtras(android.os.Bundle().apply {
-                // Public key value of the (hidden) EXTRA_SUBSTITUTE_APP_NAME constant.
+                // （隐藏的）EXTRA_SUBSTITUTE_APP_NAME 常量的公开键值。
                 putString("android.substName", appName)
             })
         }
 
-        // Post our rebuilt copy. The service cancels the source via
-        // cancelNotification(key) — only the listener can dismiss another app's post.
+        // 发布我们重建的副本。服务会通过 cancelNotification(key) 取消源通知——
+        // 只有监听器才能移除其他应用发布的通知。
         nm.notify(notifyId(sbn), builder.build())
     }
 
-    /** Remove a copy we previously reposted (e.g. when its source is dismissed). */
+    /** 移除我们先前重新发布的副本（例如当其源通知被移除时）。 */
     fun cancelReposted(sbn: StatusBarNotification) {
         nm.cancel(notifyId(sbn))
     }

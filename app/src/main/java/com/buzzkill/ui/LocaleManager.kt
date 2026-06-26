@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.buzzkill.data.LanguageStore
 import java.util.Locale
 
-/** Wraps a base context with the user-selected locale (for Activity.attachBaseContext). */
+/** 使用用户选择的区域设置包装基础 context（用于 Activity.attachBaseContext）。 */
 object LocaleManager {
 
     fun localeFor(language: String): Locale = when (language) {
@@ -30,9 +30,9 @@ object LocaleManager {
 }
 
 /**
- * Re-localizes the whole composition for [language] WITHOUT recreating the Activity:
- * provides a locale-configured Context/Configuration so every stringResource re-reads
- * in the chosen language on the next recomposition.
+ * 在不重新创建 Activity 的情况下，将整个合成重新本地化为 [language]：
+ * 提供一个配置了区域设置的 Context/Configuration，使每个 stringResource 在
+ * 下次重组时以所选语言重新读取。
  */
 @Composable
 fun ProvideAppLocale(language: String, content: @Composable () -> Unit) {

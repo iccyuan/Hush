@@ -101,7 +101,7 @@ fun ConditionEditorDialog(
 
 @Composable
 private fun TimeConditionFields(c: Condition.TimeCondition, onChange: (Condition.TimeCondition) -> Unit) {
-    // Which field the inline wheel is editing (0 = start, 1 = end, null = collapsed).
+    // 内联滚轮当前正在编辑哪个字段（0 = 开始，1 = 结束，null = 已折叠）。
     var editing by remember { mutableStateOf<Int?>(null) }
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -118,7 +118,7 @@ private fun TimeConditionFields(c: Condition.TimeCondition, onChange: (Condition
                 modifier = Modifier.weight(1f),
             ) { editing = if (editing == 1) null else 1 }
         }
-        // Inline wheel — expands within this same dialog (no second popup).
+        // 内联滚轮——在同一个对话框内展开（不弹出第二个弹窗）。
         androidx.compose.animation.AnimatedVisibility(visible = editing != null) {
             val minutes = if (editing == 1) c.endMinute else c.startMinute
             androidx.compose.runtime.key(editing) {
@@ -184,7 +184,7 @@ private fun HolidayConditionFields(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(8.dp))
-        // Tap to expand an inline month calendar with holidays marked (one dialog).
+        // 点击展开内联的月历，并标记出节假日（同一个对话框内）。
         var showCalendar by remember { mutableStateOf(false) }
         Row(
             Modifier
@@ -221,11 +221,11 @@ private fun HolidayConditionFields(
     }
 }
 
-/** An inline month calendar with each day classified/marked via [com.buzzkill.data.HolidayProvider]. */
+/** 内联的月历，每一天都通过 [com.buzzkill.data.HolidayProvider] 进行分类/标记。 */
 @Composable
 private fun HolidayCalendar() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    // Ensure holiday data is loaded (no-op if already loaded).
+    // 确保节假日数据已加载（若已加载则无操作）。
     androidx.compose.runtime.LaunchedEffect(Unit) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             com.buzzkill.data.HolidayProvider.ensureLoaded(context)
@@ -243,7 +243,7 @@ private fun HolidayCalendar() {
     }
 
     Column(Modifier.padding(top = 4.dp)) {
-        // Month header with prev/next navigation.
+        // 月份标题，带上一月/下一月导航。
         Row(verticalAlignment = Alignment.CenterVertically) {
             CalNavButton(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowLeft) {
                 ym = if (month == 1) (year - 1) to 12 else year to (month - 1)
@@ -260,7 +260,7 @@ private fun HolidayCalendar() {
             }
         }
         Spacer(Modifier.height(4.dp))
-        // Weekday header (Mon..Sun).
+        // 星期表头（周一至周日）。
         val abbr = stringArrayResource(R.array.weekday_abbr)
         Row(Modifier.fillMaxWidth()) {
             for (i in 0..6) {
@@ -273,7 +273,7 @@ private fun HolidayCalendar() {
                 )
             }
         }
-        // Day grid.
+        // 日期网格。
         for (week in monthCells(year, month).chunked(7)) {
             Row(Modifier.fillMaxWidth()) {
                 for (day in week) {
@@ -289,7 +289,7 @@ private fun HolidayCalendar() {
             }
         }
         Spacer(Modifier.height(8.dp))
-        // Legend.
+        // 图例。
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             LegendDot(IOSColors.Red, stringResource(R.string.daytype_legal_holiday))
             LegendDot(IOSColors.Orange, stringResource(R.string.daytype_makeup_workday))
@@ -373,7 +373,7 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
-/** Cells for a month grid: leading nulls to align the 1st under its weekday (Mon-first), then days. */
+/** 月历网格的单元格：先用若干 null 占位，使 1 号对齐到对应的星期（周一为首），随后是各天。 */
 private fun monthCells(year: Int, month: Int): List<Int?> {
     val daysInMonth = run {
         val c = java.util.Calendar.getInstance()
@@ -388,14 +388,14 @@ private fun monthCells(year: Int, month: Int): List<Int?> {
     return cells
 }
 
-/** ISO day of week (Mon=1 … Sun=7) for a date. */
+/** 某个日期的 ISO 星期值（周一=1 … 周日=7）。 */
 private fun isoDayOfWeek(year: Int, month: Int, day: Int): Int {
     val c = java.util.Calendar.getInstance()
     c.clear(); c.set(year, month - 1, day)
     return ((c.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7) + 1
 }
 
-/** A tappable HH:MM chip; tapping toggles the inline wheel for this field. */
+/** 一个可点击的 HH:MM 标签；点击可切换该字段的内联滚轮。 */
 @Composable
 private fun TimeChip(
     label: String,

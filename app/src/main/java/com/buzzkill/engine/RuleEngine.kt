@@ -10,14 +10,14 @@ import com.buzzkill.data.model.Trigger
 import com.buzzkill.data.model.VibrationPreset
 
 /**
- * Pure evaluation core: given a snapshot of a notification and the active rules,
- * produces a [Decision]. Has no Android dependencies so it is unit-testable.
+ * 纯评估内核：给定一条通知的快照和当前生效的规则，
+ * 产出一个 [Decision]。不依赖 Android，因此可进行单元测试。
  */
 class RuleEngine {
 
     /**
-     * Editor live-preview: does this notification's app + triggers match the rule?
-     * Ignores time/holiday/device conditions (those are about *when*, not content).
+     * 编辑器实时预览：这条通知的应用 + 触发器是否匹配该规则？
+     * 忽略时间/节假日/设备条件（那些关乎*何时*生效，而非内容）。
      */
     fun previewMatches(rule: Rule, packageName: String, title: String, text: String): Boolean {
         val fields = mutableMapOf<NotificationField, String>()
@@ -29,7 +29,7 @@ class RuleEngine {
 
     fun evaluate(ctx: MatchContext, rules: List<Rule>): Decision {
         val decision = Decision()
-        // App-level mute window short-circuits everything.
+        // 应用级静音时间窗口会短路一切处理。
         if (VariableStore.isAppMuted(ctx.packageName, ctx.device.nowMillis)) {
             decision.matched = true
             decision.discard = true
@@ -46,8 +46,8 @@ class RuleEngine {
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision)
 
-            // Danmaku is a per-rule switch (not an action): show the notification as a
-            // scrolling overlay bullet when the rule matches.
+            // 弹幕是一个按规则设置的开关（而非动作）：当规则匹配时，
+            // 将通知以滚动的悬浮弹幕条形式显示。
             if (rule.showDanmaku) {
                 decision.sideEffects.add(
                     SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
@@ -119,13 +119,13 @@ class RuleEngine {
             inTime = minute in c.startMinute until c.endMinute
             inDay = c.days.contains(day)
         } else {
-            // Window wraps past midnight (e.g. 22:00–07:00).
+            // 时间窗口跨越午夜（例如 22:00–07:00）。
             if (minute >= c.startMinute) {
                 inTime = true
                 inDay = c.days.contains(day)
             } else {
                 inTime = minute < c.endMinute
-                // Belongs to the previous day's window.
+                // 归属于前一天的时间窗口。
                 val prevDay = if (day == 1) 7 else day - 1
                 inDay = c.days.contains(prevDay)
             }
@@ -206,7 +206,7 @@ class RuleEngine {
         }
     }
 
-    /** Latest value for a field, preferring an edit already staged this pass. */
+    /** 字段的最新值，优先采用本轮已暂存的编辑结果。 */
     private fun currentField(
         field: NotificationField,
         ctx: MatchContext,
@@ -221,7 +221,7 @@ class RuleEngine {
     ) {
         val target = if (field == NotificationField.ANY) NotificationField.TEXT else field
         decision.fieldEdits[target] = value
-        // Keep ctx in sync so subsequent actions/templates see the new value.
+        // 保持 ctx 同步，以便后续的动作/模板能看到新值。
         ctx.fields[target] = value
     }
 
@@ -240,11 +240,11 @@ class RuleEngine {
     }
 
     private companion object {
-        /** Default danmaku rendering for the per-rule switch. */
+        /** 按规则开关使用的默认弹幕渲染模板。 */
         const val DANMAKU_TEMPLATE = "{app}: {title} {text}"
         const val DANMAKU_DURATION_MS = 7000L
 
-        /** Neutral device state for content-only preview matching. */
+        /** 用于仅内容预览匹配的中性设备状态。 */
         val PREVIEW_DEVICE = DeviceContext(
             charging = false,
             screenOn = false,

@@ -38,9 +38,9 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
- * An iOS-style scrolling "drum" picker. Items snap to the centre band; rows fade and
- * shrink with distance from the centre to give the curved-wheel illusion. The centred
- * row is the selected value.
+ * iOS 风格的滚动"滚筒"选择器。项目吸附到中央条带；行随着与中心的
+ * 距离增大而淡出并缩小，以营造弯曲滚轮的错觉。居中的行
+ * 即为选中的值。
  */
 @Composable
 fun WheelPicker(
@@ -59,7 +59,7 @@ fun WheelPicker(
     val scope = rememberCoroutineScope()
     val half = visibleCount / 2
 
-    // Report the centred item once the wheel settles.
+    // 滚轮稳定后报告居中的项目。
     LaunchedEffect(state, count) {
         snapshotFlow { state.isScrollInProgress }.collect { scrolling ->
             if (!scrolling) {
@@ -70,7 +70,7 @@ fun WheelPicker(
             }
         }
     }
-    // Reflect external changes to `selected` (without fighting an in-progress drag).
+    // 反映对 `selected` 的外部更改（同时不与正在进行的拖动冲突）。
     LaunchedEffect(selected) {
         if (!state.isScrollInProgress && state.firstVisibleItemIndex != selected) {
             state.scrollToItem(selected.coerceIn(0, (count - 1).coerceAtLeast(0)))
@@ -81,7 +81,7 @@ fun WheelPicker(
         modifier.height(itemHeight * visibleCount),
         contentAlignment = Alignment.Center,
     ) {
-        // Centre selection band.
+        // 中央选择条带。
         val bandColor = if (LocalIsDarkTheme.current) Color0x14White else Color0x0ABlack
         Box(
             Modifier
@@ -99,7 +99,7 @@ fun WheelPicker(
             modifier = Modifier.fillMaxSize(),
         ) {
             items(count) { i ->
-                // Distance (in rows) from the viewport centre, for fade + scale.
+                // 与视口中心的距离（以行计），用于淡出 + 缩放。
                 val info = state.layoutInfo.visibleItemsInfo.firstOrNull { it.index == i }
                 val viewportCentre =
                     (state.layoutInfo.viewportStartOffset + state.layoutInfo.viewportEndOffset) / 2f
@@ -137,7 +137,7 @@ fun WheelPicker(
     }
 }
 
-/** Two coupled wheels (hour : minute) for picking a time of day. */
+/** 两个联动的滚轮（小时 : 分钟），用于选择一天中的时间。 */
 @Composable
 fun TimeWheel(
     hour: Int,

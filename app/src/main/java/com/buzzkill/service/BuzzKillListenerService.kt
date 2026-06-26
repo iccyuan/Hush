@@ -19,12 +19,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * The live entry point: receives every posted notification, runs it through the
- * [RuleEngine], and applies the resulting [Decision] (discard / repost / dismiss /
- * snooze / side effects).
+ * 实时入口点：接收每一条发布的通知，通过 [RuleEngine] 对其进行处理，
+ * 并应用得到的 [Decision]（丢弃 / 重新发布 / 移除 / 暂缓 / 副作用）。
  *
- * Active rules and the master switch are mirrored into memory so the hot path never
- * touches the database.
+ * 活动规则和总开关被镜像到内存中，因此热路径永远不会访问数据库。
  */
 class BuzzKillListenerService : NotificationListenerService() {
 
@@ -83,7 +81,7 @@ class BuzzKillListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         Log.i(TAG, "posted from ${sbn.packageName}; master=$masterEnabled rules=${activeRules.size}")
         if (!masterEnabled) return
-        // Never process our own reposted copies — that would loop forever.
+        // 切勿处理我们自己重新发布的副本——否则会陷入无限循环。
         if (sbn.packageName == packageName) return
 
         scope.launch {
@@ -143,15 +141,14 @@ class BuzzKillListenerService : NotificationListenerService() {
     }
 
     private fun applyDecision(sbn: StatusBarNotification, decision: Decision, appName: String) {
-        // Auto-reply needs the original notification's RemoteInput.
+        // 自动回复需要原始通知的 RemoteInput。
         decision.sideEffects.filterIsInstance<SideEffect.AutoReply>().forEach {
             AutoReplyHelper.reply(this, sbn, it.message)
         }
         sideEffects.execute(decision.sideEffects)
 
-        // Danmaku replaces the native notification — but only suppress the native one
-        // if the danmaku can actually be shown (overlay permission granted), otherwise
-        // the notification would silently vanish.
+        // 弹幕会替代原生通知——但只有在弹幕确实能够显示（已授予悬浮窗权限）时
+        // 才抑制原生通知，否则通知会悄无声息地消失。
         if (decision.sideEffects.any { it is SideEffect.Danmaku } && DanmakuController.canShow(this)) {
             safeCancel(sbn.key)
         }
@@ -160,7 +157,7 @@ class BuzzKillListenerService : NotificationListenerService() {
             decision.discard -> safeCancel(sbn.key)
             decision.needsRepost -> {
                 modifier.repost(sbn, decision, appName)
-                // Remove the source notification; our rebuilt copy stands in its place.
+                // 移除源通知；由我们重建的副本取而代之。
                 safeCancel(sbn.key)
             }
         }
@@ -201,7 +198,7 @@ class BuzzKillListenerService : NotificationListenerService() {
     companion object {
         private const val TAG = "BuzzKill"
 
-        /** Non-null while the listener is connected; used by the UI to show status. */
+        /** 当监听器处于连接状态时非空；供 UI 用于显示状态。 */
         @Volatile
         var instance: BuzzKillListenerService? = null
             private set

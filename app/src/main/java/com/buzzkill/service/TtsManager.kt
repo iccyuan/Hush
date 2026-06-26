@@ -6,8 +6,8 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Lazily-initialised text-to-speech wrapper for the read-aloud action. Queues
- * utterances so multiple notifications are spoken in order rather than dropped.
+ * 用于朗读操作的惰性初始化文字转语音封装。它会将待朗读的内容排队，
+ * 使多条通知按顺序朗读，而不是被丢弃。
  */
 class TtsManager(context: Context) : TextToSpeech.OnInitListener {
 

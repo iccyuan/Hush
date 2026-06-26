@@ -4,10 +4,10 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/** One recorded notification the listener observed, with what the engine did to it. */
+/** 监听器观察到并记录的一条通知，以及引擎对它所做的处理。 */
 @Entity(
     tableName = "notification_log",
-    // Indexed for the ORDER BY time DESC list query and per-app grouping/filtering.
+    // 为 ORDER BY time DESC 的列表查询以及按应用分组/筛选建立索引。
     indices = [Index("time"), Index("packageName")],
 )
 data class NotificationLog(
@@ -18,11 +18,11 @@ data class NotificationLog(
     val appName: String,
     val title: String,
     val text: String,
-    /** Whether any rule matched this notification. */
+    /** 是否有任意规则匹配了这条通知。 */
     val matched: Boolean,
-    /** Comma-separated rule ids that fired (empty if none). */
+    /** 触发的规则 id，以逗号分隔（若无则为空）。 */
     val firedRuleIds: String,
-    /** What happened: none / modified / discarded / dismissed / snoozed. */
+    /** 发生的处理结果：none / modified / discarded / dismissed / snoozed。 */
     val outcome: String,
 ) {
     companion object {

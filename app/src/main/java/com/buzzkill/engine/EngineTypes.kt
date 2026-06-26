@@ -6,7 +6,7 @@ import com.buzzkill.data.model.Importance
 import com.buzzkill.data.model.NotificationField
 import com.buzzkill.data.model.VibrationPreset
 
-/** Ambient device state sampled once per notification, used by conditions. */
+/** 每条通知采样一次的设备环境状态，供条件使用。 */
 data class DeviceContext(
     val charging: Boolean,
     val screenOn: Boolean,
@@ -18,8 +18,8 @@ data class DeviceContext(
 )
 
 /**
- * Mutable snapshot of an incoming notification. Triggers read [fields]; the engine
- * also records regex [captures] used by template placeholders.
+ * 传入通知的可变快照。触发器读取 [fields]；引擎还会记录
+ * 模板占位符所使用的正则 [captures]。
  */
 class MatchContext(
     val packageName: String,
@@ -29,7 +29,7 @@ class MatchContext(
     val hasReply: Boolean,
     val device: DeviceContext,
 ) {
-    /** {1}..{9} from regex groups and named captures from variables. */
+    /** 来自正则分组的 {1}..{9} 以及来自变量的命名捕获。 */
     val captures: MutableMap<String, String> = mutableMapOf()
 
     fun field(f: NotificationField): String = when (f) {
@@ -42,7 +42,7 @@ class MatchContext(
     }
 }
 
-/** Side effects that require an Android context; executed by the service. */
+/** 需要 Android context 的副作用；由服务执行。 */
 sealed class SideEffect {
     data class AutoReply(val message: String) : SideEffect()
     data class ReadAloud(val text: String) : SideEffect()
@@ -54,7 +54,7 @@ sealed class SideEffect {
     data class Danmaku(val text: String, val durationMs: Long) : SideEffect()
 }
 
-/** Desired changes to the reposted notification's alerting behaviour. */
+/** 对重新发布通知的提醒行为所期望的更改。 */
 data class SoundOverride(
     val silent: Boolean = false,
     val soundUri: String? = null,
@@ -62,27 +62,27 @@ data class SoundOverride(
 )
 
 /**
- * The accumulated outcome of running every rule against one notification. The
- * service turns this into concrete platform operations.
+ * 针对一条通知运行所有规则后累积得到的结果。
+ * 服务会将其转化为具体的平台操作。
  */
 class Decision {
     var matched: Boolean = false
-    /** Suppress the notification — never repost it. */
+    /** 抑制该通知——绝不重新发布。 */
     var discard: Boolean = false
-    /** Cancel the original notification (after [dismissDelayMs]). */
+    /** 取消原始通知（在 [dismissDelayMs] 之后）。 */
     var dismiss: Boolean = false
     var dismissDelayMs: Long = 0
     var snoozeMinutes: Int? = null
     var importance: Importance? = null
     var bypassDnd: Boolean = false
     var sound: SoundOverride? = null
-    /** Field overrides applied to the reposted copy. */
+    /** 应用到重新发布副本上的字段覆盖。 */
     val fieldEdits: MutableMap<NotificationField, String> = mutableMapOf()
     val sideEffects: MutableList<SideEffect> = mutableListOf()
-    /** Rule ids that fired, for fire-count bookkeeping. */
+    /** 已触发的规则 id，用于触发计数的记账。 */
     val firedRuleIds: MutableSet<Long> = mutableSetOf()
 
-    /** True when the notification content/alerting must be rebuilt and reposted. */
+    /** 当通知内容/提醒必须重新构建并重新发布时为 true。 */
     val needsRepost: Boolean
         get() = !discard && (fieldEdits.isNotEmpty() || importance != null || sound != null)
 }

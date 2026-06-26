@@ -52,8 +52,8 @@ import com.buzzkill.ui.theme.LocalIsDarkTheme
 private val NavBarHeight = 44.dp
 
 /**
- * Full-screen iOS-style container: soft gradient background, content that scrolls
- * *under* a frosted nav bar, and an optional frosted bottom bar.
+ * 全屏 iOS 风格容器：柔和的渐变背景，内容在毛玻璃导航栏
+ * *下方* 滚动，以及可选的毛玻璃底部栏。
  */
 @Composable
 fun GlassScaffold(
@@ -62,21 +62,21 @@ fun GlassScaffold(
     onBack: (() -> Unit)? = null,
     actions: @Composable () -> Unit = {},
     bottomBar: (@Composable () -> Unit)? = null,
-    /** Dialogs/sheets, drawn on top of everything but inside the blur tree so they frost. */
+    /** 对话框/面板，绘制在所有内容之上，但位于模糊树内部，因此它们会产生磨砂效果。 */
     overlay: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    // ONE blur source — the coloured backdrop. Cards and bars are all hazeChild of
-    // it. (A second haze source wrapping the content breaks hazeChild capture for the
-    // cards nested inside it, which is why they rendered as flat white.)
+    // 唯一的模糊源——彩色背景。卡片和栏都是它的 hazeChild。
+    // （第二个包裹内容的 haze 源会破坏其中嵌套卡片的 hazeChild 捕获，
+    // 这就是它们被渲染成一片平白的原因。）
     val haze = rememberAppHazeState()
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBars = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val bottomBarHeight = if (bottomBar != null) 64.dp else 0.dp
 
     Box(modifier.fillMaxSize()) {
-        // Faint coloured backdrop is the single blur source; cards, bars and dialogs
-        // all frost it.
+        // 淡彩色背景是唯一的模糊源；卡片、栏和对话框
+        // 都对其进行磨砂处理。
         GlassBackdrop(haze)
 
         Box(Modifier.fillMaxSize()) {
@@ -111,7 +111,7 @@ fun GlassScaffold(
             ) { bottomBar() }
         }
 
-        // Overlays (dialogs/sheets) on top of everything, with the blur source in scope.
+        // 叠加层（对话框/面板）位于所有内容之上，并使模糊源处于作用域内。
         CompositionLocalProvider(
             LocalHazeState provides haze,
             LocalCardHazeState provides haze,
@@ -166,7 +166,7 @@ private fun IOSNavBar(
     }
 }
 
-/** A 0.5dp iOS separator. */
+/** 0.5dp 的 iOS 分隔线。 */
 @Composable
 fun HairlineDivider(modifier: Modifier = Modifier, startInset: androidx.compose.ui.unit.Dp = 0.dp) {
     val color = if (LocalIsDarkTheme.current) IOSColors.SeparatorDark else IOSColors.SeparatorLight
@@ -180,8 +180,8 @@ fun HairlineDivider(modifier: Modifier = Modifier, startInset: androidx.compose.
 }
 
 /**
- * iOS inset-grouped list section: an optional header, then a rounded card whose
- * children are separated by hairlines.
+ * iOS 内嵌分组列表区块：一个可选的头部，然后是一个圆角卡片，其
+ * 子项之间用细线分隔。
  */
 @Composable
 fun InsetGroupedSection(
@@ -216,7 +216,7 @@ fun InsetGroupedSection(
     }
 }
 
-/** An iOS-style rounded-square coloured icon badge with a white glyph. */
+/** iOS 风格的圆角方形彩色图标徽章，内含白色字形。 */
 @Composable
 fun IconBadge(icon: ImageVector, color: Color, modifier: Modifier = Modifier, size: Dp = 29.dp) {
     Box(
@@ -230,7 +230,7 @@ fun IconBadge(icon: ImageVector, color: Color, modifier: Modifier = Modifier, si
     }
 }
 
-/** A single iOS list row: optional leading badge, label, trailing content. */
+/** 单个 iOS 列表行：可选的前导徽章、标签、尾部内容。 */
 @Composable
 fun IOSRow(
     title: String,
@@ -267,7 +267,7 @@ fun IOSRow(
     }
 }
 
-/** Filled, rounded iOS-style button (accent or destructive). */
+/** 填充式圆角 iOS 风格按钮（强调色或破坏性操作）。 */
 @Composable
 fun IOSFilledButton(
     text: String,
@@ -289,7 +289,7 @@ fun IOSFilledButton(
     }
 }
 
-/** Bordered, neutral iOS-style button. */
+/** 带边框的中性 iOS 风格按钮。 */
 @Composable
 fun IOSTintedButton(
     text: String,
@@ -310,7 +310,7 @@ fun IOSTintedButton(
     }
 }
 
-/** iOS-green tinted switch. */
+/** iOS 绿色调的开关。 */
 @Composable
 fun IOSSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
     Switch(
@@ -327,8 +327,8 @@ fun IOSSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
 }
 
 /**
- * iOS segmented control with a sliding, shadowed selected pill and thin dividers that
- * fade next to the active segment.
+ * iOS 分段控件，带有滑动、带阴影的选中胶囊以及在活动分段旁
+ * 淡出的细分隔线。
  */
 @Composable
 fun <T> IOSSegmented(
@@ -357,7 +357,7 @@ fun <T> IOSSegmented(
             .background(trackColor)
             .padding(2.dp),
     ) {
-        // Sliding selected pill.
+        // 滑动的选中胶囊。
         if (count > 0) {
             val bias = if (count > 1) -1f + 2f * anim / (count - 1) else 0f
             Box(
@@ -370,7 +370,7 @@ fun <T> IOSSegmented(
                     .background(pillColor),
             )
         }
-        // Divider lines between segments (hidden right next to the selected pill).
+        // 分段之间的分隔线（紧邻选中胶囊处隐藏）。
         Row(Modifier.fillMaxSize()) {
             options.forEachIndexed { i, _ ->
                 if (i > 0) {
@@ -389,7 +389,7 @@ fun <T> IOSSegmented(
                 Box(Modifier.weight(1f))
             }
         }
-        // Labels (above the pill).
+        // 标签（位于胶囊上方）。
         Row(Modifier.fillMaxSize()) {
             options.forEach { option ->
                 val noRipple = remember { MutableInteractionSource() }

@@ -130,8 +130,7 @@ private fun SwipeableRuleRow(
     onToggle: (Boolean) -> Unit,
     onRequestDelete: () -> Unit,
 ) {
-    // Always returns false so the row snaps back; the actual delete happens only after
-    // the confirmation dialog.
+    // 始终返回 false，使该行回弹复位；真正的删除仅在确认对话框之后才执行。
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = {
             if (it == SwipeToDismissBoxValue.EndToStart) onRequestDelete()
@@ -154,8 +153,8 @@ private fun SwipeableRuleRow(
             }
         },
     ) {
-        // Frosted-glass surface (not flat colour) so the card blur shows through, while
-        // still fully covering the red delete background until the row is swiped.
+        // 使用磨砂玻璃表面（而非纯色），让卡片的模糊效果透出来，同时
+        // 在该行被滑动之前仍完全遮住红色的删除背景。
         Box(Modifier.cardFrost()) {
             IOSRow(
                 title = rule.name,
@@ -167,8 +166,8 @@ private fun SwipeableRuleRow(
     }
 }
 
-/** Quick "today is rest / today is work" toggles that override today's day-type for
- *  the holiday condition. Tapping the active one again clears the override. */
+/** 快捷的"今天休息 / 今天上班"开关，用于覆盖节假日条件所使用的当天日期类型。
+ *  再次点击当前已激活的那个即可清除该覆盖。 */
 @Composable
 private fun TodayOverrideCard() {
     val context = LocalContext.current
@@ -243,7 +242,7 @@ private fun TodayButton(
     }
 }
 
-/** iOS-style frosted confirmation for deleting a rule (replaces the Material AlertDialog). */
+/** 用于删除规则的 iOS 风格磨砂确认框（替代 Material 的 AlertDialog）。 */
 @Composable
 private fun DeleteRuleDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     GlassDialog(onDismiss = onDismiss) {

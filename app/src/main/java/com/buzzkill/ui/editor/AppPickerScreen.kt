@@ -57,7 +57,7 @@ import com.buzzkill.ui.components.cardFrost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Full-screen app picker: searchable square grid of logo + name, system-app toggle. */
+/** 全屏应用选择器：可搜索的方形网格，显示图标 + 名称，并带系统应用开关。 */
 @Composable
 fun AppPickerScreen(
     initiallySelected: List<String>,
@@ -145,8 +145,8 @@ private fun AppGridItem(app: AppInfo, selected: Boolean, onToggle: () -> Unit) {
         runCatching { app.icon?.toBitmap(96, 96)?.asImageBitmap() }.getOrNull()
     }
     val primary = MaterialTheme.colorScheme.primary
-    // No border when unselected (it read as too heavy); just a faint tinted glass with a
-    // thin accent ring when selected.
+    // 未选中时不显示边框（看起来太重）；仅在选中时显示淡淡的着色玻璃质感，
+    // 并加一圈细细的强调色描边。
     val borderColor by androidx.compose.animation.animateColorAsState(
         if (selected) primary.copy(alpha = 0.55f) else Color.Transparent, label = "border"
     )
@@ -184,7 +184,7 @@ private fun AppGridItem(app: AppInfo, selected: Boolean, onToggle: () -> Unit) {
                 color = if (selected) primary else MaterialTheme.colorScheme.onSurface,
             )
         }
-        // Selection mark: a plain check in the corner (no circle).
+        // 选中标记：角落里一个简单的对勾（不带圆圈）。
         if (selected) {
             Icon(
                 Icons.Filled.Check,

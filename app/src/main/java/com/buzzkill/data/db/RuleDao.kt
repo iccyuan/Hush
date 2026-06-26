@@ -14,7 +14,7 @@ interface RuleDao {
     @Query("SELECT * FROM rules ORDER BY sortOrder ASC, id ASC")
     fun observeAll(): Flow<List<Rule>>
 
-    /** Snapshot used by the listener service on each notification. */
+    /** 监听服务在每条通知到达时使用的快照。 */
     @Query("SELECT * FROM rules WHERE enabled = 1 ORDER BY sortOrder ASC, id ASC")
     suspend fun enabledRules(): List<Rule>
 

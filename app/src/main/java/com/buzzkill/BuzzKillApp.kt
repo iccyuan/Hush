@@ -11,10 +11,10 @@ import kotlinx.coroutines.launch
 class BuzzKillApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Ensure base channels exist before the first notification arrives.
+        // 在首条通知到达之前确保基础通知渠道已存在。
         ChannelManager(this).ensureBaseChannels()
 
-        // Load holidays, and refresh from the network at most once a week (best effort).
+        // 加载节假日数据，并以每周最多一次的频率从网络刷新（尽力而为）。
         HolidayProvider.ensureLoaded(this)
         val weekMs = 7L * 24 * 3600 * 1000
         if (System.currentTimeMillis() - HolidayProvider.lastUpdated(this) > weekMs) {

@@ -9,14 +9,14 @@ import com.buzzkill.data.HolidayProvider
 import com.buzzkill.engine.DeviceContext
 import java.util.Calendar
 
-/** Samples ambient device state used by rule conditions. */
+/** 采样供规则条件使用的环境设备状态。 */
 object DeviceState {
 
     fun sample(context: Context): DeviceContext {
         val now = System.currentTimeMillis()
         val cal = Calendar.getInstance()
         val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-        // Calendar SUNDAY=1..SATURDAY=7; convert to ISO MONDAY=1..SUNDAY=7.
+        // Calendar 中 SUNDAY=1..SATURDAY=7；转换为 ISO 标准 MONDAY=1..SUNDAY=7。
         val iso = ((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7) + 1
 
         HolidayProvider.ensureLoaded(context)

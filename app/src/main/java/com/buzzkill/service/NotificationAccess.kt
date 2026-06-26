@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 
-/** Helpers for checking and requesting notification-listener access. */
+/** 用于检查和请求通知监听器访问权限的辅助方法。 */
 object NotificationAccess {
 
     fun isGranted(context: Context): Boolean {

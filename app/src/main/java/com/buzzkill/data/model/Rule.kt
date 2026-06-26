@@ -5,10 +5,10 @@ import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
 /**
- * A complete automation: which apps it watches, the triggers that select a
- * notification, the conditions that gate it, and the actions it performs.
+ * 一个完整的自动化：它监视哪些应用、用于选中通知的触发器、
+ * 对其加以限制的条件，以及它所执行的动作。
  *
- * The component lists are persisted as JSON columns via [com.buzzkill.data.db.Converters].
+ * 各组成部分的列表通过 [com.buzzkill.data.db.Converters] 以 JSON 列的形式持久化。
  */
 @Entity(tableName = "rules")
 @Serializable
@@ -18,23 +18,23 @@ data class Rule(
     val name: String = "Untitled rule",
     val enabled: Boolean = true,
     val sortOrder: Int = 0,
-    /** Empty = applies to every app. */
+    /** 为空 = 适用于所有应用。 */
     val appPackages: List<String> = emptyList(),
     val triggerLogic: LogicMode = LogicMode.ALL,
     val triggers: List<Trigger> = emptyList(),
     val conditions: List<Condition> = emptyList(),
     val actions: List<Action> = emptyList(),
-    /** If true, no later rules are evaluated once this one fires. */
+    /** 若为 true，则一旦本规则触发，后续规则将不再被评估。 */
     val stopProcessing: Boolean = false,
     /**
-     * If true, a matching notification is shown as a scrolling "danmaku" overlay bullet
-     * instead of the native notification (requires draw-over-other-apps permission).
+     * 若为 true，匹配的通知将以滚动的“弹幕”悬浮条形式显示，
+     * 而非原生通知（需要“显示在其他应用上层”权限）。
      */
     val showDanmaku: Boolean = false,
-    /** Lifetime count of how many notifications this rule has acted on. */
+    /** 本规则累计处理过的通知数量。 */
     val fireCount: Long = 0,
     val notes: String = "",
 ) {
-    /** A rule with no triggers matches every notification from its apps. */
+    /** 没有触发器的规则会匹配其所属应用的所有通知。 */
     val matchesEverything: Boolean get() = triggers.isEmpty()
 }

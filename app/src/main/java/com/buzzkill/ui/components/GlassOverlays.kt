@@ -24,14 +24,14 @@ import androidx.compose.ui.unit.dp
 
 private val Scrim = Color(0x66000000)
 
-/** Ripple-free clickable (for scrims and tap-swallowing panels). */
+/** 无水波纹的可点击修饰符（用于遮罩层和吞噬点击的面板）。 */
 @Composable
 private fun Modifier.composedClickable(onTap: () -> Unit): Modifier {
     val interaction = remember { MutableInteractionSource() }
     return this.clickable(interactionSource = interaction, indication = null, onClick = onTap)
 }
 
-/** A centered frosted-glass dialog rendered in-composition (so it blurs the backdrop). */
+/** 在合成中渲染的居中毛玻璃对话框（因此它会模糊背景）。 */
 @Composable
 fun GlassDialog(
     onDismiss: () -> Unit,
@@ -51,14 +51,14 @@ fun GlassDialog(
                 .widthIn(max = 440.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .glassPanel(haze)
-                .composedClickable {} // swallow taps so they don't dismiss
+                .composedClickable {} // 吞噬点击，以免触发关闭
                 .padding(20.dp),
             content = content,
         )
     }
 }
 
-/** A bottom frosted-glass sheet rendered in-composition. */
+/** 在合成中渲染的底部毛玻璃面板。 */
 @Composable
 fun GlassSheet(
     onDismiss: () -> Unit,
@@ -95,13 +95,13 @@ fun GlassSheet(
     }
 }
 
-/** Frosted material if a blur source is available, else an opaque elevated surface. */
+/** 如果有可用的模糊源则使用毛玻璃材质，否则使用不透明的抬升表面。 */
 @Composable
 private fun Modifier.glassPanel(haze: dev.chrisbanes.haze.HazeState?): Modifier =
     if (haze != null) this.frostedOverlay(haze)
     else this.background(MaterialTheme.colorScheme.surface)
 
-/** Trailing row of dialog buttons (secondary on the left, confirm on the right). */
+/** 对话框按钮的尾部行（次要按钮在左，确认按钮在右）。 */
 @Composable
 fun DialogActions(
     confirmText: String,

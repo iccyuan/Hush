@@ -3,10 +3,10 @@ package com.buzzkill.engine
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Process-lifetime runtime state for the engine: user-defined variables
- * ([SetVariableAction][com.buzzkill.data.model.Action.SetVariableAction]), per-rule
- * cooldown timestamps, and per-package mute windows. Kept in memory deliberately —
- * these are ephemeral automation state, not user data to persist.
+ * 引擎在进程生命周期内的运行时状态：用户自定义变量
+ *（[SetVariableAction][com.buzzkill.data.model.Action.SetVariableAction]）、按规则的
+ * 冷却时间戳，以及按包名的静音时间窗口。刻意保存在内存中——
+ * 这些都是临时的自动化状态，并非需要持久化的用户数据。
  */
 object VariableStore {
     private val variables = ConcurrentHashMap<String, String>()
@@ -21,7 +21,7 @@ object VariableStore {
 
     fun snapshot(): Map<String, String> = variables.toMap()
 
-    /** Returns true if the rule is still within its cooldown window. */
+    /** 若规则仍处于其冷却时间窗口内，则返回 true。 */
     fun isInCooldown(ruleId: Long, now: Long): Boolean =
         (cooldownUntil[ruleId] ?: 0L) > now
 

@@ -16,10 +16,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Executes the context-dependent side effects produced by the engine that do not
- * need the original [android.service.notification.StatusBarNotification].
- * Auto-reply is handled separately by [AutoReplyHelper] because it needs the
- * source notification's RemoteInput.
+ * 执行由引擎产生的、依赖上下文且不需要原始
+ * [android.service.notification.StatusBarNotification] 的副作用。
+ * 自动回复由 [AutoReplyHelper] 单独处理，因为它需要源通知的 RemoteInput。
  */
 class SideEffectExecutor(
     private val context: Context,
@@ -38,7 +37,7 @@ class SideEffectExecutor(
                     VariableStore.muteApp(effect.pkg, nowPlusMinutes(effect.minutes))
                 is SideEffect.Danmaku ->
                     DanmakuController.show(context, effect.text, effect.durationMs)
-                is SideEffect.AutoReply -> Unit // handled by the service with the sbn
+                is SideEffect.AutoReply -> Unit // 由服务结合 sbn 处理
             }
         }
     }
@@ -66,7 +65,7 @@ class SideEffectExecutor(
         }
     }
 
-    /** Broadcasts the Tasker external-task intent. Requires Tasker to allow it. */
+    /** 广播 Tasker 外部任务 intent。需要 Tasker 允许此操作。 */
     private fun runTasker(taskName: String) {
         if (taskName.isBlank()) return
         val intent = Intent("net.dinglisch.android.tasker.ACTION_TASK").apply {
@@ -93,7 +92,7 @@ class SideEffectExecutor(
                         }
                     }
                 }
-                conn.responseCode // force the request to complete
+                conn.responseCode // 强制请求完成
                 conn.disconnect()
             }
         }

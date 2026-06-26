@@ -10,10 +10,9 @@ import com.buzzkill.data.model.VibrationPreset
 import com.buzzkill.engine.SoundOverride
 
 /**
- * On Android O+ a notification's importance, sound and vibration are properties of
- * its channel, not the notification. To honour per-rule overrides we lazily create a
- * distinct channel for each unique (importance, sound, vibration, dnd) combination
- * and cache it by a signature key.
+ * 在 Android O 及以上版本，通知的重要性、声音和振动是其通知渠道的属性，而非通知本身的属性。
+ * 为了实现按规则覆盖，我们会针对每个唯一的（重要性、声音、振动、勿扰）组合惰性地创建一个
+ * 独立的通知渠道，并以一个签名键对其进行缓存。
  */
 class ChannelManager(private val context: Context) {
 
@@ -34,7 +33,7 @@ class ChannelManager(private val context: Context) {
         nm.createNotificationChannel(activity)
     }
 
-    /** Returns a channel id matching the requested alerting overrides. */
+    /** 返回与所请求的提醒覆盖项相匹配的通知渠道 id。 */
     fun channelFor(
         importance: Importance?,
         sound: SoundOverride?,
@@ -85,7 +84,7 @@ class ChannelManager(private val context: Context) {
                 }
             }
         }
-        // Best-effort DND bypass; silently ignored without policy access.
+        // 尽力而为地绕过勿扰模式；在没有策略访问权限时会被静默忽略。
         try {
             channel.setBypassDnd(bypassDnd || importance == Importance.URGENT)
         } catch (_: Exception) {

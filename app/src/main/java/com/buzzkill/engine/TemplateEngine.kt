@@ -3,20 +3,20 @@ package com.buzzkill.engine
 import com.buzzkill.data.model.NotificationField
 
 /**
- * Renders user-supplied templates against a [MatchContext].
+ * 针对 [MatchContext] 渲染用户提供的模板。
  *
- * Supported placeholders:
+ * 支持的占位符：
  *  - {title} {text} {bigtext} {subtext} {ticker} {app} {package}
- *  - {1}..{9}            regex capture groups from the matching trigger
- *  - {var:name}          a user variable set by SetVariableAction
- *  - {time} {date}       not time-zone fancy; simple formatted values
+ *  - {1}..{9}            来自匹配触发器的正则捕获组
+ *  - {var:name}          由 SetVariableAction 设置的用户变量
+ *  - {time} {date}       不涉及复杂时区处理；仅为简单的格式化值
  *
- * Unknown placeholders are left untouched so literal braces survive.
+ * 未知的占位符将保持原样，以便字面意义的花括号得以保留。
  */
 object TemplateEngine {
 
-    // Note: the closing brace is escaped — Android's ICU regex engine rejects a
-    // bare '}' outside a {n,m} quantifier, unlike the desktop JVM.
+    // 注意：右花括号经过转义——与桌面 JVM 不同，Android 的 ICU 正则引擎
+    // 会拒绝出现在 {n,m} 量词之外的裸 '}'。
     private val TOKEN = Regex("""\{([a-zA-Z0-9_:]+)\}""")
 
     fun render(template: String, ctx: MatchContext): String {

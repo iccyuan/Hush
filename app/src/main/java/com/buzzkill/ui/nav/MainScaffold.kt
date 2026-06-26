@@ -40,12 +40,12 @@ import com.buzzkill.ui.settings.SettingsScreen
 enum class MainTab { RULES, HISTORY, ADD, SETTINGS }
 
 /**
- * The tabbed home: Rules / History / Add / Settings share a frosted bottom tab bar.
- * Add is a real tab page hosting the new-rule editor (no jarring page push); it gets a
- * fresh editor session each time it's opened.
+ * 标签式主页：规则 / 历史 / 添加 / 设置 共用一个磨砂的底部标签栏。
+ * "添加"是一个真正的标签页，承载新建规则的编辑器（不会有突兀的页面推入）；
+ * 每次打开它都会获得一个全新的编辑器会话。
  *
- * (Swipe-to-page between tabs is intentionally NOT used: the Rules and History lists use
- * horizontal swipe-to-delete, which can't be disambiguated from a tab-paging swipe.)
+ * （标签之间故意不使用滑动翻页：规则和历史列表使用横向滑动删除，
+ * 它无法与标签翻页的滑动手势区分开来。）
  */
 @Composable
 fun MainScaffold(onOpenRule: (Long) -> Unit) {

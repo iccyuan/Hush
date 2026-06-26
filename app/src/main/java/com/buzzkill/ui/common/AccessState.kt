@@ -12,7 +12,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.DisposableEffect
 import com.buzzkill.service.NotificationAccess
 
-/** Re-evaluates notification-listener access every time the screen resumes. */
+/** 每次屏幕恢复时重新评估通知监听器的访问权限。 */
 @Composable
 fun rememberNotificationAccessGranted(): Boolean {
     val context = LocalContext.current

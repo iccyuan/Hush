@@ -12,32 +12,30 @@ import java.net.URL
 import java.util.Calendar
 
 /**
- * Classifies a calendar date as a Chinese statutory holiday, make-up workday,
- * weekend, or ordinary workday.
+ * 将日历日期归类为中国法定节假日、调休补班工作日、周末或普通工作日。
  *
- * Data sources, in priority order:
- *  1. A locally cached copy fetched from the public holiday API (authoritative for the
- *     years it covers — these are the official State-Council dates).
- *  2. The bundled `assets/holidays.json` fallback for years not yet fetched.
- *  3. Plain weekday/weekend logic for any other year.
+ * 数据来源（按优先级排列）：
+ *  1. 从公共节假日 API 获取并本地缓存的副本（对其覆盖的年份具有权威性——这些是国务院官方公布的日期）。
+ *  2. 内置的 `assets/holidays.json`，作为尚未获取年份的回退数据。
+ *  3. 对于其他任何年份，采用普通的工作日/周末判断逻辑。
  */
 object HolidayProvider {
 
-    // --- Bundled asset model ---
+    // --- 内置资源数据模型 ---
     @Serializable private data class Calendar0(val years: Map<String, YearData> = emptyMap())
     @Serializable private data class YearData(
         val holidays: List<String> = emptyList(),
         val workdays: List<String> = emptyList(),
     )
 
-    // --- Persisted cache model (fetched data) ---
+    // --- 持久化缓存数据模型（已获取的数据） ---
     @Serializable private data class Cache(
         val years: List<String> = emptyList(),
         val holidays: List<String> = emptyList(),
         val workdays: List<String> = emptyList(),
     )
 
-    // --- timor.tech API model ---
+    // --- timor.tech API 数据模型 ---
     @Serializable private data class TimorResp(
         val code: Int = -1,
         val holiday: Map<String, TimorDay> = emptyMap(),
@@ -48,8 +46,7 @@ object HolidayProvider {
     @Volatile private var workdaySet: Set<String> = emptySet()
     @Volatile private var loaded = false
 
-    // Manual "today is rest / today is work" override (tied to a specific date so it
-    // auto-expires the next day).
+    // 手动的“今天休息 / 今天上班”覆盖设置（与具体日期绑定，因此第二天会自动失效）。
     @Volatile private var overrideDate: String = ""
     @Volatile private var overrideType: String = ""
 
@@ -70,7 +67,7 @@ object HolidayProvider {
         }
     }
 
-    /** Reloads in-memory sets from asset + cache (cache overrides covered years). */
+    /** 从内置资源和缓存重新加载内存中的集合（缓存会覆盖其所涵盖的年份）。 */
     private fun rebuild(context: Context) {
         val app = context.applicationContext
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -107,13 +104,12 @@ object HolidayProvider {
     fun lastUpdated(context: Context): Long =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(KEY_UPDATED, 0L)
 
-    /** Result of a [refresh]: how many years were successfully fetched. */
+    /** [refresh] 的结果：成功获取了多少个年份。 */
     data class RefreshResult(val ok: Boolean, val years: Int)
 
     /**
-     * Fetches the current year and its neighbours from the public holiday API, caches
-     * the result locally, and reloads. Network/parse failures leave the existing data
-     * untouched. Call from a background thread.
+     * 从公共节假日 API 获取当前年份及其相邻年份的数据，将结果缓存到本地并重新加载。
+     * 网络或解析失败时会保持现有数据不变。请在后台线程中调用。
      */
     fun refresh(context: Context): RefreshResult {
         val app = context.applicationContext
@@ -159,11 +155,11 @@ object HolidayProvider {
     }.getOrNull()
 
     /**
-     * @param month 1-based month, @param isoDayOfWeek 1 = Monday … 7 = Sunday.
+     * @param month 从 1 开始计的月份，@param isoDayOfWeek 1 = 周一 … 7 = 周日。
      */
     fun dayType(year: Int, month: Int, day: Int, isoDayOfWeek: Int): DayType {
         val key = "%04d-%02d-%02d".format(year, month, day)
-        // Manual override for a specific date wins over the calendar.
+        // 针对特定日期的手动覆盖设置优先于日历判断。
         if (key == overrideDate && overrideType.isNotEmpty()) {
             return if (overrideType == OVERRIDE_REST) DayType.LEGAL_HOLIDAY else DayType.WORKDAY
         }
@@ -182,7 +178,7 @@ object HolidayProvider {
         )
     }
 
-    /** Sets (or clears, when [type] is null) the manual day-type override for today. */
+    /** 设置（当 [type] 为 null 时则清除）今天的手动日期类型覆盖设置。 */
     fun setTodayOverride(context: Context, type: String?) {
         ensureLoaded(context)
         if (type == null) {
@@ -196,7 +192,7 @@ object HolidayProvider {
             .apply()
     }
 
-    /** The override active for today ([OVERRIDE_REST]/[OVERRIDE_WORK]), or null. */
+    /** 今天生效的覆盖设置（[OVERRIDE_REST]/[OVERRIDE_WORK]），若无则为 null。 */
     fun todayOverride(context: Context): String? {
         ensureLoaded(context)
         return if (overrideDate == todayKey() && overrideType.isNotEmpty()) overrideType else null

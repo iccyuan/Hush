@@ -9,8 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.builtins.ListSerializer
 
 /**
- * Single point of access to rule storage. Holds a process-wide singleton so the
- * listener service and UI share the same database instance.
+ * 访问规则存储的单一入口。持有一个进程级单例，使监听服务和 UI 共享同一个数据库实例。
  */
 class RuleRepository private constructor(private val dao: RuleDao) {
 
@@ -37,11 +36,11 @@ class RuleRepository private constructor(private val dao: RuleDao) {
         orderedIds.forEachIndexed { index, id -> dao.setSortOrder(id, index) }
     }
 
-    /** Serialize all rules to JSON for backup/export. */
+    /** 将所有规则序列化为 JSON，用于备份/导出。 */
     suspend fun exportJson(): String =
         BuzzJson.encodeToString(ListSerializer(Rule.serializer()), dao.allOnce())
 
-    /** Import rules from exported JSON, inserting as new rows. */
+    /** 从导出的 JSON 导入规则，作为新行插入。 */
     suspend fun importJson(json: String): Int {
         val rules = BuzzJson.decodeFromString(ListSerializer(Rule.serializer()), json)
         rules.forEach { dao.insert(it.copy(id = 0)) }

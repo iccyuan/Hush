@@ -23,7 +23,7 @@ interface NotificationLogDao {
     @Query("DELETE FROM notification_log WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    /** Keep only the newest [keep] rows. */
+    /** 仅保留最新的 [keep] 行记录。 */
     @Query("DELETE FROM notification_log WHERE id NOT IN (SELECT id FROM notification_log ORDER BY time DESC LIMIT :keep)")
     suspend fun prune(keep: Int)
 

@@ -9,14 +9,14 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "buzzkill_settings")
 
-/** App-wide preferences (not per-rule). */
+/** 应用级偏好设置（非按规则维度）。 */
 class SettingsStore private constructor(private val context: Context) {
 
     private val masterEnabledKey = booleanPreferencesKey("master_enabled")
     private val logActivityKey = booleanPreferencesKey("log_activity")
     private val onboardedKey = booleanPreferencesKey("onboarded")
 
-    /** Global kill-switch — when false, the engine is bypassed entirely. */
+    /** 全局总开关——为 false 时，引擎将被完全绕过。 */
     val masterEnabled: Flow<Boolean> =
         context.dataStore.data.map { it[masterEnabledKey] ?: true }
 

@@ -3,11 +3,11 @@ package com.buzzkill.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * iOS system colour palette (approximation of Apple's semantic colors) used to give
- * the app a native-iOS feel rather than Material You.
+ * iOS 系统调色板（近似 Apple 的语义化颜色），用于让
+ * 应用呈现原生 iOS 的观感，而非 Material You。
  */
 object IOSColors {
-    // Accents (single source of truth for the iOS system palette)
+    // 强调色（iOS 系统调色板的唯一可信来源）
     val Blue = Color(0xFF007AFF)
     val BlueDark = Color(0xFF0A84FF)
     val Green = Color(0xFF34C759)
@@ -21,14 +21,14 @@ object IOSColors {
     val Pink = Color(0xFFFF2D55)
     val Gray = Color(0xFF8E8E93)
 
-    // Light theme backgrounds
+    // 浅色主题背景
     val GroupedBgLight = Color(0xFFF2F2F7)      // systemGroupedBackground
     val SurfaceLight = Color(0xFFFFFFFF)         // secondarySystemGroupedBackground
     val SeparatorLight = Color(0x5C3C3C43)
     val LabelLight = Color(0xFF000000)
     val SecondaryLabelLight = Color(0x993C3C43)
 
-    // Dark theme backgrounds
+    // 深色主题背景
     val GroupedBgDark = Color(0xFF000000)
     val SurfaceDark = Color(0xFF1C1C1E)          // secondarySystemGroupedBackground
     val ElevatedDark = Color(0xFF2C2C2E)
@@ -36,7 +36,7 @@ object IOSColors {
     val LabelDark = Color(0xFFFFFFFF)
     val SecondaryLabelDark = Color(0x99EBEBF5)
 
-    // Subtle background gradient endpoints
+    // 微妙的背景渐变端点
     val GradientTopLight = Color(0xFFEAF0FB)
     val GradientBottomLight = Color(0xFFF2F2F7)
     val GradientTopDark = Color(0xFF15151A)
