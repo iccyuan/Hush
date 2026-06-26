@@ -13,14 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +36,7 @@ import com.buzzkill.ui.common.IntField
 import com.buzzkill.ui.common.SwitchRow
 import com.buzzkill.ui.components.DialogActions
 import com.buzzkill.ui.components.GlassDialog
+import com.buzzkill.ui.components.TimeWheel
 
 @Composable
 fun ConditionEditorDialog(
@@ -152,7 +149,7 @@ private fun HolidayConditionFields(
     }
 }
 
-/** A clickable HH:MM field backed by a Material3 time picker dialog. */
+/** A clickable HH:MM field backed by an iOS-style wheel time picker. */
 @Composable
 private fun TimeField(
     label: String,
@@ -168,27 +165,25 @@ private fun TimeField(
         }
     }
     if (showPicker) {
-        val state = rememberTimePickerState(
-            initialHour = minuteOfDay / 60,
-            initialMinute = minuteOfDay % 60,
-            is24Hour = true,
-        )
-        AlertDialog(
-            onDismissRequest = { showPicker = false },
-            text = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    TimePicker(state = state)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onChange(state.hour * 60 + state.minute)
+        var hour by remember { mutableStateOf(minuteOfDay / 60) }
+        var minute by remember { mutableStateOf(minuteOfDay % 60) }
+        GlassDialog(onDismiss = { showPicker = false }) {
+            Text(
+                label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(8.dp))
+            TimeWheel(hour = hour, minute = minute, onChange = { h, m -> hour = h; minute = m })
+            DialogActions(
+                confirmText = stringResource(R.string.done),
+                onConfirm = {
+                    onChange(hour * 60 + minute)
                     showPicker = false
-                }) { Text(stringResource(R.string.done)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showPicker = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
+                },
+                secondaryText = stringResource(R.string.cancel),
+                onSecondary = { showPicker = false },
+            )
+        }
     }
 }
