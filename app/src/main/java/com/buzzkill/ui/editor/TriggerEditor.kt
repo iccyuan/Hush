@@ -83,7 +83,13 @@ private fun TextTriggerFields(t: Trigger.TextTrigger, onChange: (Trigger.TextTri
             onSelected = { onChange(t.copy(mode = it)) },
         )
         Spacer(Modifier.height(8.dp))
-        LabeledTextField(stringResource(R.string.query), t.query) { onChange(t.copy(query = it)) }
+        val queryError = if (t.mode == MatchMode.REGEX) {
+            com.buzzkill.engine.TextMatcher.regexError(t.query)
+                ?.let { stringResource(R.string.err_invalid_regex, it) }
+        } else null
+        LabeledTextField(stringResource(R.string.query), t.query, error = queryError) {
+            onChange(t.copy(query = it))
+        }
         SwitchRow(stringResource(R.string.case_sensitive), t.caseSensitive) {
             onChange(t.copy(caseSensitive = it))
         }

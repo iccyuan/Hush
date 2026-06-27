@@ -1,9 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+// 读取发布签名凭据 (keystore.properties 不纳入版本控制)
+val keystorePropsFile = rootProject.file("app/keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) {
+        keystorePropsFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -15,17 +25,38 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0.0"
+        // 默认 0.1; CI 可通过 -PversionName=1.2.3 (由 git tag 推导) 覆盖
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1"
         vectorDrawables { useSupportLibrary = true }
+
+        // 导出 Room schema，使后续版本的数据库迁移可被校验。
+        ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keystorePropsFile.exists()) {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 启用 R8 代码压缩/混淆；保留资源不压缩以规避漏删风险（见 proguard-rules.pro 的 keep 规则）。
+            isMinifyEnabled = true
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // 仅当存在凭据时启用发布签名, 否则回退到默认 (避免 CI 等环境构建失败)
+            if (keystorePropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -68,4 +99,5 @@ dependencies {
     implementation(libs.haze)
     implementation(libs.haze.materials)
     debugImplementation(libs.androidx.ui.tooling)
+    testImplementation(libs.junit)
 }

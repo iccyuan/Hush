@@ -11,3 +11,6 @@ local.properties
 *.apk
 *.keystore
 !debug.keystore
+# 发布签名密钥与凭据 (切勿提交)
+*.jks
+keystore.properties

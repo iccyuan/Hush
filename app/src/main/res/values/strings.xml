@@ -95,7 +95,10 @@
     <string name="replace_with">Replace with</string>
     <string name="regex">Regex</string>
     <string name="template">Template</string>
-    <string name="template_hint">Placeholders: {title} {text} {app} {1}…{9} (regex groups) {var:name}</string>
+    <string name="template_hint">Placeholders: {title} {text} {app} {package} {time} {date} {1}…{9} (regex groups) {var:name}</string>
+    <string name="err_invalid_regex">Invalid regex: %1$s</string>
+    <string name="err_invalid_url">Enter a valid http(s) URL</string>
+    <string name="err_invalid_var_name">No spaces; cannot be blank</string>
     <string name="importance">Importance</string>
     <string name="bypass_dnd">Bypass Do Not Disturb</string>
     <string name="silence">Silence</string>

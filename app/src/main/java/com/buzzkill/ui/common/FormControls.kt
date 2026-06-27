@@ -21,7 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** 单行 / 多行带标签的文本输入框。 */
+/** 单行 / 多行带标签的文本输入框。[error] 非空时以错误样式显示并附带提示文案。 */
 @Composable
 fun LabeledTextField(
     label: String,
@@ -29,6 +29,7 @@ fun LabeledTextField(
     modifier: Modifier = Modifier,
     singleLine: Boolean = true,
     placeholder: String? = null,
+    error: String? = null,
     onValueChange: (String) -> Unit,
 ) {
     OutlinedTextField(
@@ -37,6 +38,8 @@ fun LabeledTextField(
         label = { Text(label) },
         singleLine = singleLine,
         placeholder = placeholder?.let { { Text(it) } },
+        isError = error != null,
+        supportingText = error?.let { { Text(it) } },
         modifier = modifier.fillMaxWidth(),
     )
 }

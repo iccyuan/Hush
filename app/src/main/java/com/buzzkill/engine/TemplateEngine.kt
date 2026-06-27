@@ -1,6 +1,9 @@
 package com.buzzkill.engine
 
 import com.buzzkill.data.model.NotificationField
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 针对 [MatchContext] 渲染用户提供的模板。
@@ -36,7 +39,19 @@ object TemplateEngine {
         key == "ticker" -> ctx.field(NotificationField.TICKER)
         key == "app" -> ctx.appName
         key == "package" -> ctx.packageName
+        key == "time" -> formatNow(TIME_FMT, ctx)
+        key == "date" -> formatNow(DATE_FMT, ctx)
         key.toIntOrNull() != null -> ctx.captures[key] ?: ""
         else -> null
     }
+
+    // 以采样的设备时间（device.nowMillis）渲染。当 now 为 0（仅内容预览的中性
+    // 设备状态）时，回退到当前挂钟时间，以免预览出现 1970 年。
+    private fun formatNow(fmt: SimpleDateFormat, ctx: MatchContext): String {
+        val millis = ctx.device.nowMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
+        return fmt.format(Date(millis))
+    }
+
+    private val TIME_FMT = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val DATE_FMT = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 }

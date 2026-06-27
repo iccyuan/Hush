@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
+import android.util.Log
 import android.widget.Toast
 import com.buzzkill.data.model.HttpMethod
 import com.buzzkill.engine.SideEffect
@@ -11,7 +12,6 @@ import com.buzzkill.engine.VariableStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -56,6 +56,7 @@ class SideEffectExecutor(
             "buzzkill:wake"
         )
         runCatching { lock.acquire(durationMs.coerceIn(500, 30_000)) }
+            .onFailure { Log.w(TAG, "wakeScreen failed", it) }
     }
 
     private fun showToast(text: String) {
@@ -69,32 +70,43 @@ class SideEffectExecutor(
     private fun runTasker(taskName: String) {
         if (taskName.isBlank()) return
         val intent = Intent("net.dinglisch.android.tasker.ACTION_TASK").apply {
-            setPackage("net.dinglisch.android.taskerm")
+            setPackage(TASKER_PACKAGE)
             putExtra("task_name", taskName)
             addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
         }
         runCatching { context.sendBroadcast(intent) }
+            .onSuccess { Log.i(TAG, "tasker task broadcast: $taskName") }
+            .onFailure { Log.w(TAG, "tasker task failed: $taskName", it) }
     }
 
     private fun fireWebhook(url: String, method: HttpMethod, body: String) {
         if (url.isBlank()) return
         scope.launch(Dispatchers.IO) {
+            var conn: HttpURLConnection? = null
             runCatching {
-                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     requestMethod = method.name
-                    connectTimeout = 8000
-                    readTimeout = 8000
+                    connectTimeout = WEBHOOK_TIMEOUT_MS
+                    readTimeout = WEBHOOK_TIMEOUT_MS
                     if (method != HttpMethod.GET) {
                         doOutput = true
                         setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                        withContext(Dispatchers.IO) {
-                            outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-                        }
+                        outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     }
                 }
-                conn.responseCode // 强制请求完成
-                conn.disconnect()
+                val code = conn!!.responseCode // 强制请求完成
+                Log.i(TAG, "webhook ${method.name} $url -> $code")
+            }.onFailure {
+                Log.w(TAG, "webhook ${method.name} $url failed: ${it.message}", it)
             }
+            // 无论成功失败都释放连接。
+            runCatching { conn?.disconnect() }
         }
+    }
+
+    private companion object {
+        const val TAG = "BuzzKill"
+        const val TASKER_PACKAGE = "net.dinglisch.android.taskerm"
+        const val WEBHOOK_TIMEOUT_MS = 8000
     }
 }

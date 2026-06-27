@@ -78,7 +78,13 @@ private fun ActionFields(action: Action, onChange: (Action) -> Unit) {
         is Action.ReplaceTextAction -> Column {
             fieldDropdown(a.field) { onChange(a.copy(field = it)) }
             Spacer(Modifier.height(6.dp))
-            LabeledTextField(stringResource(R.string.find), a.pattern) { onChange(a.copy(pattern = it)) }
+            val patternError = if (a.isRegex) {
+                com.buzzkill.engine.TextMatcher.regexError(a.pattern)
+                    ?.let { stringResource(R.string.err_invalid_regex, it) }
+            } else null
+            LabeledTextField(stringResource(R.string.find), a.pattern, error = patternError) {
+                onChange(a.copy(pattern = it))
+            }
             Spacer(Modifier.height(6.dp))
             LabeledTextField(stringResource(R.string.replace_with), a.replacement) {
                 onChange(a.copy(replacement = it))
@@ -154,7 +160,11 @@ private fun ActionFields(action: Action, onChange: (Action) -> Unit) {
             TemplateHint()
         }
         is Action.SetVariableAction -> Column {
-            LabeledTextField(stringResource(R.string.variable_name), a.name) { onChange(a.copy(name = it)) }
+            val nameError = if (a.name.isBlank() || a.name.any { it.isWhitespace() })
+                stringResource(R.string.err_invalid_var_name) else null
+            LabeledTextField(stringResource(R.string.variable_name), a.name, error = nameError) {
+                onChange(a.copy(name = it))
+            }
             Spacer(Modifier.height(6.dp))
             LabeledTextField(stringResource(R.string.value_template), a.valueTemplate) {
                 onChange(a.copy(valueTemplate = it))
@@ -165,7 +175,11 @@ private fun ActionFields(action: Action, onChange: (Action) -> Unit) {
             onChange(a.copy(taskName = it))
         }
         is Action.WebhookAction -> Column {
-            LabeledTextField(stringResource(R.string.url), a.url) { onChange(a.copy(url = it)) }
+            val urlError = if (a.url.isNotBlank() && !android.util.Patterns.WEB_URL.matcher(a.url).matches())
+                stringResource(R.string.err_invalid_url) else null
+            LabeledTextField(stringResource(R.string.url), a.url, error = urlError) {
+                onChange(a.copy(url = it))
+            }
             Spacer(Modifier.height(6.dp))
             EnumDropdown(
                 label = stringResource(R.string.method),

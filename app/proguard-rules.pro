@@ -6,3 +6,17 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 -keep,includedescriptorclasses class com.buzzkill.data.model.**$$serializer { *; }
+
+# Keep the (de)serialized data model intact — these are persisted as JSON columns and
+# round-tripped via polymorphic serializers, so member/name stripping must not touch them.
+-keep class com.buzzkill.data.model.** { *; }
+
+# Room: keep entities and generated DAO/database implementations.
+-keep class com.buzzkill.data.db.** { *; }
+-keepclassmembers class * extends androidx.room.RoomDatabase { *; }
+
+# TTS / notification reflection-free, but keep enum values used via valueOf in converters.
+-keepclassmembers enum com.buzzkill.data.model.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}

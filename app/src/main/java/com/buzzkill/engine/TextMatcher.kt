@@ -47,6 +47,18 @@ object TextMatcher {
         }
     }
 
+    /**
+     * 校验正则表达式：合法返回 null，非法返回平台给出的错误信息（供编辑器内联提示）。
+     * 与匹配热路径中“非法即永不匹配”的容错策略相互独立。
+     */
+    fun regexError(pattern: String): String? =
+        try {
+            Pattern.compile(pattern)
+            null
+        } catch (e: Exception) {
+            e.message ?: "Invalid regular expression"
+        }
+
     /** 将通配符（`*`、`?`）转换为带锚点的正则表达式。 */
     private fun wildcardToRegex(glob: String): String {
         val sb = StringBuilder("^")

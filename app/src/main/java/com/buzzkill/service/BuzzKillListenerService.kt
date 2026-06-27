@@ -52,6 +52,8 @@ class BuzzKillListenerService : NotificationListenerService() {
         tts = TtsManager(this)
         sideEffects = SideEffectExecutor(this, scope, tts)
         channels.ensureBaseChannels()
+        // 恢复并持久化运行时状态（冷却 / 静音 / 变量），使其跨进程重启依然有效。
+        com.buzzkill.data.RuntimeStateStore.init(this)
 
         scope.launch {
             repository.observeAll().collectLatest {
@@ -91,6 +93,14 @@ class BuzzKillListenerService : NotificationListenerService() {
                 Log.e(TAG, "process failed for ${sbn.packageName}", t)
             }
         }
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        super.onNotificationRemoved(sbn)
+        // 当源通知被移除（用户清除或应用自行撤回）时，连带移除我们为其重新发布的副本，
+        // 否则改写后的副本会滞留在通知栏。我们自己重发的副本由本应用拥有，跳过它以免误删/递归。
+        if (sbn.packageName == packageName) return
+        if (::modifier.isInitialized) modifier.cancelReposted(sbn)
     }
 
     private suspend fun process(sbn: StatusBarNotification) {

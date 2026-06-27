@@ -95,7 +95,10 @@
     <string name="replace_with">替换为</string>
     <string name="regex">正则表达式</string>
     <string name="template">模板</string>
-    <string name="template_hint">占位符：{title} {text} {app} {1}…{9}（正则分组）{var:name}</string>
+    <string name="template_hint">占位符：{title} {text} {app} {package} {time} {date} {1}…{9}（正则分组）{var:name}</string>
+    <string name="err_invalid_regex">正则无效：%1$s</string>
+    <string name="err_invalid_url">请输入有效的 http(s) 网址</string>
+    <string name="err_invalid_var_name">变量名不能为空或含空格</string>
     <string name="importance">重要级别</string>
     <string name="bypass_dnd">绕过勿扰模式</string>
     <string name="silence">静音</string>

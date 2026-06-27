@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.graphics.drawable.Icon
+import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import com.buzzkill.R
 import com.buzzkill.data.model.NotificationField
@@ -28,25 +29,28 @@ class NotificationModifier(
         val original = sbn.notification
         val extras = original.extras
 
-        val title = decision.fieldEdits[NotificationField.TITLE]
+        fun edited(field: NotificationField) = decision.fieldEdits[field]
+        val title = edited(NotificationField.TITLE)
             ?: extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-        val text = decision.fieldEdits[NotificationField.TEXT]
+        val text = edited(NotificationField.TEXT)
             ?: extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-        val bigText = decision.fieldEdits[NotificationField.BIG_TEXT]
+        val bigText = edited(NotificationField.BIG_TEXT)
             ?: extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
-        val subText = decision.fieldEdits[NotificationField.SUB_TEXT]
+        val subText = edited(NotificationField.SUB_TEXT)
             ?: extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+        val infoText = edited(NotificationField.INFO_TEXT)
+            ?: extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()
+        val ticker = edited(NotificationField.TICKER)
+            ?: original.tickerText?.toString()
 
         val channelId = channels.channelFor(decision.importance, decision.sound, decision.bypassDnd)
 
         val builder = Notification.Builder(context, channelId).apply {
+            // 先以原通知的全部 extras 作为基底——这样 MessagingStyle / InboxStyle / 媒体样式
+            // 所依赖的模板与消息数据（android.messages / android.textLines / android.template 等）
+            // 以及 people、progress 等附加项都会被保留。随后的字段覆盖写在其后，确保能盖过原值。
+            addExtras(Bundle(extras))
             setSmallIcon(original.smallIcon ?: Icon.createWithResource(context, R.drawable.ic_stat_buzzkill))
-            title?.let { setContentTitle(it) }
-            text?.let { setContentText(it) }
-            subText?.let { setSubText(it) }
-            if (!bigText.isNullOrEmpty()) {
-                setStyle(Notification.BigTextStyle().bigText(bigText))
-            }
             original.getLargeIcon()?.let { setLargeIcon(it) }
             original.contentIntent?.let { setContentIntent(it) }
             original.deleteIntent?.let { setDeleteIntent(it) }
@@ -57,9 +61,21 @@ class NotificationModifier(
             original.group?.let { setGroup(it) }
             // 保留交互式操作（回复、标记为已读等）。
             original.actions?.forEach { addAction(it) }
+
+            // 覆盖编辑过/解析出的文本字段（位于 addExtras 之后以确保生效）。
+            title?.let { setContentTitle(it) }
+            text?.let { setContentText(it) }
+            subText?.let { setSubText(it) }
+            ticker?.let { setTicker(it) }
+            // INFO_TEXT 自 O 起没有公开 setter（其角色由通知渠道接管），直接写入 extras 键。
+            infoText?.let { addExtras(Bundle().apply { putCharSequence(Notification.EXTRA_INFO_TEXT, it) }) }
+            // 仅当存在展开文本时才套用 BigTextStyle；否则保留上面继承下来的原始样式。
+            if (!bigText.isNullOrEmpty()) {
+                setStyle(Notification.BigTextStyle().bigText(bigText))
+            }
             // 使重建后的通知仍然显示为源应用。绕过勿扰模式和重要性由所选通知渠道
             // 控制，而非由 builder 控制。
-            addExtras(android.os.Bundle().apply {
+            addExtras(Bundle().apply {
                 // （隐藏的）EXTRA_SUBSTITUTE_APP_NAME 常量的公开键值。
                 putString("android.substName", appName)
             })
