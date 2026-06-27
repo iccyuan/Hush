@@ -58,6 +58,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
+          name: BuzzKill-${{ steps.version.outputs.name }}
           generate_release_notes: true
           files: app/build/outputs/apk/release/*.apk
