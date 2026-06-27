@@ -126,9 +126,12 @@ class BuzzKillListenerService : NotificationListenerService() {
             applyDecision(sbn, decision, appName)
             recordFires(decision)
         }
-        // 常驻通知（音乐、下载、前台服务等）不写入历史，避免把历史刷满。
-        // 规则仍会照常对其求值——这里只跳过记录。
-        if (logActivity && !sbn.isOngoing) logNotification(sbn, appName, decision)
+        // 常驻通知（音乐、下载、前台服务、VPN 等）不写入历史，避免把历史刷满。
+        // isOngoing 只覆盖 FLAG_ONGOING_EVENT；像 VPN 这类只设了 FLAG_NO_CLEAR
+        // 的不可清除通知也算常驻，一并跳过。规则仍会照常对其求值——这里只跳过记录。
+        val isPersistent = sbn.isOngoing ||
+            (sbn.notification.flags and android.app.Notification.FLAG_NO_CLEAR) != 0
+        if (logActivity && !isPersistent) logNotification(sbn, appName, decision)
     }
 
     private suspend fun logNotification(sbn: StatusBarNotification, appName: String, decision: Decision) {

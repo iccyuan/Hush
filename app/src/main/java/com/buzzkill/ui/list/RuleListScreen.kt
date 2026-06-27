@@ -21,7 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Weekend
-import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
@@ -196,7 +196,7 @@ private fun TodayOverrideCard() {
             }
             TodayButton(
                 label = stringResource(R.string.today_work),
-                icon = Icons.Outlined.Work,
+                icon = Icons.Outlined.WorkOutline,
                 color = IOSColors.Orange,
                 active = override == com.buzzkill.data.HolidayProvider.OVERRIDE_WORK,
                 modifier = Modifier.weight(1f),
