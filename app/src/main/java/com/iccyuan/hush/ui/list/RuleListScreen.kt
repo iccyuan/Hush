@@ -94,8 +94,6 @@ fun RuleListScreen(
         ) {
             item { Spacer(Modifier.height(4.dp)) }
 
-            item { TodayOverrideCard() }
-
             if (!accessGranted) {
                 item {
                     AccessBanner(onGrant = {
@@ -169,83 +167,6 @@ private fun SwipeableRuleRow(
     }
 }
 
-/** 快捷的"今天休息 / 今天上班"开关，用于覆盖节假日条件所使用的当天日期类型。
- *  再次点击当前已激活的那个即可清除该覆盖。 */
-@Composable
-private fun TodayOverrideCard() {
-    val context = LocalContext.current
-    var override by remember { mutableStateOf<String?>(null) }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        override = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            HolidayProvider.todayOverride(context)
-        }
-    }
-    InsetGroupedSection {
-        Row(
-            Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            TodayButton(
-                label = stringResource(R.string.today_rest),
-                icon = Icons.Outlined.Weekend,
-                color = IOSColors.Red,
-                active = override == HolidayProvider.OVERRIDE_REST,
-                modifier = Modifier.weight(1f),
-            ) {
-                val next = if (override == HolidayProvider.OVERRIDE_REST) null
-                else HolidayProvider.OVERRIDE_REST
-                HolidayProvider.setTodayOverride(context, next)
-                override = next
-            }
-            TodayButton(
-                label = stringResource(R.string.today_work),
-                icon = Icons.Outlined.WorkOutline,
-                color = IOSColors.Orange,
-                active = override == HolidayProvider.OVERRIDE_WORK,
-                modifier = Modifier.weight(1f),
-            ) {
-                val next = if (override == HolidayProvider.OVERRIDE_WORK) null
-                else HolidayProvider.OVERRIDE_WORK
-                HolidayProvider.setTodayOverride(context, next)
-                override = next
-            }
-        }
-    }
-}
-
-@Composable
-private fun TodayButton(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color,
-    active: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    // 选中态用「强调色描边」标示，未选中态无边框——保持轻盈的同时让选择一眼可辨。
-    val bg = color.copy(alpha = Alpha.FillFaint)
-    val fg = color
-    val shape = RoundedCornerShape(12.dp)
-    Row(
-        modifier
-            .clip(shape)
-            .background(bg)
-            .then(if (active) Modifier.border(1.dp, color, shape) else Modifier)
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = fg,
-            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-        )
-    }
-}
 
 /** 用于删除规则的 iOS 风格磨砂确认框（替代 Material 的 AlertDialog）。 */
 @Composable

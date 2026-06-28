@@ -378,7 +378,7 @@
     <string name="reminder_title">提醒</string>
     <string name="channel_keepalive">运行中</string>
     <string name="channel_keepalive_desc">保持后台常驻，避免通知监听被系统杀死；点按操作可把今天设为休息/工作</string>
-    <string name="keepalive_today_auto">今日：自动判定（节假日/工作日）</string>
+    <string name="keepalive_today_auto">今日：%1$s（自动）</string>
     <string name="keepalive_today_rest">今日：休息</string>
     <string name="keepalive_today_work">今日：工作</string>
 

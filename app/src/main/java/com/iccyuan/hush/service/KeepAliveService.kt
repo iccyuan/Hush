@@ -12,7 +12,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.iccyuan.hush.R
 import com.iccyuan.hush.data.HolidayProvider
+import com.iccyuan.hush.data.model.DayType
 import com.iccyuan.hush.ui.MainActivity
+import java.util.Calendar
 
 /**
  * 前台保活服务：用一条常驻通知把进程提升到「前台服务」优先级，显著降低被 OEM 省电策略
@@ -51,10 +53,12 @@ class KeepAliveService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val stateRes = when (HolidayProvider.todayOverride(this)) {
-            HolidayProvider.OVERRIDE_REST -> R.string.keepalive_today_rest
-            HolidayProvider.OVERRIDE_WORK -> R.string.keepalive_today_work
-            else -> R.string.keepalive_today_auto
+        // 手动覆盖时显示「休息/工作」；未覆盖（自动）时显示今天**真实判定**的日期类型
+        //（节假日/调休补班/周末/工作日，互斥）。
+        val stateText = when (HolidayProvider.todayOverride(this)) {
+            HolidayProvider.OVERRIDE_REST -> getString(R.string.keepalive_today_rest)
+            HolidayProvider.OVERRIDE_WORK -> getString(R.string.keepalive_today_work)
+            else -> getString(R.string.keepalive_today_auto, getString(todayDayTypeRes()))
         }
         val openApp = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java),
@@ -63,7 +67,7 @@ class KeepAliveService : Service() {
         return NotificationCompat.Builder(this, ChannelManager.KEEPALIVE_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_hush)
             .setContentTitle(getString(R.string.app_name))
-            .setContentText(getString(stateRes))
+            .setContentText(stateText)
             .setContentIntent(openApp)
             .setOngoing(true)
             .setShowWhen(false)
@@ -71,6 +75,21 @@ class KeepAliveService : Service() {
             .addAction(0, getString(R.string.today_rest), serviceAction(ACTION_REST))
             .addAction(0, getString(R.string.today_work), serviceAction(ACTION_WORK))
             .build()
+    }
+
+    /** 今天真实判定的日期类型对应的字符串资源（与节假日条件同一套判断逻辑）。 */
+    private fun todayDayTypeRes(): Int {
+        val c = Calendar.getInstance()
+        val iso = ((c.get(Calendar.DAY_OF_WEEK) + 5) % 7) + 1
+        val type = HolidayProvider.dayType(
+            c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH), iso,
+        )
+        return when (type) {
+            DayType.LEGAL_HOLIDAY -> R.string.daytype_legal_holiday
+            DayType.MAKEUP_WORKDAY -> R.string.daytype_makeup_workday
+            DayType.WEEKEND -> R.string.daytype_weekend
+            DayType.WORKDAY -> R.string.daytype_workday
+        }
     }
 
     private fun serviceAction(action: String): PendingIntent {

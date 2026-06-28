@@ -378,7 +378,7 @@
     <string name="reminder_title">Reminder</string>
     <string name="channel_keepalive">Running</string>
     <string name="channel_keepalive_desc">Keeps the listener alive in the background; tap the actions to set today as rest/work</string>
-    <string name="keepalive_today_auto">Today: automatic (holiday / workday)</string>
+    <string name="keepalive_today_auto">Today: %1$s (auto)</string>
     <string name="keepalive_today_rest">Today: rest</string>
     <string name="keepalive_today_work">Today: work</string>
 
