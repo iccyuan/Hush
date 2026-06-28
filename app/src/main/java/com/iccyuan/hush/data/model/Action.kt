@@ -128,14 +128,6 @@ sealed class Action {
         val valueTemplate: String = "",
     ) : Action()
 
-    /** 广播一个 intent，按名称触发指定的 Tasker 任务。 */
-    @Serializable
-    @SerialName("tasker")
-    data class RunTaskerAction(
-        override val id: String,
-        val taskName: String = "",
-    ) : Action()
-
     /**
      * 发起一个 HTTP 请求，例如发送到 webhook / 智能家居自动化。
      * 类 Postman 形式：查询参数 [queryParams]（拼到 URL）、请求头 [headers]、

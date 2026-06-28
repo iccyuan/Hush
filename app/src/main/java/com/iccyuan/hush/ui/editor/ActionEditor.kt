@@ -177,9 +177,6 @@ private fun ActionFields(action: Action, onChange: (Action) -> Unit) {
             }
             TemplateHint()
         }
-        is Action.RunTaskerAction -> LabeledTextField(stringResource(R.string.tasker_task), a.taskName) {
-            onChange(a.copy(taskName = it))
-        }
         // Webhook 在独立的全屏二级界面编辑（WebhookEditorScreen），不走此对话框。
         is Action.WebhookAction -> Unit
         is Action.MuteAppAction -> Text(stringResource(R.string.mute_explain))
@@ -222,7 +219,6 @@ private fun actionTitle(action: Action): String = stringResource(
         is Action.ToastAction -> R.string.cat_act_toast
         is Action.NotifyAction -> R.string.cat_act_notify
         is Action.SetVariableAction -> R.string.cat_act_setvar
-        is Action.RunTaskerAction -> R.string.cat_act_tasker
         is Action.WebhookAction -> R.string.cat_act_webhook
         is Action.MuteAppAction -> R.string.cat_act_mute
         is Action.DigestAction -> R.string.cat_act_digest

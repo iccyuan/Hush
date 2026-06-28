@@ -114,7 +114,6 @@
     <string name="notify_template">提醒内容模板</string>
     <string name="variable_name">变量名</string>
     <string name="value_template">值模板</string>
-    <string name="tasker_task">Tasker 任务名</string>
     <string name="url">URL</string>
     <string name="method">请求方法</string>
     <string name="body_template">请求体模板</string>
@@ -322,8 +321,6 @@
     <string name="cat_act_notify_desc">命中后发布一条新的提醒通知</string>
     <string name="cat_act_setvar">设置变量</string>
     <string name="cat_act_setvar_desc">存储一个值供后续模板使用</string>
-    <string name="cat_act_tasker">运行 Tasker 任务</string>
-    <string name="cat_act_tasker_desc">按名称触发 Tasker 任务</string>
     <string name="cat_act_webhook">Webhook</string>
     <string name="cat_act_webhook_desc">发送 HTTP 请求</string>
     <string name="cat_act_mute">静音应用</string>
@@ -376,7 +373,6 @@
     <string name="sum_act_toast">Toast「%s」</string>
     <string name="sum_act_notify">发送提醒「%s」</string>
     <string name="sum_act_setvar">设置 $%1$s =「%2$s」</string>
-    <string name="sum_act_tasker">运行 Tasker 任务「%s」</string>
     <string name="sum_act_webhook">%1$s %2$s</string>
     <string name="sum_act_mute">静音该应用，直到关闭规则</string>
     <string name="sum_act_digest">每 %d 分钟聚合一条</string>

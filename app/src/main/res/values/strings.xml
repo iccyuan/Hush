@@ -114,7 +114,6 @@
     <string name="notify_template">Reminder template</string>
     <string name="variable_name">Variable name</string>
     <string name="value_template">Value template</string>
-    <string name="tasker_task">Tasker task name</string>
     <string name="url">URL</string>
     <string name="method">Method</string>
     <string name="body_template">Body template</string>
@@ -322,8 +321,6 @@
     <string name="cat_act_notify_desc">Post a new notification when the rule fires</string>
     <string name="cat_act_setvar">Set variable</string>
     <string name="cat_act_setvar_desc">Store a value for later templates</string>
-    <string name="cat_act_tasker">Run Tasker task</string>
-    <string name="cat_act_tasker_desc">Trigger a Tasker task by name</string>
     <string name="cat_act_webhook">Webhook</string>
     <string name="cat_act_webhook_desc">Send an HTTP request</string>
     <string name="cat_act_mute">Mute app</string>
@@ -376,7 +373,6 @@
     <string name="sum_act_toast">Toast \"%s\"</string>
     <string name="sum_act_notify">Send reminder \"%s\"</string>
     <string name="sum_act_setvar">Set $%1$s = \"%2$s\"</string>
-    <string name="sum_act_tasker">Run Tasker task \"%s\"</string>
     <string name="sum_act_webhook">%1$s %2$s</string>
     <string name="sum_act_mute">Mute this app until the rule is off</string>
     <string name="sum_act_digest">Digest every %dm</string>

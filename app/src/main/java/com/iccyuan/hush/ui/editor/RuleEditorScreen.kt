@@ -499,7 +499,6 @@ private fun effectName(effect: SideEffect): String? = when (effect) {
     is SideEffect.WakeScreen -> stringResource(R.string.cat_act_wake)
     is SideEffect.AutoReply -> stringResource(R.string.cat_act_autoreply)
     is SideEffect.Webhook -> stringResource(R.string.cat_act_webhook)
-    is SideEffect.RunTasker -> stringResource(R.string.cat_act_tasker)
     is SideEffect.MuteApp -> stringResource(R.string.cat_act_mute)
     is SideEffect.Digest -> stringResource(R.string.cat_act_digest)
     is SideEffect.Danmaku -> stringResource(R.string.danmaku_switch)

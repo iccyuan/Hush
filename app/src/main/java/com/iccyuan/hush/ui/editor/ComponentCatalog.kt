@@ -162,9 +162,6 @@ object ComponentCatalog {
         CatalogEntry(R.string.cat_act_webhook, R.string.cat_act_webhook_desc, Icons.Filled.Cloud, Blue) {
             Action.WebhookAction(Ids.next())
         },
-        CatalogEntry(R.string.cat_act_tasker, R.string.cat_act_tasker_desc, Icons.Filled.Bolt, Orange) {
-            Action.RunTaskerAction(Ids.next())
-        },
     )
 }
 
@@ -204,7 +201,6 @@ object ComponentVisuals {
         is Action.ToastAction -> Icons.Filled.Sms to Green
         is Action.NotifyAction -> Icons.Filled.NotificationsActive to Pink
         is Action.SetVariableAction -> Icons.Filled.DataObject to Indigo
-        is Action.RunTaskerAction -> Icons.Filled.Bolt to Orange
         is Action.WebhookAction -> Icons.Filled.Cloud to Blue
         is Action.MuteAppAction -> Icons.Filled.NotificationsOff to Red
         is Action.DigestAction -> Icons.Filled.Inbox to Indigo

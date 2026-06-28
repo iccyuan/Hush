@@ -167,7 +167,6 @@ object Localize {
         is Action.ToastAction -> stringResource(R.string.sum_act_toast, a.template)
         is Action.NotifyAction -> stringResource(R.string.sum_act_notify, a.template)
         is Action.SetVariableAction -> stringResource(R.string.sum_act_setvar, a.name, a.valueTemplate)
-        is Action.RunTaskerAction -> stringResource(R.string.sum_act_tasker, a.taskName)
         is Action.WebhookAction -> stringResource(R.string.sum_act_webhook, a.method.name, a.url)
         is Action.MuteAppAction -> stringResource(R.string.sum_act_mute)
         is Action.DigestAction -> stringResource(R.string.sum_act_digest, a.windowMinutes)

@@ -36,7 +36,6 @@ class SideEffectExecutor(
                 is SideEffect.WakeScreen -> wakeScreen(effect.durationMs)
                 is SideEffect.Toast -> showToast(effect.text)
                 is SideEffect.Notify -> postReminder(effect.text)
-                is SideEffect.RunTasker -> runTasker(effect.taskName)
                 is SideEffect.Webhook ->
                     fireWebhook(effect.url, effect.method, effect.params, effect.headers, effect.contentType, effect.body)
                 is SideEffect.MuteApp ->
@@ -84,19 +83,6 @@ class SideEffectExecutor(
         scope.launch(Dispatchers.Main) {
             Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
         }
-    }
-
-    /** 广播 Tasker 外部任务 intent。需要 Tasker 允许此操作。 */
-    private fun runTasker(taskName: String) {
-        if (taskName.isBlank()) return
-        val intent = Intent("net.dinglisch.android.tasker.ACTION_TASK").apply {
-            setPackage(TASKER_PACKAGE)
-            putExtra("task_name", taskName)
-            addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
-        }
-        runCatching { context.sendBroadcast(intent) }
-            .onSuccess { Logger.i("tasker task broadcast: $taskName") }
-            .onFailure { Logger.w("tasker task failed: $taskName", it) }
     }
 
     private fun fireWebhook(
@@ -148,7 +134,6 @@ class SideEffectExecutor(
     }
 
     private companion object {
-        const val TASKER_PACKAGE = "net.dinglisch.android.taskerm"
         const val REMINDER_ID_BASE = 8000
         const val WEBHOOK_TIMEOUT_MS = 8000
     }

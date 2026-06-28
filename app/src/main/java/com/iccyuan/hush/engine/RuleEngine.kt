@@ -274,8 +274,6 @@ class RuleEngine {
                 )
             is Action.SetVariableAction ->
                 VariableStore.setVariable(action.name, TemplateEngine.render(action.valueTemplate, ctx))
-            is Action.RunTaskerAction ->
-                decision.sideEffects.add(SideEffect.RunTasker(action.taskName))
             is Action.WebhookAction ->
                 decision.sideEffects.add(
                     SideEffect.Webhook(

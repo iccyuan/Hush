@@ -55,7 +55,6 @@ sealed class SideEffect {
     data class WakeScreen(val durationMs: Long) : SideEffect()
     data class Toast(val text: String) : SideEffect()
     data class Notify(val text: String) : SideEffect()
-    data class RunTasker(val taskName: String) : SideEffect()
     data class Webhook(
         val url: String,
         val method: HttpMethod,
