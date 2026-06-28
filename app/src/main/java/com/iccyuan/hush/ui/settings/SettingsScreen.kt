@@ -407,7 +407,7 @@ private fun formatTime(epochMs: Long): String =
 
 private fun copyToClipboard(context: Context, text: String) {
     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    cm.setPrimaryClip(ClipData.newPlainText("BuzzKill rules", text))
+    cm.setPrimaryClip(ClipData.newPlainText("Hush rules", text))
 }
 
 private fun toast(context: Context, message: String) {

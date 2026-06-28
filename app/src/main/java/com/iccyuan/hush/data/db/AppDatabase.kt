@@ -31,7 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "buzzkill.db"
+                    "hush.db"
                 )
                     .addMigrations(*MIGRATIONS)
                     // 仅允许从发布前的历史版本（1–3，无 schema 存档、无法编写可靠迁移）做破坏性回退。

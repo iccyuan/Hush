@@ -61,13 +61,13 @@ object DigestController {
         if (lines.size > 8) style.setSummaryText("+${lines.size - 8}")
 
         val builder = Notification.Builder(context, ChannelManager.DIGEST_CHANNEL)
-            .setSmallIcon(Icon.createWithResource(context, R.drawable.ic_stat_buzzkill))
+            .setSmallIcon(Icon.createWithResource(context, R.drawable.ic_stat_hush))
             .setContentTitle(appName)
             .setContentText(context.getString(R.string.digest_count, lines.size))
             .setStyle(style)
             .setNumber(lines.size)
             .setAutoCancel(true)
-            .setGroup("buzzkill_digest_$pkg")
+            .setGroup("hush_digest_$pkg")
 
         nm.notify(("digest_$pkg").hashCode(), builder.build())
     }

@@ -52,7 +52,7 @@ class SideEffectExecutor(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
                 PowerManager.ACQUIRE_CAUSES_WAKEUP or
                 PowerManager.ON_AFTER_RELEASE,
-            "buzzkill:wake"
+            "hush:wake"
         )
         runCatching { lock.acquire(durationMs.coerceIn(500, 30_000)) }
             .onFailure { Logger.w("wakeScreen failed", it) }

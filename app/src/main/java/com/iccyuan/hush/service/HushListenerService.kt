@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
  *
  * 活动规则和总开关被镜像到内存中，因此热路径永远不会访问数据库。
  */
-class BuzzKillListenerService : NotificationListenerService() {
+class HushListenerService : NotificationListenerService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val engine = RuleEngine()
@@ -94,7 +94,7 @@ class BuzzKillListenerService : NotificationListenerService() {
         // 部分 OEM 的省电策略会杀掉监听器且不再自动恢复，导致漏掉大量通知。
         // 主动请求系统重新绑定，尽快恢复连接。
         runCatching {
-            requestRebind(android.content.ComponentName(this, BuzzKillListenerService::class.java))
+            requestRebind(android.content.ComponentName(this, HushListenerService::class.java))
         }
         Logger.w("listener disconnected; requested rebind")
     }
@@ -260,7 +260,7 @@ class BuzzKillListenerService : NotificationListenerService() {
 
         /** 当监听器处于连接状态时非空；供 UI 用于显示状态。 */
         @Volatile
-        var instance: BuzzKillListenerService? = null
+        var instance: HushListenerService? = null
             private set
 
         fun isConnected(): Boolean = instance != null
@@ -271,7 +271,7 @@ class BuzzKillListenerService : NotificationListenerService() {
             if (!NotificationAccess.isGranted(context)) return
             runCatching {
                 NotificationListenerService.requestRebind(
-                    android.content.ComponentName(context, BuzzKillListenerService::class.java)
+                    android.content.ComponentName(context, HushListenerService::class.java)
                 )
             }
         }

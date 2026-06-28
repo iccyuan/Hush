@@ -9,7 +9,7 @@ import android.provider.Settings
 object NotificationAccess {
 
     fun isGranted(context: Context): Boolean {
-        val component = ComponentName(context, BuzzKillListenerService::class.java)
+        val component = ComponentName(context, HushListenerService::class.java)
         val enabled = Settings.Secure.getString(
             context.contentResolver, "enabled_notification_listeners"
         ) ?: return false

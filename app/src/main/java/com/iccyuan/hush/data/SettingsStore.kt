@@ -7,7 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore(name = "buzzkill_settings")
+private val Context.dataStore by preferencesDataStore(name = "hush_settings")
 
 /** 应用级偏好设置（非按规则维度）。 */
 class SettingsStore private constructor(private val context: Context) {

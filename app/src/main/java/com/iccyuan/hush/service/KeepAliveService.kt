@@ -61,7 +61,7 @@ class KeepAliveService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, ChannelManager.KEEPALIVE_CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_buzzkill)
+            .setSmallIcon(R.drawable.ic_stat_hush)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(stateRes))
             .setContentIntent(openApp)

@@ -18,7 +18,7 @@ object Routes {
 }
 
 @Composable
-fun BuzzKillNavHost() {
+fun HushNavHost() {
     val nav = rememberNavController()
     val dur = 300
     NavHost(

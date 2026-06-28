@@ -36,7 +36,7 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
     }
 
     private fun speakNow(text: String) {
-        tts.speak(text, TextToSpeech.QUEUE_ADD, null, "buzzkill-${text.hashCode()}")
+        tts.speak(text, TextToSpeech.QUEUE_ADD, null, "hush-${text.hashCode()}")
     }
 
     fun shutdown() {

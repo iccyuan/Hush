@@ -57,7 +57,7 @@ private val IOSShapes = Shapes(
 )
 
 @Composable
-fun BuzzKillTheme(
+fun HushTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {

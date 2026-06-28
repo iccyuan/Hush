@@ -15,7 +15,7 @@ import kotlinx.serialization.builtins.serializer
  */
 object RuntimeStateStore {
 
-    private const val PREFS = "buzzkill_runtime"
+    private const val PREFS = "hush_runtime"
     private const val KEY_VARS = "variables"
     private const val KEY_COOLDOWNS = "cooldowns"
     private const val KEY_MUTES = "mutes"

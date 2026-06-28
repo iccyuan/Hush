@@ -53,7 +53,7 @@ object HolidayProvider {
     const val OVERRIDE_REST = "rest"
     const val OVERRIDE_WORK = "work"
 
-    private const val PREFS = "buzzkill_holiday"
+    private const val PREFS = "hush_holiday"
     private const val KEY_UPDATED = "last_update"
     private const val KEY_OVERRIDE_DATE = "override_date"
     private const val KEY_OVERRIDE_TYPE = "override_type"
@@ -159,7 +159,7 @@ object HolidayProvider {
             requestMethod = "GET"
             connectTimeout = 8000
             readTimeout = 8000
-            setRequestProperty("User-Agent", "BuzzKill/1.0")
+            setRequestProperty("User-Agent", "Hush/1.0")
         }
         val body = conn.inputStream.bufferedReader().use { it.readText() }
         conn.disconnect()

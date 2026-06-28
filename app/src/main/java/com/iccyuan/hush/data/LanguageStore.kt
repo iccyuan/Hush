@@ -15,7 +15,7 @@ object LanguageStore {
 
     val options = listOf(SYSTEM, ENGLISH, CHINESE)
 
-    private const val PREFS = "buzzkill_lang"
+    private const val PREFS = "hush_lang"
     private const val KEY = "app_language"
 
     private val flow = MutableStateFlow(SYSTEM)

@@ -50,7 +50,7 @@ class NotificationModifier(
             // 所依赖的模板与消息数据（android.messages / android.textLines / android.template 等）
             // 以及 people、progress 等附加项都会被保留。随后的字段覆盖写在其后，确保能盖过原值。
             addExtras(Bundle(extras))
-            setSmallIcon(original.smallIcon ?: Icon.createWithResource(context, R.drawable.ic_stat_buzzkill))
+            setSmallIcon(original.smallIcon ?: Icon.createWithResource(context, R.drawable.ic_stat_hush))
             original.getLargeIcon()?.let { setLargeIcon(it) }
             original.contentIntent?.let { setContentIntent(it) }
             original.deleteIntent?.let { setDeleteIntent(it) }

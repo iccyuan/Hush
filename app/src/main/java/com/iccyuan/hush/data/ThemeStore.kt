@@ -15,7 +15,7 @@ object ThemeStore {
 
     val options = listOf(SYSTEM, LIGHT, DARK)
 
-    private const val PREFS = "buzzkill_theme"
+    private const val PREFS = "hush_theme"
     private const val KEY = "theme_mode"
 
     private val flow = MutableStateFlow(SYSTEM)

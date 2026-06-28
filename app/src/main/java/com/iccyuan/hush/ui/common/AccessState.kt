@@ -10,7 +10,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.DisposableEffect
-import com.iccyuan.hush.service.BuzzKillListenerService
+import com.iccyuan.hush.service.HushListenerService
 import com.iccyuan.hush.service.NotificationAccess
 
 /** 每次屏幕恢复时重新评估通知监听器的访问权限。 */
@@ -39,12 +39,12 @@ fun rememberNotificationAccessGranted(): Boolean {
 fun rememberListenerConnected(): Boolean {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var connected by remember { mutableStateOf(BuzzKillListenerService.isConnected()) }
+    var connected by remember { mutableStateOf(HushListenerService.isConnected()) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                BuzzKillListenerService.requestRebindIfNeeded(context)
-                connected = BuzzKillListenerService.isConnected()
+                HushListenerService.requestRebindIfNeeded(context)
+                connected = HushListenerService.isConnected()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

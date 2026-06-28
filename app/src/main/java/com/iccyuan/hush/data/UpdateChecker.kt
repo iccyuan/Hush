@@ -44,7 +44,7 @@ object UpdateChecker {
             connectTimeout = 8000
             readTimeout = 8000
             setRequestProperty("Accept", "application/vnd.github+json")
-            setRequestProperty("User-Agent", "BuzzKill")
+            setRequestProperty("User-Agent", "Hush")
         }
         val body = conn.inputStream.bufferedReader().use { it.readText() }
         conn.disconnect()

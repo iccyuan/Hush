@@ -20,9 +20,9 @@ class ChannelManager(private val context: Context) {
     private val created = HashSet<String>()
 
     companion object {
-        const val HISTORY_CHANNEL = "buzzkill_activity"
-        const val DEFAULT_REPOST = "buzzkill_repost_default"
-        const val DIGEST_CHANNEL = "buzzkill_digest"
+        const val HISTORY_CHANNEL = "hush_activity"
+        const val DEFAULT_REPOST = "hush_repost_default"
+        const val DIGEST_CHANNEL = "hush_digest"
         const val KEEPALIVE_CHANNEL = "hush_running"
     }
 

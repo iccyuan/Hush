@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.BuzzKill" parent="android:Theme.Material.NoActionBar" />
+    <style name="Theme.Hush" parent="android:Theme.Material.NoActionBar" />
 
-    <style name="Theme.BuzzKill.Splash" parent="Theme.SplashScreen">
+    <style name="Theme.Hush.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_bg</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_icon_bg</item>
-        <item name="postSplashScreenTheme">@style/Theme.BuzzKill</item>
+        <item name="postSplashScreenTheme">@style/Theme.Hush</item>
     </style>
 </resources>

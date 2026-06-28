@@ -30,8 +30,8 @@ import androidx.lifecycle.lifecycleScope
 import com.iccyuan.hush.data.LanguageStore
 import com.iccyuan.hush.data.SettingsStore
 import com.iccyuan.hush.data.ThemeStore
-import com.iccyuan.hush.ui.nav.BuzzKillNavHost
-import com.iccyuan.hush.ui.theme.BuzzKillTheme
+import com.iccyuan.hush.ui.nav.HushNavHost
+import com.iccyuan.hush.ui.theme.HushTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -77,12 +77,12 @@ class MainActivity : ComponentActivity() {
             }
             val language by LanguageStore.language.collectAsStateWithLifecycle()
             ProvideAppLocale(language) {
-                BuzzKillTheme(darkTheme = dark) {
+                HushTheme(darkTheme = dark) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background,
                     ) {
-                        BuzzKillNavHost()
+                        HushNavHost()
                     }
                 }
             }
