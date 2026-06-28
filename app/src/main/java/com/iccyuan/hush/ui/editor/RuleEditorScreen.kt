@@ -197,24 +197,24 @@ fun RuleEditorScreen(
                 }
             }
 
-            // 条件
-            InsetGroupedSection(header = stringResource(R.string.section_conditions)) {
-                // 多个条件之间的组合方式（与/或）；单个条件时无意义，故仅在 ≥2 个时出现。
-                if (rule.conditions.size >= 2) {
-                    Column(Modifier.padding(12.dp)) {
-                        IOSSegmented(
-                            options = LogicMode.entries,
-                            selected = rule.conditionLogic,
-                            label = { stringResource(Localize.logicRes(it)) },
-                            onSelect = { vm.setConditionLogic(it) },
+            // 条件：按类型自动分组——同类「或」（如多个时间段满足任一），异类「与」。
+            InsetGroupedSection(
+                header = stringResource(R.string.section_conditions),
+                footer = if (rule.conditions.size >= 2) stringResource(R.string.cond_logic_hint) else null,
+            ) {
+                val groups = rule.conditions.groupBy { it::class }.values.toList()
+                groups.forEachIndexed { gi, group ->
+                    if (gi > 0) ConditionJoinLabel(stringResource(R.string.cond_join_and))
+                    group.forEachIndexed { ci, condition ->
+                        if (ci > 0) ConditionJoinLabel(stringResource(R.string.cond_join_or))
+                        val (ic, col) = ComponentVisuals.of(condition)
+                        IOSRow(
+                            title = Localize.summary(condition),
+                            icon = ic,
+                            iconColor = col,
+                            onClick = { editingCondition = condition },
                         )
                     }
-                    HairlineDivider(startInset = 16.dp)
-                }
-                rule.conditions.forEachIndexed { i, condition ->
-                    if (i > 0) HairlineDivider(startInset = 16.dp)
-                    val (ic, col) = ComponentVisuals.of(condition)
-                    IOSRow(title = Localize.summary(condition), icon = ic, iconColor = col, onClick = { editingCondition = condition })
                 }
                 if (rule.conditions.isNotEmpty()) HairlineDivider(startInset = 16.dp)
                 AddRow(stringResource(R.string.add_condition), Icons.Filled.Tune, IOSColors.Orange) {
@@ -357,6 +357,18 @@ private fun AddRow(
     onClick: () -> Unit,
 ) {
     IOSRow(title = label, icon = icon, iconColor = color, onClick = onClick)
+}
+
+/** 条件分组之间的连接词标签：「且」（不同类型间）或「或」（同类型间）。 */
+@Composable
+private fun ConditionJoinLabel(text: String) {
+    Text(
+        text,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 /** 匹配当前（未保存）规则的应用 + 触发器的近期已记录通知。 */

@@ -65,6 +65,9 @@
     <string name="section_apps">Apps</string>
     <string name="section_triggers">Triggers</string>
     <string name="section_conditions">Conditions</string>
+    <string name="cond_logic_hint">Same-type conditions match if any holds (e.g. several time windows); different types must all hold.</string>
+    <string name="cond_join_and">and</string>
+    <string name="cond_join_or">or</string>
     <string name="section_actions">Actions</string>
     <string name="section_options">Options</string>
     <string name="applies_all_apps">Applies to all apps</string>

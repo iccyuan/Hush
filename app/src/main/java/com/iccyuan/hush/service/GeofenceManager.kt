@@ -15,7 +15,6 @@ import com.amap.api.location.DPoint
 import com.iccyuan.hush.data.HolidayProvider
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.DayType
-import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.util.Logger
 import java.util.Calendar
@@ -86,19 +85,15 @@ object GeofenceManager {
     }
 
     /**
-     * 规则此刻是否「值得」注册围栏。仅当条件为 AND（全部满足）时才能凭时间/节假日提前排除——
-     * 因为那时时间不满足则整条规则必然不命中。若条件为 OR（任一满足），位置条件单独就能命中，
-     * 必须始终监控，不能因时间不满足而停掉定位。
+     * 规则此刻是否「值得」注册围栏。条件按类型自动分组（同类「或」、异类「与」），位置与
+     * 时间/节假日属不同类型，故二者为「与」：只要时间组或节假日组当前无人满足，整条规则就不可能
+     * 命中，此时无需耗电定位。同类多条为「或」（如多个时间段满足任一）。
      */
     private fun ruleTimeEligible(rule: Rule, now: TimeCtx): Boolean {
-        if (rule.conditionLogic != LogicMode.ALL) return true
-        rule.conditions.forEach { c ->
-            when (c) {
-                is Condition.TimeCondition -> if (!inTimeWindow(c, now)) return false
-                is Condition.HolidayCondition -> if (!c.dayTypes.contains(now.dayType)) return false
-                else -> Unit
-            }
-        }
+        val times = rule.conditions.filterIsInstance<Condition.TimeCondition>()
+        if (times.isNotEmpty() && times.none { inTimeWindow(it, now) }) return false
+        val holidays = rule.conditions.filterIsInstance<Condition.HolidayCondition>()
+        if (holidays.isNotEmpty() && holidays.none { it.dayTypes.contains(now.dayType) }) return false
         return true
     }
 

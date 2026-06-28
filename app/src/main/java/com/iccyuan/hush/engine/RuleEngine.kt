@@ -159,12 +159,16 @@ class RuleEngine {
         return decision
     }
 
+    /**
+     * 条件按类型自动分组：同类条件之间「或」（如多个时间段满足任一即可），
+     * 不同类之间「与」（如「时间 且 位置」）。每个类型分组至少一个成立，规则才通过。
+     */
     private fun conditionsHold(rule: Rule, ctx: MatchContext): Boolean {
         if (rule.conditions.isEmpty()) return true
-        return when (rule.conditionLogic) {
-            LogicMode.ALL -> rule.conditions.all { evalCondition(it, rule, ctx) }
-            LogicMode.ANY -> rule.conditions.any { evalCondition(it, rule, ctx) }
-        }
+        return rule.conditions
+            .groupBy { it::class }
+            .values
+            .all { group -> group.any { evalCondition(it, rule, ctx) } }
     }
 
     private fun evalCondition(c: Condition, rule: Rule, ctx: MatchContext): Boolean = when (c) {

@@ -43,7 +43,6 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setStopProcessing(stop: Boolean) = update { it.copy(stopProcessing = stop) }
     fun setShowDanmaku(show: Boolean) = update { it.copy(showDanmaku = show) }
     fun setTriggerLogic(logic: LogicMode) = update { it.copy(triggerLogic = logic) }
-    fun setConditionLogic(logic: LogicMode) = update { it.copy(conditionLogic = logic) }
     fun setApps(packages: List<String>) = update { it.copy(appPackages = packages) }
 
     // --- 触发器 ---
