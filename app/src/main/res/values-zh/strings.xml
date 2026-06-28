@@ -291,7 +291,7 @@
     <string name="cat_act_digest">聚合摘要</string>
     <string name="cat_act_digest_desc">把刷屏攒成一条摘要</string>
     <string name="danmaku_switch">弹幕显示</string>
-    <string name="danmaku_switch_hint">需配合「屏蔽」动作：屏蔽原生通知后，改以弹幕滚动显示。未屏蔽则不显示弹幕。</string>
+    <string name="danmaku_switch_hint">把被屏蔽的通知改以弹幕滚动显示（替代原生通知）。</string>
     <string name="grant_overlay">授予悬浮窗权限</string>
     <string name="overlay_granted">已获得悬浮窗权限</string>
 

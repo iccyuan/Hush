@@ -291,7 +291,7 @@
     <string name="cat_act_digest">Digest</string>
     <string name="cat_act_digest_desc">Bundle bursts into one summary</string>
     <string name="danmaku_switch">Show as danmaku</string>
-    <string name="danmaku_switch_hint">Requires the Discard action: once the native notification is discarded, it scrolls across as danmaku instead. No danmaku without discarding.</string>
+    <string name="danmaku_switch_hint">Show the discarded notification as scrolling danmaku instead of the native one.</string>
     <string name="grant_overlay">Grant overlay permission</string>
     <string name="overlay_granted">Overlay permission granted</string>
 

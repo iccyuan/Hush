@@ -229,26 +229,30 @@ fun RuleEditorScreen(
                     title = stringResource(R.string.stop_processing),
                     trailing = { IOSSwitch(rule.stopProcessing) { vm.setStopProcessing(it) } },
                 )
-                HairlineDivider(startInset = 16.dp)
-                IOSRow(
-                    title = stringResource(R.string.danmaku_switch),
-                    subtitle = stringResource(R.string.danmaku_switch_hint),
-                    icon = Icons.Filled.Subtitles,
-                    iconColor = IOSColors.Purple,
-                    trailing = { IOSSwitch(rule.showDanmaku) { vm.setShowDanmaku(it) } },
-                )
-                // 当弹幕已开启但缺少悬浮窗权限时，提供授予权限的入口。
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                if (rule.showDanmaku && !com.iccyuan.hush.service.DanmakuController.canShow(ctx)) {
+                // 弹幕依赖「屏蔽」动作（只有屏蔽原生通知后才以弹幕替代显示），
+                // 因此仅当规则里已添加「屏蔽」动作时才显示弹幕开关。
+                if (rule.actions.any { it is Action.DiscardAction }) {
                     HairlineDivider(startInset = 16.dp)
                     IOSRow(
-                        title = stringResource(R.string.grant_overlay),
-                        icon = Icons.Filled.OpenInNew,
-                        iconColor = IOSColors.Orange,
-                        onClick = {
-                            ctx.startActivity(com.iccyuan.hush.service.DanmakuController.overlaySettingsIntent(ctx))
-                        },
+                        title = stringResource(R.string.danmaku_switch),
+                        subtitle = stringResource(R.string.danmaku_switch_hint),
+                        icon = Icons.Filled.Subtitles,
+                        iconColor = IOSColors.Purple,
+                        trailing = { IOSSwitch(rule.showDanmaku) { vm.setShowDanmaku(it) } },
                     )
+                    // 当弹幕已开启但缺少悬浮窗权限时，提供授予权限的入口。
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    if (rule.showDanmaku && !com.iccyuan.hush.service.DanmakuController.canShow(ctx)) {
+                        HairlineDivider(startInset = 16.dp)
+                        IOSRow(
+                            title = stringResource(R.string.grant_overlay),
+                            icon = Icons.Filled.OpenInNew,
+                            iconColor = IOSColors.Orange,
+                            onClick = {
+                                ctx.startActivity(com.iccyuan.hush.service.DanmakuController.overlaySettingsIntent(ctx))
+                            },
+                        )
+                    }
                 }
                 HairlineDivider(startInset = 16.dp)
                 Column(Modifier.padding(12.dp)) {
