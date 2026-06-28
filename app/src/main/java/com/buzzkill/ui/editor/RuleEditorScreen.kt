@@ -351,19 +351,21 @@ private fun PreviewSection(rule: com.buzzkill.data.model.Rule) {
     // 既没有触发器也没有应用过滤的规则会匹配*所有内容*，因此预览它
     // 只会把整个日志全部倒出来——并非有意义的预览。将这种情况视为无约束。
     val unconstrained = rule.matchesEverything && rule.appPackages.isEmpty()
-    val matches = remember(rule, logs, unconstrained) {
+    // 先算出全部去重后的命中，footer 计数用它的真实总数；列表再截断展示，
+    // 否则计数会被 take(15) 一并截断，导致「近期 N 条命中」永远 ≤ 15 而失真。
+    val allMatches = remember(rule, logs, unconstrained) {
         if (unconstrained) emptyList()
         else logs
             // 跳过空白通知（既无标题也无正文）——它们会渲染为空行。
             .filter { it.title.isNotBlank() || it.text.isNotBlank() }
             .filter { engine.previewMatches(rule, it.packageName, it.title, it.text) }
             .distinctBy { it.packageName + "|" + it.title + "|" + it.text }
-            .take(15)
     }
+    val matches = allMatches.take(15)
     InsetGroupedSection(
         header = stringResource(R.string.preview_title),
-        footer = if (matches.isNotEmpty())
-            stringResource(R.string.preview_match_count, matches.size)
+        footer = if (allMatches.isNotEmpty())
+            stringResource(R.string.preview_match_count, allMatches.size)
         else stringResource(R.string.preview_hint),
     ) {
         when {

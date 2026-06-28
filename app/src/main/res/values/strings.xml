@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BuzzKill</string>
+    <string name="app_name">Hush</string>
 
     <!-- Common -->
     <string name="save">Save</string>
@@ -52,7 +52,7 @@
     <string name="no_rules_title">No rules yet</string>
     <string name="no_rules_body">Tap + to create your first rule. A rule filters notifications and runs actions like replacing text, muting, auto-replying, and more.</string>
     <string name="access_required_title">Notification access required</string>
-    <string name="access_required_body">BuzzKill needs notification access to read and modify your notifications.</string>
+    <string name="access_required_body">Hush needs notification access to read and modify your notifications.</string>
     <string name="grant_access">Grant access</string>
     <string name="summary_all_apps">All apps</string>
     <string name="summary_n_apps">%d app(s)</string>
@@ -132,20 +132,29 @@
     <string name="daytype_makeup_workday">Make-up workday</string>
     <string name="daytype_weekend">Weekend</string>
     <string name="daytype_workday">Workday</string>
-    <string name="holiday_coverage">CN holiday data: 2025 (verified), 2026 (provisional).</string>
+    <string name="holiday_coverage_verified">CN holiday data for %1$d: verified online.</string>
+    <string name="holiday_coverage_bundled">CN holiday data for %1$d: provisional (bundled). Update from network in Settings for accuracy.</string>
     <string name="holiday_view_calendar">Holiday calendar</string>
     <string name="holiday_mark_off">Off</string>
     <string name="holiday_mark_work">Work</string>
 
     <!-- Settings -->
     <string name="settings_general">General</string>
-    <string name="settings_master">BuzzKill enabled</string>
+    <string name="settings_master">Hush enabled</string>
     <string name="settings_log">Log activity</string>
     <string name="settings_hide_recents">Hide from recents</string>
     <string name="settings_hide_recents_desc">Keep the app out of the recent-apps list</string>
+    <string name="settings_immersive_danmaku">Immersive danmaku</string>
+    <string name="settings_immersive_danmaku_desc">When fullscreen (landscape video / games), suppress native notifications and scroll them across as danmaku. Needs the overlay permission.</string>
     <string name="settings_access">Notification access</string>
-    <string name="access_granted">Granted — BuzzKill can read and modify notifications.</string>
-    <string name="access_not_granted">Not granted. BuzzKill cannot work without it.</string>
+    <string name="access_granted">Granted — Hush can read and modify notifications.</string>
+    <string name="access_not_granted">Not granted. Hush cannot work without it.</string>
+    <string name="access_disconnected">Granted, but the listener is disconnected — likely killed by battery optimization. Reconnecting… If it persists, exempt Hush from battery optimization or re-toggle notification access.</string>
+    <string name="app_clone_suffix">(Clone)</string>
+    <string name="settings_connection">Connection status</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_no_access">No access</string>
     <string name="open_access_settings">Open access settings</string>
     <string name="settings_backup">Backup</string>
     <string name="export_rules">Export rules to clipboard</string>
@@ -169,7 +178,7 @@
     <string name="lang_system">Follow system</string>
     <string name="lang_en">English</string>
     <string name="lang_zh">中文</string>
-    <string name="settings_about">BuzzKill · clean-room notification automation</string>
+    <string name="settings_about">Hush · clean-room notification automation</string>
 
     <!-- About / updates -->
     <string name="settings_about_section">About</string>
@@ -276,7 +285,7 @@
     <string name="cat_act_digest">Digest</string>
     <string name="cat_act_digest_desc">Bundle bursts into one summary</string>
     <string name="danmaku_switch">Show as danmaku</string>
-    <string name="danmaku_switch_hint">Scroll matches across the screen instead of the native notification</string>
+    <string name="danmaku_switch_hint">Requires the Discard action: once the native notification is discarded, it scrolls across as danmaku instead. No danmaku without discarding.</string>
     <string name="grant_overlay">Grant overlay permission</string>
     <string name="overlay_granted">Overlay permission granted</string>
 
@@ -338,8 +347,8 @@
     </string-array>
 
     <!-- Notification channels -->
-    <string name="channel_activity">BuzzKill activity</string>
-    <string name="channel_activity_desc">Status of the BuzzKill service</string>
+    <string name="channel_activity">Hush activity</string>
+    <string name="channel_activity_desc">Status of the Hush service</string>
     <string name="channel_modified">Modified (%s)</string>
     <string name="channel_digest">Digests</string>
     <string name="channel_digest_desc">Bundled notification summaries</string>

@@ -27,6 +27,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val hideFromRecents: StateFlow<Boolean> = settings.hideFromRecents
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+    val immersiveDanmaku: StateFlow<Boolean> = settings.immersiveDanmaku
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     fun setMasterEnabled(value: Boolean) = viewModelScope.launch {
         settings.setMasterEnabled(value)
@@ -38,6 +40,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setHideFromRecents(value: Boolean) = viewModelScope.launch {
         settings.setHideFromRecents(value)
+    }
+
+    fun setImmersiveDanmaku(value: Boolean) = viewModelScope.launch {
+        settings.setImmersiveDanmaku(value)
     }
 
     fun exportRules(onResult: (String) -> Unit) = viewModelScope.launch {
@@ -61,8 +67,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         onResult(result.ok)
     }
 
-    /** 当前安装的版本号，用于显示与更新比较。 */
+    /** 用于和 GitHub 最新版比较的纯版本号（如 0.1.6）。 */
     val appVersion: String = BuildConfig.VERSION_NAME
+
+    /** 关于页展示用的完整版本信息：版本名 + 构建号（如 0.1.6 (6)）。 */
+    val appVersionDisplay: String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
 
     val updateChecking = MutableStateFlow(false)
 

@@ -47,7 +47,7 @@ class RuleEngine {
         if (appMatches(rule, packageName) && triggersMatch(rule, ctx, captures)) {
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision)
-            if (rule.showDanmaku) {
+            if (rule.showDanmaku && decision.discard) {
                 decision.sideEffects.add(
                     SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
                 )
@@ -76,9 +76,9 @@ class RuleEngine {
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision)
 
-            // 弹幕是一个按规则设置的开关（而非动作）：当规则匹配时，
-            // 将通知以滚动的悬浮弹幕条形式显示。
-            if (rule.showDanmaku) {
+            // 弹幕用于「替代」被屏蔽的通知，因此仅在该规则确实丢弃了通知时才显示——
+            // 否则原生通知仍在、又叠加弹幕，既矛盾又会出现时有时无的竞态。
+            if (rule.showDanmaku && decision.discard) {
                 decision.sideEffects.add(
                     SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
                 )

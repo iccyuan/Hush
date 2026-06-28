@@ -120,7 +120,8 @@ fun AppPickerScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(filtered, key = { it.packageName }) { app ->
+                    // 主体与分身共享包名，故用「包名 + 是否分身」作为唯一键，避免重复键崩溃。
+                    items(filtered, key = { "${it.packageName}|${it.isClone}" }) { app ->
                         AppGridItem(
                             app = app,
                             selected = selected.contains(app.packageName),
@@ -173,8 +174,11 @@ private fun AppGridItem(app: AppInfo, selected: Boolean, onToggle: () -> Unit) {
                 Icon(Icons.Filled.Android, contentDescription = null, modifier = Modifier.size(36.dp))
             }
             Spacer(Modifier.height(6.dp))
+            val displayLabel = if (app.isClone)
+                "${app.label} ${androidx.compose.ui.res.stringResource(R.string.app_clone_suffix)}"
+            else app.label
             Text(
-                app.label,
+                displayLabel,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

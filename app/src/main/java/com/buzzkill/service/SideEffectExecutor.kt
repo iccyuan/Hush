@@ -4,11 +4,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
-import android.util.Log
 import android.widget.Toast
 import com.buzzkill.data.model.HttpMethod
 import com.buzzkill.engine.SideEffect
 import com.buzzkill.engine.VariableStore
+import com.buzzkill.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,7 +55,7 @@ class SideEffectExecutor(
             "buzzkill:wake"
         )
         runCatching { lock.acquire(durationMs.coerceIn(500, 30_000)) }
-            .onFailure { Log.w(TAG, "wakeScreen failed", it) }
+            .onFailure { Logger.w("wakeScreen failed", it) }
     }
 
     private fun showToast(text: String) {
@@ -74,8 +74,8 @@ class SideEffectExecutor(
             addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
         }
         runCatching { context.sendBroadcast(intent) }
-            .onSuccess { Log.i(TAG, "tasker task broadcast: $taskName") }
-            .onFailure { Log.w(TAG, "tasker task failed: $taskName", it) }
+            .onSuccess { Logger.i("tasker task broadcast: $taskName") }
+            .onFailure { Logger.w("tasker task failed: $taskName", it) }
     }
 
     private fun fireWebhook(url: String, method: HttpMethod, body: String) {
@@ -94,9 +94,9 @@ class SideEffectExecutor(
                     }
                 }
                 val code = conn!!.responseCode // 强制请求完成
-                Log.i(TAG, "webhook ${method.name} $url -> $code")
+                Logger.i("webhook ${method.name} $url -> $code")
             }.onFailure {
-                Log.w(TAG, "webhook ${method.name} $url failed: ${it.message}", it)
+                Logger.w("webhook ${method.name} $url failed: ${it.message}", it)
             }
             // 无论成功失败都释放连接。
             runCatching { conn?.disconnect() }
@@ -104,7 +104,6 @@ class SideEffectExecutor(
     }
 
     private companion object {
-        const val TAG = "BuzzKill"
         const val TASKER_PACKAGE = "net.dinglisch.android.taskerm"
         const val WEBHOOK_TIMEOUT_MS = 8000
     }

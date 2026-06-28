@@ -3,6 +3,7 @@
 package com.buzzkill.ui.list
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -219,13 +220,15 @@ private fun TodayButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    // 始终用强调色（而非黑色），让按钮保持轻盈、不杂乱。
-    val bg = color.copy(alpha = if (active) Alpha.FillStrong else Alpha.FillFaint)
+    // 选中态用「强调色描边」标示，未选中态无边框——保持轻盈的同时让选择一眼可辨。
+    val bg = color.copy(alpha = Alpha.FillFaint)
     val fg = color
+    val shape = RoundedCornerShape(12.dp)
     Row(
         modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(shape)
             .background(bg)
+            .then(if (active) Modifier.border(1.dp, color, shape) else Modifier)
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.Center,

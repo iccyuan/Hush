@@ -5,7 +5,7 @@ import android.app.RemoteInput
 import android.content.Context
 import android.content.Intent
 import android.service.notification.StatusBarNotification
-import android.util.Log
+import com.buzzkill.util.Logger
 
 /**
  * 通过填充并触发消息应用附加在通知上的内联 RemoteInput 操作来发送自动回复。
@@ -27,15 +27,13 @@ object AutoReplyHelper {
 
         return try {
             action.actionIntent.send(context, 0, intent)
-            Log.i(TAG, "auto-reply sent to ${sbn.packageName}")
+            Logger.i("auto-reply sent to ${sbn.packageName}")
             true
         } catch (e: Exception) {
-            Log.w(TAG, "auto-reply failed for ${sbn.packageName}: ${e.message}", e)
+            Logger.w("auto-reply failed for ${sbn.packageName}: ${e.message}", e)
             false
         }
     }
-
-    private const val TAG = "BuzzKill"
 
     private fun findReplyAction(notification: Notification): Notification.Action? {
         val actions = notification.actions ?: return null

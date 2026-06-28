@@ -24,9 +24,9 @@ android {
         applicationId = "com.buzzkill"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        // 默认 0.1; CI 可通过 -PversionName=1.2.3 (由 git tag 推导) 覆盖
-        versionName = (project.findProperty("versionName") as String?) ?: "0.1"
+        versionCode = 6
+        // 默认与当前迭代一致; CI 可通过 -PversionName=1.2.3 (由 git tag 推导) 覆盖
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.6"
         vectorDrawables { useSupportLibrary = true }
 
         // 导出 Room schema，使后续版本的数据库迁移可被校验。
@@ -71,12 +71,12 @@ android {
         buildConfig = true   // 暴露 BuildConfig.VERSION_NAME 供应用内显示版本/检查更新
     }
 
-    // 产物命名为 BuzzKill-<版本>-<构建类型>.apk，而非默认的 app-release.apk。
+    // 产物命名为 Hush-<版本>-<构建类型>.apk，而非默认的 app-release.apk。
     applicationVariants.all {
         val variant = this
         outputs.all {
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
-                "BuzzKill-${variant.versionName}-${variant.buildType.name}.apk"
+                "Hush-${variant.versionName}-${variant.buildType.name}.apk"
         }
     }
     packaging {

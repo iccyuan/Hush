@@ -14,7 +14,7 @@ import java.net.URL
 object UpdateChecker {
 
     private const val LATEST_API =
-        "https://api.github.com/repos/iccyuan/buzzkill/releases/latest"
+        "https://api.github.com/repos/iccyuan/Hush/releases/latest"
 
     @Serializable
     private data class Release(

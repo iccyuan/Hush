@@ -16,6 +16,7 @@ class SettingsStore private constructor(private val context: Context) {
     private val logActivityKey = booleanPreferencesKey("log_activity")
     private val onboardedKey = booleanPreferencesKey("onboarded")
     private val hideFromRecentsKey = booleanPreferencesKey("hide_from_recents")
+    private val immersiveDanmakuKey = booleanPreferencesKey("immersive_danmaku")
 
     /** 全局总开关——为 false 时，引擎将被完全绕过。 */
     val masterEnabled: Flow<Boolean> =
@@ -31,6 +32,10 @@ class SettingsStore private constructor(private val context: Context) {
     val hideFromRecents: Flow<Boolean> =
         context.dataStore.data.map { it[hideFromRecentsKey] ?: true }
 
+    /** 沉浸弹幕：检测到全屏（横屏看视频/玩游戏）时，屏蔽原生通知、改以弹幕显示（默认关闭）。 */
+    val immersiveDanmaku: Flow<Boolean> =
+        context.dataStore.data.map { it[immersiveDanmakuKey] ?: false }
+
     suspend fun setMasterEnabled(value: Boolean) =
         context.dataStore.edit { it[masterEnabledKey] = value }.let {}
 
@@ -42,6 +47,9 @@ class SettingsStore private constructor(private val context: Context) {
 
     suspend fun setHideFromRecents(value: Boolean) =
         context.dataStore.edit { it[hideFromRecentsKey] = value }.let {}
+
+    suspend fun setImmersiveDanmaku(value: Boolean) =
+        context.dataStore.edit { it[immersiveDanmakuKey] = value }.let {}
 
     companion object {
         @Volatile

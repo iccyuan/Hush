@@ -104,6 +104,18 @@ object HolidayProvider {
     fun lastUpdated(context: Context): Long =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(KEY_UPDATED, 0L)
 
+    /** 当前公历年份。 */
+    fun currentYear(): Int = Calendar.getInstance().get(Calendar.YEAR)
+
+    /**
+     * 当前年份的节假日数据是否来自联网获取（即官方权威数据），而非内置的暂定数据。
+     * 只有「当年」的数据对判断今天是否放假/调休才有意义。
+     */
+    fun isCurrentYearVerified(context: Context): Boolean {
+        val cache = readCache(context.applicationContext) ?: return false
+        return cache.years.contains(currentYear().toString())
+    }
+
     /** [refresh] 的结果：成功获取了多少个年份。 */
     data class RefreshResult(val ok: Boolean, val years: Int)
 

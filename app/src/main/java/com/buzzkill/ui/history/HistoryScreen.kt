@@ -393,9 +393,9 @@ private fun OutcomeBadge(log: NotificationLog) {
     if (!log.matched) return
     val (label, color) = when (log.outcome) {
         NotificationLog.OUTCOME_MODIFIED -> stringResource(R.string.outcome_modified) to IOSColors.Blue
-        NotificationLog.OUTCOME_DISCARDED -> stringResource(R.string.outcome_discarded) to IOSColors.Red
         NotificationLog.OUTCOME_DISMISSED -> stringResource(R.string.outcome_dismissed) to IOSColors.Orange
         NotificationLog.OUTCOME_SNOOZED -> stringResource(R.string.outcome_snoozed) to IOSColors.Indigo
+        // 丢弃同样属于「被规则命中」，按命中（绿色）展示更贴切，避免满屏红色「已丢弃」。
         else -> stringResource(R.string.outcome_matched) to IOSColors.Green
     }
     Box(

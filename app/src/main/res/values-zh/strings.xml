@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BuzzKill</string>
+    <string name="app_name">静界</string>
 
     <!-- Common -->
     <string name="save">保存</string>
@@ -52,7 +52,7 @@
     <string name="no_rules_title">还没有规则</string>
     <string name="no_rules_body">点击 + 创建你的第一条规则。规则可过滤通知并执行替换文本、静音、自动回复等操作。</string>
     <string name="access_required_title">需要通知使用权</string>
-    <string name="access_required_body">BuzzKill 需要通知使用权才能读取和修改你的通知。</string>
+    <string name="access_required_body">静界需要通知使用权才能读取和修改你的通知。</string>
     <string name="grant_access">授予权限</string>
     <string name="summary_all_apps">所有应用</string>
     <string name="summary_n_apps">%d 个应用</string>
@@ -132,20 +132,29 @@
     <string name="daytype_makeup_workday">调休上班日</string>
     <string name="daytype_weekend">周末</string>
     <string name="daytype_workday">工作日</string>
-    <string name="holiday_coverage">中国节假日数据：2025（已核对）、2026（暂定）。</string>
+    <string name="holiday_coverage_verified">%1$d 年中国节假日数据：已联网核对。</string>
+    <string name="holiday_coverage_bundled">%1$d 年中国节假日数据：内置暂定，建议在设置中联网更新以确保准确。</string>
     <string name="holiday_view_calendar">查看节假日日历</string>
     <string name="holiday_mark_off">休</string>
     <string name="holiday_mark_work">班</string>
 
     <!-- Settings -->
     <string name="settings_general">通用</string>
-    <string name="settings_master">启用 BuzzKill</string>
+    <string name="settings_master">启用静界</string>
     <string name="settings_log">记录活动</string>
     <string name="settings_hide_recents">隐藏后台</string>
     <string name="settings_hide_recents_desc">不在「最近任务」列表中显示本应用</string>
+    <string name="settings_immersive_danmaku">沉浸弹幕</string>
+    <string name="settings_immersive_danmaku_desc">全屏时（横屏看视频、玩游戏）屏蔽原生通知，改以弹幕滚动显示。需要悬浮窗权限。</string>
     <string name="settings_access">通知使用权</string>
-    <string name="access_granted">已授予 — BuzzKill 可读取和修改通知。</string>
-    <string name="access_not_granted">未授予。没有它 BuzzKill 无法工作。</string>
+    <string name="access_granted">已授予 — 静界可读取和修改通知。</string>
+    <string name="access_not_granted">未授予。没有它静界无法工作。</string>
+    <string name="access_disconnected">已授权,但监听器已断开 — 多半被省电策略杀死。正在尝试重连…若仍异常,请将静界加入电池优化白名单,或重新开关一次通知使用权。</string>
+    <string name="app_clone_suffix">(分身)</string>
+    <string name="settings_connection">连接状态</string>
+    <string name="status_connected">已连接</string>
+    <string name="status_disconnected">已断开</string>
+    <string name="status_no_access">未授权</string>
     <string name="open_access_settings">打开权限设置</string>
     <string name="settings_backup">备份</string>
     <string name="export_rules">导出规则到剪贴板</string>
@@ -169,7 +178,7 @@
     <string name="lang_system">跟随系统</string>
     <string name="lang_en">English</string>
     <string name="lang_zh">中文</string>
-    <string name="settings_about">BuzzKill · 净室实现的通知自动化</string>
+    <string name="settings_about">静界 · 净室实现的通知自动化</string>
 
     <!-- 关于 / 更新 -->
     <string name="settings_about_section">关于</string>
@@ -276,7 +285,7 @@
     <string name="cat_act_digest">聚合摘要</string>
     <string name="cat_act_digest_desc">把刷屏攒成一条摘要</string>
     <string name="danmaku_switch">弹幕显示</string>
-    <string name="danmaku_switch_hint">命中后以弹幕滚动显示，替代原生通知</string>
+    <string name="danmaku_switch_hint">需配合「屏蔽」动作：屏蔽原生通知后，改以弹幕滚动显示。未屏蔽则不显示弹幕。</string>
     <string name="grant_overlay">授予悬浮窗权限</string>
     <string name="overlay_granted">已获得悬浮窗权限</string>
 
@@ -338,8 +347,8 @@
     </string-array>
 
     <!-- Notification channels -->
-    <string name="channel_activity">BuzzKill 活动</string>
-    <string name="channel_activity_desc">BuzzKill 服务状态</string>
+    <string name="channel_activity">静界活动</string>
+    <string name="channel_activity_desc">静界服务状态</string>
     <string name="channel_modified">已修改（%s）</string>
     <string name="channel_digest">聚合摘要</string>
     <string name="channel_digest_desc">合并后的通知摘要</string>

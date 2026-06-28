@@ -2,7 +2,6 @@ package com.buzzkill.service
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.util.Log
 import com.buzzkill.data.RuleRepository
 import com.buzzkill.data.SettingsStore
 import com.buzzkill.data.model.Rule
@@ -10,6 +9,7 @@ import com.buzzkill.engine.Decision
 import com.buzzkill.engine.MatchContext
 import com.buzzkill.engine.RuleEngine
 import com.buzzkill.engine.SideEffect
+import com.buzzkill.util.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,6 +40,7 @@ class BuzzKillListenerService : NotificationListenerService() {
     @Volatile private var activeRules: List<Rule> = emptyList()
     @Volatile private var masterEnabled: Boolean = true
     @Volatile private var logActivity: Boolean = true
+    @Volatile private var immersiveDanmaku: Boolean = false
     @Volatile private var connected: Boolean = false
 
     override fun onCreate() {
@@ -58,7 +59,7 @@ class BuzzKillListenerService : NotificationListenerService() {
         scope.launch {
             repository.observeAll().collectLatest {
                 activeRules = it.filter(Rule::enabled)
-                Log.i(TAG, "rules loaded: ${activeRules.size} enabled of ${it.size}")
+                Logger.i("rules loaded: ${activeRules.size} enabled of ${it.size}")
             }
         }
         scope.launch {
@@ -69,7 +70,8 @@ class BuzzKillListenerService : NotificationListenerService() {
             }
         }
         scope.launch { settings.logActivity.collectLatest { logActivity = it } }
-        Log.i(TAG, "service onCreate")
+        scope.launch { settings.immersiveDanmaku.collectLatest { immersiveDanmaku = it } }
+        Logger.i("service onCreate")
     }
 
     override fun onListenerConnected() {
@@ -77,17 +79,28 @@ class BuzzKillListenerService : NotificationListenerService() {
         connected = true
         channels.ensureBaseChannels()
         instance = this
-        Log.i(TAG, "listener connected; activeRules=${activeRules.size}")
+        // 重新绑定后立即同步拉取一次最新规则：onCreate 里的 observeAll 首次发射有时机不确定性，
+        // 重连场景下若不主动刷新，可能继续用旧规则——表现为「改了规则要重开开关才生效」。
+        scope.launch {
+            activeRules = repository.enabledRules()
+            Logger.i("listener connected; rules refreshed: ${activeRules.size}")
+        }
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         connected = false
         instance = null
+        // 部分 OEM 的省电策略会杀掉监听器且不再自动恢复，导致漏掉大量通知。
+        // 主动请求系统重新绑定，尽快恢复连接。
+        runCatching {
+            requestRebind(android.content.ComponentName(this, BuzzKillListenerService::class.java))
+        }
+        Logger.w("listener disconnected; requested rebind")
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        Log.i(TAG, "posted from ${sbn.packageName}; master=$masterEnabled rules=${activeRules.size}")
+        Logger.i("posted from ${sbn.packageName}; master=$masterEnabled rules=${activeRules.size}")
         if (!masterEnabled) return
         // 切勿处理我们自己重新发布的副本——否则会陷入无限循环。
         if (sbn.packageName == packageName) return
@@ -96,7 +109,7 @@ class BuzzKillListenerService : NotificationListenerService() {
             try {
                 process(sbn)
             } catch (t: Throwable) {
-                Log.e(TAG, "process failed for ${sbn.packageName}", t)
+                Logger.e("process failed for ${sbn.packageName}", t)
             }
         }
     }
@@ -122,6 +135,20 @@ class BuzzKillListenerService : NotificationListenerService() {
         )
 
         val decision = engine.evaluate(ctx, activeRules)
+
+        // 沉浸弹幕：开启且当前处于全屏（横屏看视频/玩游戏）时，把原本仍会原生弹出的通知
+        // 改为弹幕呈现——强制丢弃原生通知并注入一条弹幕，交由下方 discard 路径统一处理。
+        if (immersiveDanmaku && !decision.discard && isFullscreen() && DanmakuController.canShow(this)) {
+            decision.sideEffects.add(
+                SideEffect.Danmaku(
+                    com.buzzkill.engine.TemplateEngine.render("{app}: {title} {text}", ctx),
+                    7000L,
+                )
+            )
+            decision.discard = true
+            decision.matched = true
+        }
+
         if (decision.matched) {
             applyDecision(sbn, decision, appName)
             recordFires(decision)
@@ -203,6 +230,19 @@ class BuzzKillListenerService : NotificationListenerService() {
         runCatching { cancelNotification(key) }
     }
 
+    /**
+     * 全屏检测（沉浸弹幕用）。无系统 API 可从后台服务直接读取「沉浸/全屏」状态，
+     * 这里用「屏幕点亮 + 横屏」作为务实的近似——覆盖最常见的横屏看视频、玩游戏场景。
+     * 竖屏全屏视频暂不计入。
+     */
+    private fun isFullscreen(): Boolean {
+        val landscape = resources.configuration.orientation ==
+            android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val pm = getSystemService(android.os.PowerManager::class.java)
+        val interactive = pm?.isInteractive == true
+        return interactive && landscape
+    }
+
     private fun recordFires(decision: Decision) {
         if (decision.firedRuleIds.isEmpty()) return
         scope.launch {
@@ -217,7 +257,6 @@ class BuzzKillListenerService : NotificationListenerService() {
     }
 
     companion object {
-        private const val TAG = "BuzzKill"
 
         /** 当监听器处于连接状态时非空；供 UI 用于显示状态。 */
         @Volatile
@@ -225,5 +264,16 @@ class BuzzKillListenerService : NotificationListenerService() {
             private set
 
         fun isConnected(): Boolean = instance != null
+
+        /** 当已授权但监听器未连接时，请求系统重新绑定（从 UI 打开时调用以加速恢复）。 */
+        fun requestRebindIfNeeded(context: android.content.Context) {
+            if (isConnected()) return
+            if (!NotificationAccess.isGranted(context)) return
+            runCatching {
+                NotificationListenerService.requestRebind(
+                    android.content.ComponentName(context, BuzzKillListenerService::class.java)
+                )
+            }
+        }
     }
 }

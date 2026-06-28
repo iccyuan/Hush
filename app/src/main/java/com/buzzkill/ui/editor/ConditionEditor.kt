@@ -178,8 +178,15 @@ private fun HolidayConditionFields(
             }
         }
         Spacer(Modifier.height(8.dp))
+        // 只展示「当年」数据状态——往年数据对判断今天是否放假/调休没有意义。
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        val year = com.buzzkill.data.HolidayProvider.currentYear()
+        val verified = remember { com.buzzkill.data.HolidayProvider.isCurrentYearVerified(ctx) }
         Text(
-            stringResource(R.string.holiday_coverage),
+            stringResource(
+                if (verified) R.string.holiday_coverage_verified else R.string.holiday_coverage_bundled,
+                year,
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -8,22 +8,32 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -54,6 +64,7 @@ import com.buzzkill.ui.components.IOSSegmented
 import com.buzzkill.ui.components.IOSSwitch
 import com.buzzkill.ui.components.IOSTintedButton
 import com.buzzkill.ui.components.InsetGroupedSection
+import com.buzzkill.ui.common.rememberListenerConnected
 import com.buzzkill.ui.common.rememberNotificationAccessGranted
 import com.buzzkill.ui.theme.IOSColors
 import com.buzzkill.ui.findActivity
@@ -69,7 +80,9 @@ fun SettingsScreen(
     val masterEnabled by vm.masterEnabled.collectAsStateWithLifecycle()
     val logActivity by vm.logActivity.collectAsStateWithLifecycle()
     val hideFromRecents by vm.hideFromRecents.collectAsStateWithLifecycle()
+    val immersiveDanmaku by vm.immersiveDanmaku.collectAsStateWithLifecycle()
     val accessGranted = rememberNotificationAccessGranted()
+    val listenerConnected = rememberListenerConnected()
     var showImport by remember { mutableStateOf(false) }
     val currentLang by LanguageStore.language.collectAsStateWithLifecycle()
     val updateChecking by vm.updateChecking.collectAsStateWithLifecycle()
@@ -108,6 +121,28 @@ fun SettingsScreen(
                     iconColor = IOSColors.Indigo,
                     trailing = { IOSSwitch(hideFromRecents) { vm.setHideFromRecents(it) } },
                 )
+                HairlineDivider(startInset = 16.dp)
+                IOSRow(
+                    title = stringResource(R.string.settings_immersive_danmaku),
+                    subtitle = stringResource(R.string.settings_immersive_danmaku_desc),
+                    icon = Icons.Filled.Subtitles,
+                    iconColor = IOSColors.Purple,
+                    trailing = { IOSSwitch(immersiveDanmaku) { vm.setImmersiveDanmaku(it) } },
+                )
+                // 沉浸弹幕依赖悬浮窗权限；开启但未授权时给出授予入口。
+                if (immersiveDanmaku && !com.buzzkill.service.DanmakuController.canShow(context)) {
+                    HairlineDivider(startInset = 16.dp)
+                    IOSRow(
+                        title = stringResource(R.string.grant_overlay),
+                        icon = Icons.Filled.OpenInNew,
+                        iconColor = IOSColors.Orange,
+                        onClick = {
+                            context.startActivity(
+                                com.buzzkill.service.DanmakuController.overlaySettingsIntent(context)
+                            )
+                        },
+                    )
+                }
             }
 
             // 统计洞察
@@ -184,11 +219,25 @@ fun SettingsScreen(
 
             // 通知访问权限
             InsetGroupedSection(header = stringResource(R.string.settings_access)) {
+                val (statusLabel, statusColor) = when {
+                    !accessGranted -> stringResource(R.string.status_no_access) to IOSColors.Gray
+                    !listenerConnected -> stringResource(R.string.status_disconnected) to IOSColors.Red
+                    else -> stringResource(R.string.status_connected) to IOSColors.Green
+                }
                 IOSRow(
                     title = stringResource(R.string.settings_access),
                     subtitle = stringResource(
-                        if (accessGranted) R.string.access_granted else R.string.access_not_granted
+                        when {
+                            !accessGranted -> R.string.access_not_granted
+                            !listenerConnected -> R.string.access_disconnected
+                            else -> R.string.access_granted
+                        }
                     ),
+                )
+                HairlineDivider(startInset = 16.dp)
+                IOSRow(
+                    title = stringResource(R.string.settings_connection),
+                    trailing = { ConnectionStatus(statusLabel, statusColor) },
                 )
                 HairlineDivider(startInset = 16.dp)
                 Column(Modifier.padding(16.dp)) {
@@ -222,7 +271,7 @@ fun SettingsScreen(
             InsetGroupedSection(header = stringResource(R.string.settings_about_section)) {
                 IOSRow(
                     title = stringResource(R.string.settings_version),
-                    subtitle = vm.appVersion,
+                    subtitle = vm.appVersionDisplay,
                     icon = Icons.Filled.Info,
                     iconColor = IOSColors.Blue,
                 )
@@ -308,6 +357,16 @@ fun SettingsScreen(
                 TextButton(onClick = { pendingUpdate = null }) { Text(stringResource(R.string.update_later)) }
             },
         )
+    }
+}
+
+/** 服务连接状态指示：彩色圆点 + 文字（已连接 / 已断开 / 未授权）。 */
+@Composable
+private fun ConnectionStatus(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(color, CircleShape))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = color)
     }
 }
 

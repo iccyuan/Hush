@@ -29,8 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -313,17 +311,41 @@ fun IOSTintedButton(
 /** iOS 绿色调的开关。 */
 @Composable
 fun IOSSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?) {
-    Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White,
-            checkedTrackColor = IOSColors.Green,
-            uncheckedThumbColor = Color.White,
-            uncheckedTrackColor = if (LocalIsDarkTheme.current) IOSColors.SwitchTrackOffDark else IOSColors.SwitchTrackOffLight,
-            uncheckedBorderColor = Color.Transparent,
-        ),
+    // 自绘 iOS 开关：统一大小的白色圆头 + 柔和投影，轨道色与滑块位置均做弹性动画，
+    // 比 Material3 的 Switch（关态滑块更小、带描边）更精致、更贴近原生 iOS 观感。
+    val trackOff = if (LocalIsDarkTheme.current) IOSColors.SwitchTrackOffDark else IOSColors.SwitchTrackOffLight
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) IOSColors.Green else trackOff,
+        animationSpec = spring(stiffness = 700f),
+        label = "switchTrack",
     )
+    val bias by animateFloatAsState(
+        targetValue = if (checked) 1f else -1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 520f),
+        label = "switchThumb",
+    )
+    Box(
+        Modifier
+            .size(width = 51.dp, height = 31.dp)
+            .background(trackColor, RoundedCornerShape(50))
+            .then(
+                if (onCheckedChange != null)
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { onCheckedChange(!checked) }
+                else Modifier
+            )
+            .padding(2.dp),
+        contentAlignment = BiasAlignment(horizontalBias = bias, verticalBias = 0f),
+    ) {
+        Box(
+            Modifier
+                .size(27.dp)
+                .shadow(2.dp, RoundedCornerShape(50))
+                .background(Color.White, RoundedCornerShape(50)),
+        )
+    }
 }
 
 /**
