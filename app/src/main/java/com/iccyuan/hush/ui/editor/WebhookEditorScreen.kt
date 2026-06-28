@@ -52,6 +52,18 @@ private fun bodyTypeLabel(t: WebhookBodyType): String = when (t) {
     WebhookBodyType.XML -> "XML (application/xml)"
 }
 
+/** 各请求体类型的默认示例模板。 */
+private fun defaultBody(t: WebhookBodyType): String = when (t) {
+    WebhookBodyType.JSON -> "{\"app\":\"{app}\",\"title\":\"{title}\",\"text\":\"{text}\"}"
+    WebhookBodyType.TEXT -> "{app}: {title} {text}"
+    WebhookBodyType.XML ->
+        "<notification>\n  <app>{app}</app>\n  <title>{title}</title>\n  <text>{text}</text>\n</notification>"
+}
+
+/** 当前请求体是否仍是某个类型的默认模板（或空）——是则切换类型时可安全替换为新类型的默认。 */
+private fun isDefaultBody(body: String): Boolean =
+    body.isBlank() || WebhookBodyType.entries.any { body == defaultBody(it) }
+
 /** 尝试把 JSON 美化缩进；不是合法 JSON 时返回 null（保持原样）。 */
 private fun formatJson(s: String): String? = try {
     val t = s.trim()
@@ -137,7 +149,17 @@ fun WebhookEditorScreen(
                             options = WebhookBodyType.entries,
                             selected = draft.bodyType,
                             optionLabel = { bodyTypeLabel(it) },
-                            onSelected = { draft = draft.copy(bodyType = it) },
+                            onSelected = { newType ->
+                                // 切换类型时，若用户未自定义请求体（仍是某默认或为空），替换为新类型的默认模板。
+                                draft = draft.copy(
+                                    bodyType = newType,
+                                    bodyTemplate = if (isDefaultBody(draft.bodyTemplate)) {
+                                        defaultBody(newType)
+                                    } else {
+                                        draft.bodyTemplate
+                                    },
+                                )
+                            },
                         )
                         Spacer(Modifier.height(8.dp))
                         LabeledTextField(
