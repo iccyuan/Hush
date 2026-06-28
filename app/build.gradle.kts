@@ -17,11 +17,11 @@ val keystoreProps = Properties().apply {
 }
 
 android {
-    namespace = "com.buzzkill"
+    namespace = "com.iccyuan.hush"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.buzzkill"
+        applicationId = "com.iccyuan.hush"
         minSdk = 26
         targetSdk = 35
         versionCode = 7

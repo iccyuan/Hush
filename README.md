@@ -4,7 +4,7 @@
 
 本项目为净室(clean-room)实现,用 Kotlin + Jetpack Compose 从零编写,不含任何第三方应用的代码或素材,仅是对同类功能的原创实现。
 
-> 为保证安装连续性,包名仍为 `com.buzzkill`;对用户展示的名称为 静界 / Hush。
+> 包名为 `com.iccyuan.hush`;对用户展示的名称为 静界 / Hush。
 
 ## 功能
 
