@@ -118,6 +118,10 @@ object Localize {
             stringResource(if (c.mustBeConnected) R.string.sum_headphones_on else R.string.sum_headphones_off)
         is Condition.WifiCondition ->
             stringResource(if (c.mustBeConnected) R.string.sum_wifi_on else R.string.sum_wifi_off)
+        is Condition.LocationCondition -> {
+            val place = c.placeName.ifBlank { stringResource(R.string.location_unset) }
+            stringResource(if (c.mustBeInside) R.string.sum_location_inside else R.string.sum_location_outside, place)
+        }
         is Condition.BatteryLevelCondition ->
             stringResource(if (c.whenBelow) R.string.sum_battery_below else R.string.sum_battery_above, c.percent)
         is Condition.CooldownCondition ->

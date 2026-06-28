@@ -48,15 +48,19 @@ class HushListenerService : NotificationListenerService() {
     @Volatile private var logActivity: Boolean = true
     @Volatile private var immersiveDanmaku: Boolean = false
     @Volatile private var connected: Boolean = false
-    // 仅当有启用规则用到对应条件时才置 true，避免每条通知都白白探测耳机/网络状态。
+    // 仅当有启用规则用到对应条件时才置 true，避免每条通知都白白探测耳机/网络/位置状态。
     @Volatile private var needsHeadphones: Boolean = false
     @Volatile private var needsWifi: Boolean = false
+    @Volatile private var needsLocation: Boolean = false
 
-    /** 更新内存中的活动规则，并据此重算需要采样哪些设备状态。 */
+    /** 更新内存中的活动规则，并据此重算需要采样哪些设备状态、同步地理围栏。 */
     private fun setActiveRules(rules: List<Rule>) {
         activeRules = rules
         needsHeadphones = rules.any { r -> r.conditions.any { it is Condition.HeadphonesCondition } }
         needsWifi = rules.any { r -> r.conditions.any { it is Condition.WifiCondition } }
+        needsLocation = rules.any { r -> r.conditions.any { it is Condition.LocationCondition } }
+        // 按当前规则用到的位置条件，增量同步高德地理围栏（无则全部移除，不再耗电）。
+        GeofenceManager.sync(this, rules)
     }
 
     override fun onCreate() {
@@ -139,7 +143,7 @@ class HushListenerService : NotificationListenerService() {
     }
 
     private suspend fun process(sbn: StatusBarNotification) {
-        val device = DeviceState.sample(this, needsHeadphones, needsWifi)
+        val device = DeviceState.sample(this, needsHeadphones, needsWifi, needsLocation)
         val appName = NotificationFields.appLabel(this, sbn.packageName)
         val ctx = MatchContext(
             packageName = sbn.packageName,

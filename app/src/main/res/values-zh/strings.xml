@@ -256,6 +256,13 @@
     <string name="cat_cond_headphones_desc">仅在连着/未连耳机时</string>
     <string name="cat_cond_wifi">Wi-Fi</string>
     <string name="cat_cond_wifi_desc">仅在连着/未连 Wi-Fi 时</string>
+    <string name="cat_cond_location">位置</string>
+    <string name="cat_cond_location_desc">仅在某地点范围内/外（地理围栏）</string>
+    <string name="location_unset">未选择位置</string>
+    <string name="location_pick">在地图上选</string>
+    <string name="location_pick_title">点地图选择位置</string>
+    <string name="location_radius_m">半径（米）</string>
+    <string name="location_must_inside">在范围内（关闭则为范围外）</string>
     <string name="cat_cond_battery">电量</string>
     <string name="cat_cond_battery_desc">仅在电量高于/低于某百分比时</string>
     <string name="cat_cond_cooldown">冷却</string>
@@ -321,6 +328,8 @@
     <string name="sum_headphones_off">未连耳机时</string>
     <string name="sum_wifi_on">连着 Wi-Fi 时</string>
     <string name="sum_wifi_off">未连 Wi-Fi 时</string>
+    <string name="sum_location_inside">在「%s」范围内时</string>
+    <string name="sum_location_outside">在「%s」范围外时</string>
     <string name="sum_screen_off">屏幕熄灭时</string>
     <string name="sum_battery_below">电量低于 %d%%</string>
     <string name="sum_battery_above">电量高于 %d%%</string>

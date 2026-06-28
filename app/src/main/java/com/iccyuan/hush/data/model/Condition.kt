@@ -59,6 +59,21 @@ sealed class Condition {
         val mustBeConnected: Boolean = true,
     ) : Condition()
 
+    /** 仅在位于（或不在）某地理围栏内时生效。由系统级地理围栏监控，省电。 */
+    @Serializable
+    @SerialName("location")
+    data class LocationCondition(
+        override val id: String,
+        val latitude: Double = 0.0,
+        val longitude: Double = 0.0,
+        val radiusMeters: Int = 300,
+        val placeName: String = "",
+        val mustBeInside: Boolean = true,
+    ) : Condition() {
+        /** 同一坐标 + 半径对应同一个围栏，作为注册与命中判断的稳定 key。 */
+        fun fenceKey(): String = "geo_${latitude}_${longitude}_${radiusMeters}"
+    }
+
     /** 仅在电量低于/高于某个阈值时生效。 */
     @Serializable
     @SerialName("battery")

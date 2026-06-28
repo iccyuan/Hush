@@ -32,6 +32,7 @@ object DeviceState {
         context: Context,
         sampleHeadphones: Boolean = false,
         sampleWifi: Boolean = false,
+        sampleLocation: Boolean = false,
     ): DeviceContext {
         val now = System.currentTimeMillis()
         val cal = Calendar.getInstance()
@@ -83,6 +84,8 @@ object DeviceState {
             nowMillis = now,
             headphonesConnected = headphones,
             onWifi = onWifi,
+            // 地理围栏进出由系统/高德监控并缓存，这里只读缓存（不触发定位）。
+            insideGeofences = if (sampleLocation) GeofenceState.inside else emptySet(),
         )
     }
 }

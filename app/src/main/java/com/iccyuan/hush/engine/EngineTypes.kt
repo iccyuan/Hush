@@ -19,6 +19,8 @@ data class DeviceContext(
     val headphonesConnected: Boolean = false,
     /** 当前活动网络是否为 Wi-Fi。 */
     val onWifi: Boolean = false,
+    /** 当前处于其内部的地理围栏 key 集合（见 LocationCondition.fenceKey）。 */
+    val insideGeofences: Set<String> = emptySet(),
 )
 
 /**

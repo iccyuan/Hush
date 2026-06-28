@@ -122,6 +122,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.haze)
     implementation(libs.haze.materials)
+    // 高德地图（选点）+ 定位/地理围栏（运行时监控，不依赖 Google Play 服务）。
+    // 3dmap 已内置定位与围栏类，无需再单独引入 location（否则类重复）。
+    implementation("com.amap.api:3dmap:10.0.600")
     debugImplementation(libs.androidx.ui.tooling)
     testImplementation(libs.junit)
 }

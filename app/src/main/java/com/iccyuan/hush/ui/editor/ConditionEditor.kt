@@ -87,6 +87,7 @@ fun ConditionEditorDialog(
                 is Condition.WifiCondition -> SwitchRow(
                     stringResource(R.string.wifi_must_connected), c.mustBeConnected
                 ) { draft = c.copy(mustBeConnected = it) }
+                is Condition.LocationCondition -> LocationConditionFields(c) { draft = it }
                 is Condition.BatteryLevelCondition -> {
                     IntField(stringResource(R.string.percent), c.percent) { draft = c.copy(percent = it) }
                     SwitchRow(stringResource(R.string.when_below), c.whenBelow) {
@@ -103,6 +104,57 @@ fun ConditionEditorDialog(
             secondaryText = stringResource(if (onDelete != null) R.string.delete else R.string.cancel),
             onSecondary = { onDelete?.invoke() ?: onDismiss() },
         )
+    }
+}
+
+@Composable
+private fun LocationConditionFields(
+    c: Condition.LocationCondition,
+    onChange: (Condition.LocationCondition) -> Unit,
+) {
+    var showPicker by remember { mutableStateOf(false) }
+    Column {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(
+                c.placeName.ifBlank { stringResource(R.string.location_unset) },
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            androidx.compose.material3.TextButton(onClick = { showPicker = true }) {
+                Text(stringResource(R.string.location_pick))
+            }
+        }
+        if (c.latitude != 0.0 || c.longitude != 0.0) {
+            Text(
+                "%.5f, %.5f".format(c.latitude, c.longitude),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        IntField(stringResource(R.string.location_radius_m), c.radiusMeters) {
+            onChange(c.copy(radiusMeters = it.coerceIn(50, 5000)))
+        }
+        SwitchRow(stringResource(R.string.location_must_inside), c.mustBeInside) {
+            onChange(c.copy(mustBeInside = it))
+        }
+    }
+    if (showPicker) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showPicker = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            MapPickerScreen(
+                initialLat = c.latitude,
+                initialLng = c.longitude,
+                radiusMeters = c.radiusMeters,
+                onCancel = { showPicker = false },
+                onConfirm = { lat, lng, name ->
+                    onChange(c.copy(latitude = lat, longitude = lng, placeName = name))
+                    showPicker = false
+                },
+            )
+        }
     }
 }
 

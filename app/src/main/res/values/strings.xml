@@ -256,6 +256,13 @@
     <string name="cat_cond_headphones_desc">Only while headphones are (dis)connected</string>
     <string name="cat_cond_wifi">Wi-Fi</string>
     <string name="cat_cond_wifi_desc">Only while Wi-Fi is (dis)connected</string>
+    <string name="cat_cond_location">Location</string>
+    <string name="cat_cond_location_desc">Only inside/outside a place (geofence)</string>
+    <string name="location_unset">No location set</string>
+    <string name="location_pick">Pick on map</string>
+    <string name="location_pick_title">Tap to choose a spot</string>
+    <string name="location_radius_m">Radius (meters)</string>
+    <string name="location_must_inside">Inside the area (off = outside)</string>
     <string name="cat_cond_battery">Battery level</string>
     <string name="cat_cond_battery_desc">Only above/below a battery percentage</string>
     <string name="cat_cond_cooldown">Cooldown</string>
@@ -321,6 +328,8 @@
     <string name="sum_headphones_off">While headphones disconnected</string>
     <string name="sum_wifi_on">While on Wi-Fi</string>
     <string name="sum_wifi_off">While off Wi-Fi</string>
+    <string name="sum_location_inside">While inside \"%s\"</string>
+    <string name="sum_location_outside">While outside \"%s\"</string>
     <string name="sum_screen_off">While screen is off</string>
     <string name="sum_battery_below">Battery below %d%%</string>
     <string name="sum_battery_above">Battery above %d%%</string>

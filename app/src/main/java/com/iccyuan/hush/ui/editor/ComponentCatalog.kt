@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -94,6 +95,9 @@ object ComponentCatalog {
         },
         CatalogEntry(R.string.cat_cond_wifi, R.string.cat_cond_wifi_desc, Icons.Filled.Wifi, Blue) {
             Condition.WifiCondition(Ids.next())
+        },
+        CatalogEntry(R.string.cat_cond_location, R.string.cat_cond_location_desc, Icons.Filled.LocationOn, Red) {
+            Condition.LocationCondition(Ids.next())
         },
         CatalogEntry(R.string.cat_cond_battery, R.string.cat_cond_battery_desc, Icons.Filled.BatteryStd, Green) {
             Condition.BatteryLevelCondition(Ids.next())
@@ -176,6 +180,7 @@ object ComponentVisuals {
         is Condition.ScreenCondition -> Icons.Filled.Smartphone to Indigo
         is Condition.HeadphonesCondition -> Icons.Filled.Headphones to Teal
         is Condition.WifiCondition -> Icons.Filled.Wifi to Blue
+        is Condition.LocationCondition -> Icons.Filled.LocationOn to Red
         is Condition.BatteryLevelCondition -> Icons.Filled.BatteryStd to Green
         is Condition.CooldownCondition -> Icons.Filled.HourglassBottom to Gray
     }
