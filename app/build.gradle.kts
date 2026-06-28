@@ -24,9 +24,9 @@ android {
         applicationId = "com.iccyuan.hush"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
+        versionCode = 8
         // 默认与当前迭代一致; CI 可通过 -PversionName=1.2.3 (由 git tag 推导) 覆盖
-        versionName = (project.findProperty("versionName") as String?) ?: "0.1.7"
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.8"
         vectorDrawables { useSupportLibrary = true }
 
         // 导出 Room schema，使后续版本的数据库迁移可被校验。
