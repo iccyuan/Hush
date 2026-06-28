@@ -118,6 +118,11 @@
     <string name="url">URL</string>
     <string name="method">请求方法</string>
     <string name="body_template">请求体模板</string>
+    <string name="http_headers">请求头</string>
+    <string name="header_name">名称</string>
+    <string name="header_value">值</string>
+    <string name="add_header">添加请求头</string>
+    <string name="webhook_get_hint">GET 不发送请求体。要传数据请放进 URL 查询参数，例如 ?title={title}。</string>
     <string name="minutes">分钟</string>
     <string name="seconds">秒</string>
     <string name="delay_ms">延迟（毫秒）</string>

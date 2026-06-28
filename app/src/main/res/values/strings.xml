@@ -118,6 +118,11 @@
     <string name="url">URL</string>
     <string name="method">Method</string>
     <string name="body_template">Body template</string>
+    <string name="http_headers">Headers</string>
+    <string name="header_name">Name</string>
+    <string name="header_value">Value</string>
+    <string name="add_header">Add header</string>
+    <string name="webhook_get_hint">GET sends no body. To pass data, put it in the URL query, e.g. ?title={title}.</string>
     <string name="minutes">Minutes</string>
     <string name="seconds">Seconds</string>
     <string name="delay_ms">Delay (ms)</string>

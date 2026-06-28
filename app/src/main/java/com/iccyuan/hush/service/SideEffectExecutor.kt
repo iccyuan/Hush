@@ -36,7 +36,7 @@ class SideEffectExecutor(
                 is SideEffect.Toast -> showToast(effect.text)
                 is SideEffect.Notify -> postReminder(effect.text)
                 is SideEffect.RunTasker -> runTasker(effect.taskName)
-                is SideEffect.Webhook -> fireWebhook(effect.url, effect.method, effect.body)
+                is SideEffect.Webhook -> fireWebhook(effect.url, effect.method, effect.headers, effect.body)
                 is SideEffect.MuteApp ->
                     VariableStore.muteApp(effect.pkg, effect.ruleId)
                 is SideEffect.Danmaku ->
@@ -97,7 +97,12 @@ class SideEffectExecutor(
             .onFailure { Logger.w("tasker task failed: $taskName", it) }
     }
 
-    private fun fireWebhook(url: String, method: HttpMethod, body: String) {
+    private fun fireWebhook(
+        url: String,
+        method: HttpMethod,
+        headers: List<Pair<String, String>>,
+        body: String,
+    ) {
         if (url.isBlank()) return
         scope.launch(Dispatchers.IO) {
             var conn: HttpURLConnection? = null
@@ -106,9 +111,14 @@ class SideEffectExecutor(
                     requestMethod = method.name
                     connectTimeout = WEBHOOK_TIMEOUT_MS
                     readTimeout = WEBHOOK_TIMEOUT_MS
-                    if (method != HttpMethod.GET) {
+                    headers.forEach { (k, v) -> setRequestProperty(k, v) }
+                    // 仅 POST 携带请求体（GET 不发；HttpURLConnection 也不支持 GET 带 body）。
+                    if (method == HttpMethod.POST) {
                         doOutput = true
-                        setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        // 用户未自定义 Content-Type 时默认 JSON。
+                        if (headers.none { it.first.equals("Content-Type", ignoreCase = true) }) {
+                            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        }
                         outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     }
                 }

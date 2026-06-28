@@ -136,13 +136,18 @@ sealed class Action {
         val taskName: String = "",
     ) : Action()
 
-    /** 发起一个 HTTP 请求，例如发送到 webhook / 智能家居自动化。 */
+    /**
+     * 发起一个 HTTP 请求，例如发送到 webhook / 智能家居自动化。
+     * 类 Postman 形式：可自定义请求头（[headers]）；仅 POST 携带请求体（[bodyTemplate]）。
+     * [url]、各请求头的值、以及 [bodyTemplate] 均支持模板占位符。
+     */
     @Serializable
     @SerialName("webhook")
     data class WebhookAction(
         override val id: String,
         val url: String = "",
         val method: HttpMethod = HttpMethod.POST,
+        val headers: List<HttpHeader> = emptyList(),
         val bodyTemplate: String = "{\"app\":\"{app}\",\"title\":\"{title}\",\"text\":\"{text}\"}",
     ) : Action()
 
@@ -168,3 +173,10 @@ sealed class Action {
         val template: String = "{title} {text}",
     ) : Action()
 }
+
+/** [Action.WebhookAction] 的一个自定义请求头。[value] 支持模板占位符。 */
+@Serializable
+data class HttpHeader(
+    val name: String = "",
+    val value: String = "",
+)

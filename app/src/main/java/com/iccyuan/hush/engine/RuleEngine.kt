@@ -279,6 +279,9 @@ class RuleEngine {
                     SideEffect.Webhook(
                         url = TemplateEngine.render(action.url, ctx),
                         method = action.method,
+                        headers = action.headers
+                            .filter { it.name.isNotBlank() }
+                            .map { it.name.trim() to TemplateEngine.render(it.value, ctx) },
                         body = TemplateEngine.render(action.bodyTemplate, ctx),
                     )
                 )

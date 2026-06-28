@@ -1,14 +1,25 @@
 package com.iccyuan.hush.ui.editor
 import com.iccyuan.hush.engine.TextMatcher
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +33,7 @@ import com.iccyuan.hush.R
 import com.iccyuan.hush.ui.components.DialogActions
 import com.iccyuan.hush.ui.components.GlassDialog
 import com.iccyuan.hush.data.model.Action
+import com.iccyuan.hush.data.model.HttpHeader
 import com.iccyuan.hush.data.model.HttpMethod
 import com.iccyuan.hush.data.model.Importance
 import com.iccyuan.hush.data.model.NotificationField
@@ -31,6 +43,7 @@ import com.iccyuan.hush.ui.common.EnumDropdown
 import com.iccyuan.hush.ui.common.IntField
 import com.iccyuan.hush.ui.common.LabeledTextField
 import com.iccyuan.hush.ui.common.SwitchRow
+import com.iccyuan.hush.ui.theme.IOSColors
 
 @Composable
 fun ActionEditorDialog(
@@ -181,26 +194,7 @@ private fun ActionFields(action: Action, onChange: (Action) -> Unit) {
         is Action.RunTaskerAction -> LabeledTextField(stringResource(R.string.tasker_task), a.taskName) {
             onChange(a.copy(taskName = it))
         }
-        is Action.WebhookAction -> Column {
-            val urlError = if (a.url.isNotBlank() && !android.util.Patterns.WEB_URL.matcher(a.url).matches())
-                stringResource(R.string.err_invalid_url) else null
-            LabeledTextField(stringResource(R.string.url), a.url, error = urlError) {
-                onChange(a.copy(url = it))
-            }
-            Spacer(Modifier.height(6.dp))
-            EnumDropdown(
-                label = stringResource(R.string.method),
-                options = HttpMethod.entries,
-                selected = a.method,
-                optionLabel = { it.name },
-                onSelected = { onChange(a.copy(method = it)) },
-            )
-            Spacer(Modifier.height(6.dp))
-            LabeledTextField(stringResource(R.string.body_template), a.bodyTemplate, singleLine = false) {
-                onChange(a.copy(bodyTemplate = it))
-            }
-            TemplateHint()
-        }
+        is Action.WebhookAction -> WebhookFields(a) { onChange(it) }
         is Action.MuteAppAction -> Text(stringResource(R.string.mute_explain))
         is Action.DigestAction -> Column {
             IntField(stringResource(R.string.digest_window_minutes), a.windowMinutes) {
@@ -224,6 +218,86 @@ private fun TemplateHint() {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
+
+/** 类 Postman 的 HTTP 请求编辑：URL + 方法(GET/POST) + 自定义请求头 + 请求体(仅 POST)。 */
+@Composable
+private fun WebhookFields(a: Action.WebhookAction, onChange: (Action.WebhookAction) -> Unit) {
+    Column {
+        val urlError = if (a.url.isNotBlank() && !android.util.Patterns.WEB_URL.matcher(a.url).matches())
+            stringResource(R.string.err_invalid_url) else null
+        LabeledTextField(stringResource(R.string.url), a.url, error = urlError) {
+            onChange(a.copy(url = it))
+        }
+        Spacer(Modifier.height(6.dp))
+        // 仅支持 GET / POST。
+        EnumDropdown(
+            label = stringResource(R.string.method),
+            options = listOf(HttpMethod.GET, HttpMethod.POST),
+            selected = if (a.method == HttpMethod.POST) HttpMethod.POST else HttpMethod.GET,
+            optionLabel = { it.name },
+            onSelected = { onChange(a.copy(method = it)) },
+        )
+
+        Spacer(Modifier.height(10.dp))
+        Text(
+            stringResource(R.string.http_headers),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        a.headers.forEachIndexed { i, h ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                LabeledTextField(
+                    stringResource(R.string.header_name), h.name, modifier = Modifier.weight(1f),
+                ) { v -> onChange(a.copy(headers = a.headers.mapAt(i) { it.copy(name = v) })) }
+                LabeledTextField(
+                    stringResource(R.string.header_value), h.value, modifier = Modifier.weight(1.3f),
+                ) { v -> onChange(a.copy(headers = a.headers.mapAt(i) { it.copy(value = v) })) }
+                IconButton(onClick = { onChange(a.copy(headers = a.headers.filterIndexed { j, _ -> j != i })) }) {
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.delete))
+                }
+            }
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { onChange(a.copy(headers = a.headers + HttpHeader())) }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = null, tint = IOSColors.Blue)
+            Text(
+                stringResource(R.string.add_header),
+                style = MaterialTheme.typography.bodyMedium,
+                color = IOSColors.Blue,
+            )
+        }
+
+        // 请求体仅 POST 携带（GET 不发；要传值请用 URL 查询参数）。
+        if (a.method == HttpMethod.POST) {
+            Spacer(Modifier.height(6.dp))
+            LabeledTextField(stringResource(R.string.body_template), a.bodyTemplate, singleLine = false) {
+                onChange(a.copy(bodyTemplate = it))
+            }
+        } else {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                stringResource(R.string.webhook_get_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TemplateHint()
+    }
+}
+
+/** 返回替换了第 [index] 项的新列表（其余不变）。 */
+private fun <T> List<T>.mapAt(index: Int, transform: (T) -> T): List<T> =
+    mapIndexed { i, item -> if (i == index) transform(item) else item }
 
 @Composable
 private fun actionTitle(action: Action): String = stringResource(
