@@ -6,6 +6,7 @@ import com.iccyuan.hush.data.NotificationLogRepository
 import com.iccyuan.hush.data.RuleRepository
 import com.iccyuan.hush.data.RuntimeStateStore
 import com.iccyuan.hush.data.SettingsStore
+import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.engine.Decision
@@ -47,6 +48,16 @@ class HushListenerService : NotificationListenerService() {
     @Volatile private var logActivity: Boolean = true
     @Volatile private var immersiveDanmaku: Boolean = false
     @Volatile private var connected: Boolean = false
+    // 仅当有启用规则用到对应条件时才置 true，避免每条通知都白白探测耳机/网络状态。
+    @Volatile private var needsHeadphones: Boolean = false
+    @Volatile private var needsWifi: Boolean = false
+
+    /** 更新内存中的活动规则，并据此重算需要采样哪些设备状态。 */
+    private fun setActiveRules(rules: List<Rule>) {
+        activeRules = rules
+        needsHeadphones = rules.any { r -> r.conditions.any { it is Condition.HeadphonesCondition } }
+        needsWifi = rules.any { r -> r.conditions.any { it is Condition.WifiCondition } }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -63,7 +74,7 @@ class HushListenerService : NotificationListenerService() {
 
         scope.launch {
             repository.observeAll().collectLatest {
-                activeRules = it.filter(Rule::enabled)
+                setActiveRules(it.filter(Rule::enabled))
                 Logger.i("rules loaded: ${activeRules.size} enabled of ${it.size}")
             }
         }
@@ -87,7 +98,7 @@ class HushListenerService : NotificationListenerService() {
         // 重新绑定后立即同步拉取一次最新规则：onCreate 里的 observeAll 首次发射有时机不确定性，
         // 重连场景下若不主动刷新，可能继续用旧规则——表现为「改了规则要重开开关才生效」。
         scope.launch {
-            activeRules = repository.enabledRules()
+            setActiveRules(repository.enabledRules())
             Logger.i("listener connected; rules refreshed: ${activeRules.size}")
         }
     }
@@ -128,7 +139,7 @@ class HushListenerService : NotificationListenerService() {
     }
 
     private suspend fun process(sbn: StatusBarNotification) {
-        val device = DeviceState.sample(this)
+        val device = DeviceState.sample(this, needsHeadphones, needsWifi)
         val appName = NotificationFields.appLabel(this, sbn.packageName)
         val ctx = MatchContext(
             packageName = sbn.packageName,

@@ -134,6 +134,8 @@ class RuleEngine {
         is Condition.TimeCondition -> inTimeWindow(c, ctx)
         is Condition.ChargingCondition -> ctx.device.charging == c.mustBeCharging
         is Condition.ScreenCondition -> ctx.device.screenOn == c.mustBeOn
+        is Condition.HeadphonesCondition -> ctx.device.headphonesConnected == c.mustBeConnected
+        is Condition.WifiCondition -> ctx.device.onWifi == c.mustBeConnected
         is Condition.BatteryLevelCondition ->
             if (c.whenBelow) ctx.device.batteryPercent < c.percent
             else ctx.device.batteryPercent > c.percent

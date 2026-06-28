@@ -126,6 +126,8 @@
     <string name="cond_days">Days</string>
     <string name="when_below">When below (else above)</string>
     <string name="screen_must_on">Screen must be on</string>
+    <string name="headphones_must_connected">Headphones must be connected</string>
+    <string name="wifi_must_connected">Wi-Fi must be connected</string>
     <string name="must_be_charging">Must be charging</string>
 
     <!-- Day types / holidays -->
@@ -250,6 +252,10 @@
     <string name="cat_cond_charging_desc">Only while charging or on battery</string>
     <string name="cat_cond_screen">Screen state</string>
     <string name="cat_cond_screen_desc">Only while screen on or off</string>
+    <string name="cat_cond_headphones">Headphones</string>
+    <string name="cat_cond_headphones_desc">Only while headphones are (dis)connected</string>
+    <string name="cat_cond_wifi">Wi-Fi</string>
+    <string name="cat_cond_wifi_desc">Only while Wi-Fi is (dis)connected</string>
     <string name="cat_cond_battery">Battery level</string>
     <string name="cat_cond_battery_desc">Only above/below a battery percentage</string>
     <string name="cat_cond_cooldown">Cooldown</string>
@@ -311,6 +317,10 @@
     <string name="sum_charging">While charging</string>
     <string name="sum_on_battery">While on battery</string>
     <string name="sum_screen_on">While screen is on</string>
+    <string name="sum_headphones_on">While headphones connected</string>
+    <string name="sum_headphones_off">While headphones disconnected</string>
+    <string name="sum_wifi_on">While on Wi-Fi</string>
+    <string name="sum_wifi_off">While off Wi-Fi</string>
     <string name="sum_screen_off">While screen is off</string>
     <string name="sum_battery_below">Battery below %d%%</string>
     <string name="sum_battery_above">Battery above %d%%</string>

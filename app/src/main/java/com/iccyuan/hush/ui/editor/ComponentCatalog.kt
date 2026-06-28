@@ -13,8 +13,10 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FindReplace
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -86,6 +88,12 @@ object ComponentCatalog {
         },
         CatalogEntry(R.string.cat_cond_screen, R.string.cat_cond_screen_desc, Icons.Filled.Smartphone, Indigo) {
             Condition.ScreenCondition(Ids.next())
+        },
+        CatalogEntry(R.string.cat_cond_headphones, R.string.cat_cond_headphones_desc, Icons.Filled.Headphones, Teal) {
+            Condition.HeadphonesCondition(Ids.next())
+        },
+        CatalogEntry(R.string.cat_cond_wifi, R.string.cat_cond_wifi_desc, Icons.Filled.Wifi, Blue) {
+            Condition.WifiCondition(Ids.next())
         },
         CatalogEntry(R.string.cat_cond_battery, R.string.cat_cond_battery_desc, Icons.Filled.BatteryStd, Green) {
             Condition.BatteryLevelCondition(Ids.next())
@@ -166,6 +174,8 @@ object ComponentVisuals {
         is Condition.HolidayCondition -> Icons.Filled.CalendarMonth to Red
         is Condition.ChargingCondition -> Icons.Filled.BatteryChargingFull to Green
         is Condition.ScreenCondition -> Icons.Filled.Smartphone to Indigo
+        is Condition.HeadphonesCondition -> Icons.Filled.Headphones to Teal
+        is Condition.WifiCondition -> Icons.Filled.Wifi to Blue
         is Condition.BatteryLevelCondition -> Icons.Filled.BatteryStd to Green
         is Condition.CooldownCondition -> Icons.Filled.HourglassBottom to Gray
     }

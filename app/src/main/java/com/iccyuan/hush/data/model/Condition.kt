@@ -43,6 +43,22 @@ sealed class Condition {
         val mustBeOn: Boolean = false,
     ) : Condition()
 
+    /** 仅在连着/未连耳机（有线或蓝牙音频）时生效。 */
+    @Serializable
+    @SerialName("headphones")
+    data class HeadphonesCondition(
+        override val id: String,
+        val mustBeConnected: Boolean = true,
+    ) : Condition()
+
+    /** 仅在连着/未连 Wi-Fi 时生效。 */
+    @Serializable
+    @SerialName("wifi")
+    data class WifiCondition(
+        override val id: String,
+        val mustBeConnected: Boolean = true,
+    ) : Condition()
+
     /** 仅在电量低于/高于某个阈值时生效。 */
     @Serializable
     @SerialName("battery")

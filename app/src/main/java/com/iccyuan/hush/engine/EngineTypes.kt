@@ -15,6 +15,10 @@ data class DeviceContext(
     val isoDayOfWeek: Int,
     val dayType: DayType,
     val nowMillis: Long,
+    /** 是否插着/连着耳机（有线或蓝牙音频输出）。 */
+    val headphonesConnected: Boolean = false,
+    /** 当前活动网络是否为 Wi-Fi。 */
+    val onWifi: Boolean = false,
 )
 
 /**

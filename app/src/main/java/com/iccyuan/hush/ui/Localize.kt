@@ -114,6 +114,10 @@ object Localize {
             stringResource(if (c.mustBeCharging) R.string.sum_charging else R.string.sum_on_battery)
         is Condition.ScreenCondition ->
             stringResource(if (c.mustBeOn) R.string.sum_screen_on else R.string.sum_screen_off)
+        is Condition.HeadphonesCondition ->
+            stringResource(if (c.mustBeConnected) R.string.sum_headphones_on else R.string.sum_headphones_off)
+        is Condition.WifiCondition ->
+            stringResource(if (c.mustBeConnected) R.string.sum_wifi_on else R.string.sum_wifi_off)
         is Condition.BatteryLevelCondition ->
             stringResource(if (c.whenBelow) R.string.sum_battery_below else R.string.sum_battery_above, c.percent)
         is Condition.CooldownCondition ->

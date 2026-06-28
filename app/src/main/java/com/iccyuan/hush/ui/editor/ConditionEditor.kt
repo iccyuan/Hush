@@ -81,6 +81,12 @@ fun ConditionEditorDialog(
                 is Condition.ScreenCondition -> SwitchRow(
                     stringResource(R.string.screen_must_on), c.mustBeOn
                 ) { draft = c.copy(mustBeOn = it) }
+                is Condition.HeadphonesCondition -> SwitchRow(
+                    stringResource(R.string.headphones_must_connected), c.mustBeConnected
+                ) { draft = c.copy(mustBeConnected = it) }
+                is Condition.WifiCondition -> SwitchRow(
+                    stringResource(R.string.wifi_must_connected), c.mustBeConnected
+                ) { draft = c.copy(mustBeConnected = it) }
                 is Condition.BatteryLevelCondition -> {
                     IntField(stringResource(R.string.percent), c.percent) { draft = c.copy(percent = it) }
                     SwitchRow(stringResource(R.string.when_below), c.whenBelow) {

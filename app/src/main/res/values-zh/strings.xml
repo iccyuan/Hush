@@ -126,6 +126,8 @@
     <string name="cond_days">星期</string>
     <string name="when_below">低于时（否则高于）</string>
     <string name="screen_must_on">屏幕必须点亮</string>
+    <string name="headphones_must_connected">必须连着耳机</string>
+    <string name="wifi_must_connected">必须连着 Wi-Fi</string>
     <string name="must_be_charging">必须在充电</string>
 
     <!-- Day types / holidays -->
@@ -250,6 +252,10 @@
     <string name="cat_cond_charging_desc">仅在充电或使用电池时</string>
     <string name="cat_cond_screen">屏幕状态</string>
     <string name="cat_cond_screen_desc">仅在屏幕点亮或熄灭时</string>
+    <string name="cat_cond_headphones">耳机</string>
+    <string name="cat_cond_headphones_desc">仅在连着/未连耳机时</string>
+    <string name="cat_cond_wifi">Wi-Fi</string>
+    <string name="cat_cond_wifi_desc">仅在连着/未连 Wi-Fi 时</string>
     <string name="cat_cond_battery">电量</string>
     <string name="cat_cond_battery_desc">仅在电量高于/低于某百分比时</string>
     <string name="cat_cond_cooldown">冷却</string>
@@ -311,6 +317,10 @@
     <string name="sum_charging">充电时</string>
     <string name="sum_on_battery">使用电池时</string>
     <string name="sum_screen_on">屏幕点亮时</string>
+    <string name="sum_headphones_on">连着耳机时</string>
+    <string name="sum_headphones_off">未连耳机时</string>
+    <string name="sum_wifi_on">连着 Wi-Fi 时</string>
+    <string name="sum_wifi_off">未连 Wi-Fi 时</string>
     <string name="sum_screen_off">屏幕熄灭时</string>
     <string name="sum_battery_below">电量低于 %d%%</string>
     <string name="sum_battery_above">电量高于 %d%%</string>
