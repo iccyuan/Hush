@@ -89,12 +89,12 @@ fun WebhookEditorScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(padding),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
 
-            // 请求：URL + 方法（仅 GET / POST）。
-            InsetGroupedSection(header = stringResource(R.string.section_request)) {
+            // 请求：URL + 方法（仅 GET / POST）。无分区标题——字段自带标签，不重复。
+            InsetGroupedSection {
                 Column(Modifier.padding(12.dp)) {
                     val urlError = if (draft.url.isNotBlank() &&
                         !android.util.Patterns.WEB_URL.matcher(draft.url).matches()
@@ -113,9 +113,8 @@ fun WebhookEditorScreen(
                 }
             }
 
-            // 请求头（放在查询参数之前）。
+            // 请求头（放在查询参数之前）。无标题——「添加请求头」按钮已标明。
             KeyValueSection(
-                header = stringResource(R.string.http_headers),
                 addLabel = stringResource(R.string.add_header),
                 items = draft.headers,
                 onChange = { draft = draft.copy(headers = it) },
@@ -123,15 +122,15 @@ fun WebhookEditorScreen(
 
             // 查询参数（拼到 URL，GET/POST 都可用）。
             KeyValueSection(
-                header = stringResource(R.string.query_params),
                 addLabel = stringResource(R.string.add_param),
                 items = draft.queryParams,
                 onChange = { draft = draft.copy(queryParams = it) },
             )
 
-            // 请求体（仅 POST）：类型 + 内容。
+            // 请求体（仅 POST）：类型 + 内容 + 操作行（说明 / 格式化）。
             if (draft.method == HttpMethod.POST) {
-                InsetGroupedSection(header = stringResource(R.string.section_body)) {
+                var helpOpen by remember { mutableStateOf(false) }
+                InsetGroupedSection {
                     Column(Modifier.padding(12.dp)) {
                         EnumDropdown(
                             label = stringResource(R.string.body_type),
@@ -141,23 +140,44 @@ fun WebhookEditorScreen(
                             onSelected = { draft = draft.copy(bodyType = it) },
                         )
                         Spacer(Modifier.height(8.dp))
-                        // 标题用输入框自身的浮动标签即可，避免重复；JSON 类型时右上角放「格式化」。
-                        if (draft.bodyType == WebhookBodyType.JSON) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = {
-                                    formatJson(draft.bodyTemplate)?.let { draft = draft.copy(bodyTemplate = it) }
-                                }) { Text(stringResource(R.string.format_json)) }
-                            }
-                        }
-                        // 更高的多行输入框，方便编辑较长的 JSON/文本。
                         LabeledTextField(
                             stringResource(R.string.body_template),
                             draft.bodyTemplate,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
                             singleLine = false,
                         ) { draft = draft.copy(bodyTemplate = it) }
-                        Spacer(Modifier.height(8.dp))
-                        BodyHelp()
+                        // 操作行：左侧「使用说明」可展开，右侧「格式化」（仅 JSON）。
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.clickable { helpOpen = !helpOpen },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    if (helpOpen) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                    contentDescription = null,
+                                    tint = IOSColors.Blue,
+                                )
+                                Text(
+                                    stringResource(R.string.body_help_title),
+                                    color = IOSColors.Blue,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                            if (draft.bodyType == WebhookBodyType.JSON) {
+                                TextButton(onClick = {
+                                    formatJson(draft.bodyTemplate)?.let { draft = draft.copy(bodyTemplate = it) }
+                                }) { Text(stringResource(R.string.format_json)) }
+                            }
+                        }
+                        if (helpOpen) {
+                            Text(
+                                stringResource(R.string.body_help_detail),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             } else {
@@ -168,14 +188,6 @@ fun WebhookEditorScreen(
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
-
-            // URL / 参数 / 请求头的值也都支持占位符。
-            Text(
-                stringResource(R.string.template_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
 
             InsetGroupedSection {
                 Row(
@@ -193,15 +205,14 @@ fun WebhookEditorScreen(
     }
 }
 
-/** 可增删的键值对列表分区（用于查询参数与请求头）。值支持模板占位符。 */
+/** 可增删的键值对列表分区（用于查询参数与请求头）。值支持模板占位符。无标题——靠「添加…」按钮标识。 */
 @Composable
 private fun KeyValueSection(
-    header: String,
     addLabel: String,
     items: List<KeyValue>,
     onChange: (List<KeyValue>) -> Unit,
 ) {
-    InsetGroupedSection(header = header) {
+    InsetGroupedSection {
         items.forEachIndexed { i, kv ->
             if (i > 0) HairlineDivider(startInset = 16.dp)
             Row(
@@ -237,34 +248,3 @@ private fun KeyValueSection(
 
 private fun <T> List<T>.mapAt(index: Int, transform: (T) -> T): List<T> =
     mapIndexed { i, item -> if (i == index) transform(item) else item }
-
-/** 可展开的「请求体使用说明」：占位符、JSON 写法与注意事项。 */
-@Composable
-private fun BodyHelp() {
-    var open by remember { mutableStateOf(false) }
-    Column {
-        Row(
-            Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Icon(
-                if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = null,
-                tint = IOSColors.Blue,
-            )
-            Text(
-                stringResource(R.string.body_help_title),
-                color = IOSColors.Blue,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-        if (open) {
-            Text(
-                stringResource(R.string.body_help_detail),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
