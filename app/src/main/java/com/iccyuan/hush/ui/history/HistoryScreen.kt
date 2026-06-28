@@ -477,14 +477,19 @@ private fun fullTimeOf(t: Long): String =
 private fun groupLogs(logs: List<NotificationLog>, grouping: Grouping): List<Pair<String, List<NotificationLog>>> {
     val cal = Calendar.getInstance()
     val dayFmt = java.text.SimpleDateFormat("yyyy-MM-dd EEE", java.util.Locale.getDefault())
+    val rangeFmt = java.text.SimpleDateFormat("M-d", java.util.Locale.getDefault())
     return logs.groupBy { log ->
         cal.timeInMillis = log.time
         when (grouping) {
             Grouping.DAY -> dayFmt.format(java.util.Date(log.time))
             Grouping.WEEK -> {
-                val year = cal.get(Calendar.YEAR)
-                val week = cal.get(Calendar.WEEK_OF_YEAR)
-                "%d · W%02d".format(year, week)
+                // 用「本周一 ~ 本周日」的日期范围作为分组标题，比 "W26" 直观，
+                // 切换按周时标题变化也一目了然。
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                val start = cal.time
+                cal.add(Calendar.DAY_OF_MONTH, 6)
+                val end = cal.time
+                "${rangeFmt.format(start)} ~ ${rangeFmt.format(end)}"
             }
         }
     }.toList()
