@@ -37,8 +37,13 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val notifPermLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    private val permLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
+
+    private companion object {
+        /** 国产 ROM（移动安全联盟）约定的「读取应用列表」运行时权限。 */
+        const val GET_INSTALLED_APPS = "com.android.permission.GET_INSTALLED_APPS"
+    }
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase))
@@ -51,13 +56,18 @@ class MainActivity : ComponentActivity() {
         LanguageStore.ensureLoaded(this)
         super.onCreate(savedInstanceState)
 
-        // Android 13+ 需运行时授予通知权限，否则改写后的通知、摘要、保活常驻通知都无法显示。
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        // 运行时权限：通知（Android 13+，否则改写通知/摘要/保活常驻通知都不显示）+
+        // 「读取应用列表」（国产 ROM 上规则的应用选择器需要）。仅请求尚未授予的。
+        val toRequest = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) add(Manifest.permission.POST_NOTIFICATIONS)
+            if (ContextCompat.checkSelfPermission(this@MainActivity, GET_INSTALLED_APPS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) add(GET_INSTALLED_APPS)
         }
+        if (toRequest.isNotEmpty()) permLauncher.launch(toRequest.toTypedArray())
 
         // 跟随「隐藏后台」开关：开启时把本任务从「最近任务」列表中排除（默认开启）。
         lifecycleScope.launch {
