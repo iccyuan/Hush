@@ -192,6 +192,7 @@
     <string name="update_latest">已是最新版本</string>
     <string name="update_failed">检查更新失败（网络不可用？）</string>
     <string name="update_download_fallback">没有可打开链接的应用，下载地址已复制到剪贴板。</string>
+    <string name="update_downloading">正在下载更新…完成后会自动拉起安装。</string>
 
     <!-- Enum: notification field -->
     <string name="field_title">标题</string>

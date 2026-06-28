@@ -349,18 +349,24 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    // 用浏览器打开下载链接（APK 直链会由浏览器下载）。直接 ACTION_VIEW 在部分机型
-                    // 上会解析到无法处理 .apk 直链的组件、随即闪回桌面，甚至无 handler 时抛
-                    // ActivityNotFoundException 崩溃；这里强制弹出浏览器选择器，并整体 runCatching，
-                    // 失败则回退到复制链接 + 提示。
-                    val view = Intent(Intent.ACTION_VIEW, Uri.parse(update.downloadUrl))
-                        .addCategory(Intent.CATEGORY_BROWSABLE)
-                    val chooser = Intent.createChooser(view, null)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    val opened = runCatching { context.startActivity(chooser) }.isSuccess
-                    if (!opened) {
-                        copyToClipboard(context, update.downloadUrl)
-                        toast(context, context.getString(R.string.update_download_fallback))
+                    val url = update.downloadUrl
+                    if (com.buzzkill.data.ApkInstaller.isApk(url)) {
+                        // 内置下载：系统 DownloadManager 下到应用私有目录，完成后拉起安装器，不经浏览器。
+                        com.buzzkill.data.ApkInstaller.downloadAndInstall(context, url, update.latestVersion)
+                        toast(context, context.getString(R.string.update_downloading))
+                    } else {
+                        // 非 APK 直链（如发布页）——回退到浏览器，并整体 runCatching 防崩溃。
+                        val view = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            .addCategory(Intent.CATEGORY_BROWSABLE)
+                        val opened = runCatching {
+                            context.startActivity(
+                                Intent.createChooser(view, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }.isSuccess
+                        if (!opened) {
+                            copyToClipboard(context, url)
+                            toast(context, context.getString(R.string.update_download_fallback))
+                        }
                     }
                     pendingUpdate = null
                 }) { Text(stringResource(R.string.update_download)) }
