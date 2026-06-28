@@ -32,11 +32,25 @@ enum class MatchMode(val label: String) {
     WILDCARD("matches wildcard");
 }
 
-/** 规则触发时，是要求所有（ALL）还是任意（ANY）触发器/条件成立。 */
+/** 规则触发时，是要求所有（ALL）还是任意（ANY）触发器成立。 */
 @Serializable
 enum class LogicMode(val label: String) {
     ALL("Match all"),
     ANY("Match any");
+}
+
+/**
+ * 规则各条件之间的组合方式（高级设置）。
+ * - [SMART]（默认）：同类条件「或」（如多个时间段），且把「时间段 + 节假日」并为同一「时间」组
+ *   一起「或」；不同类的组之间「与」。
+ * - [ALL]：全部条件都必须成立（且）。
+ * - [ANY]：任一条件成立即可（或）。
+ */
+@Serializable
+enum class ConditionLogic {
+    SMART,
+    ALL,
+    ANY,
 }
 
 /** 映射到 NotificationManager 常量的通知重要性级别。 */

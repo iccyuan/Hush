@@ -2,6 +2,7 @@ package com.iccyuan.hush.engine
 
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
+import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.DayType
 import com.iccyuan.hush.data.model.DeviceEventType
 import com.iccyuan.hush.data.model.HttpMethod
@@ -162,15 +163,27 @@ class RuleEngine {
     }
 
     /**
-     * 条件按类型自动分组：同类条件之间「或」（如多个时间段满足任一即可），
-     * 不同类之间「与」（如「时间 且 位置」）。每个类型分组至少一个成立，规则才通过。
+     * 条件组合（见 [ConditionLogic]）：
+     * - SMART：按类型分组，同类「或」；并把「时间段 + 节假日」并入同一「时间」组一起「或」；组间「与」。
+     * - ALL：全部条件都成立。
+     * - ANY：任一条件成立。
      */
     private fun conditionsHold(rule: Rule, ctx: MatchContext): Boolean {
         if (rule.conditions.isEmpty()) return true
-        return rule.conditions
-            .groupBy { it::class }
-            .values
-            .all { group -> group.any { evalCondition(it, rule, ctx) } }
+        return when (rule.conditionLogic) {
+            ConditionLogic.ALL -> rule.conditions.all { evalCondition(it, rule, ctx) }
+            ConditionLogic.ANY -> rule.conditions.any { evalCondition(it, rule, ctx) }
+            ConditionLogic.SMART -> rule.conditions
+                .groupBy { smartGroupKey(it) }
+                .values
+                .all { group -> group.any { evalCondition(it, rule, ctx) } }
+        }
+    }
+
+    /** SMART 分组键：时间段与节假日同属「时间」组（一起「或」），其余按具体类型分组。 */
+    private fun smartGroupKey(c: Condition): String = when (c) {
+        is Condition.TimeCondition, is Condition.HolidayCondition -> "temporal"
+        else -> c::class.qualifiedName ?: c::class.toString()
     }
 
     private fun evalCondition(c: Condition, rule: Rule, ctx: MatchContext): Boolean = when (c) {

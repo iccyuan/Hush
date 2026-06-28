@@ -16,6 +16,7 @@ import com.iccyuan.hush.service.DanmakuController
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.OpenInNew
@@ -56,8 +58,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
+import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Trigger
+import com.iccyuan.hush.ui.common.EnumDropdown
 import com.iccyuan.hush.engine.SideEffect
 import com.iccyuan.hush.ui.Localize
 import com.iccyuan.hush.ui.common.LabeledTextField
@@ -197,23 +201,39 @@ fun RuleEditorScreen(
                 }
             }
 
-            // 条件：按类型自动分组——同类「或」（如多个时间段满足任一），异类「与」。
-            InsetGroupedSection(
-                header = stringResource(R.string.section_conditions),
-                footer = if (rule.conditions.size >= 2) stringResource(R.string.cond_logic_hint) else null,
-            ) {
-                val groups = rule.conditions.groupBy { it::class }.values.toList()
-                groups.forEachIndexed { gi, group ->
-                    if (gi > 0) ConditionJoinLabel(stringResource(R.string.cond_join_and))
-                    group.forEachIndexed { ci, condition ->
-                        if (ci > 0) ConditionJoinLabel(stringResource(R.string.cond_join_or))
-                        val (ic, col) = ComponentVisuals.of(condition)
-                        IOSRow(
-                            title = Localize.summary(condition),
-                            icon = ic,
-                            iconColor = col,
-                            onClick = { editingCondition = condition },
-                        )
+            // 条件：组合方式见 conditionLogic（智能 / 且 / 或）。
+            InsetGroupedSection(header = stringResource(R.string.section_conditions)) {
+                @Composable
+                fun conditionRow(condition: Condition) {
+                    val (ic, col) = ComponentVisuals.of(condition)
+                    IOSRow(
+                        title = Localize.summary(condition),
+                        icon = ic,
+                        iconColor = col,
+                        onClick = { editingCondition = condition },
+                    )
+                }
+                // 连接词「且/或」可点击修改整条规则的条件组合方式（智能/且/或）。
+                val onPickLogic: (ConditionLogic) -> Unit = { vm.setConditionLogic(it) }
+                when (rule.conditionLogic) {
+                    ConditionLogic.SMART -> {
+                        // 时间段 + 节假日并为同一「时间」组（组内或）；其余按类型分组；组间与。
+                        val groups = rule.conditions.groupBy { smartGroupKey(it) }.values.toList()
+                        groups.forEachIndexed { gi, group ->
+                            if (gi > 0) ConditionJoinChip(stringResource(R.string.cond_join_and), rule.conditionLogic, onPickLogic)
+                            group.forEachIndexed { ci, condition ->
+                                if (ci > 0) ConditionJoinChip(stringResource(R.string.cond_join_or), rule.conditionLogic, onPickLogic)
+                                conditionRow(condition)
+                            }
+                        }
+                    }
+                    else -> {
+                        val join = if (rule.conditionLogic == ConditionLogic.ALL)
+                            stringResource(R.string.cond_join_and) else stringResource(R.string.cond_join_or)
+                        rule.conditions.forEachIndexed { i, condition ->
+                            if (i > 0) ConditionJoinChip(join, rule.conditionLogic, onPickLogic)
+                            conditionRow(condition)
+                        }
                     }
                 }
                 if (rule.conditions.isNotEmpty()) HairlineDivider(startInset = 16.dp)
@@ -365,16 +385,57 @@ private fun AddRow(
     IOSRow(title = label, icon = icon, iconColor = color, onClick = onClick)
 }
 
-/** 条件分组之间的连接词标签：「且」（不同类型间）或「或」（同类型间）。 */
+/** SMART 分组键：时间段与节假日同属「时间」组，其余按类型分组（与 RuleEngine 口径一致）。 */
+private fun smartGroupKey(c: Condition): String = when (c) {
+    is Condition.TimeCondition, is Condition.HolidayCondition -> "temporal"
+    else -> c::class.qualifiedName ?: c::class.toString()
+}
+
+/**
+ * 条件之间的连接词「且 / 或」，带编辑图标可点击；点击弹出菜单修改整条规则的条件组合方式
+ * （智能 / 且 / 或）。
+ */
 @Composable
-private fun ConditionJoinLabel(text: String) {
-    Text(
-        text,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+private fun ConditionJoinChip(
+    text: String,
+    selected: ConditionLogic,
+    onSelect: (ConditionLogic) -> Unit,
+) {
+    var open by androidx.compose.runtime.remember { mutableStateOf(false) }
+    Box(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        androidx.compose.foundation.layout.Row(
+            Modifier
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                .clickable { open = true }
+                .padding(horizontal = 10.dp, vertical = 3.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(text, style = MaterialTheme.typography.labelMedium, color = IOSColors.Blue)
+            androidx.compose.material3.Icon(
+                Icons.Filled.Edit,
+                contentDescription = stringResource(R.string.cond_logic_label),
+                tint = IOSColors.Blue,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            ConditionLogic.entries.forEach { opt ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(Localize.condLogicRes(opt)),
+                            color = if (opt == selected) IOSColors.Blue else MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
+                    onClick = { onSelect(opt); open = false },
+                )
+            }
+        }
+    }
 }
 
 /** 匹配当前（未保存）规则的应用 + 触发器的近期已记录通知。 */

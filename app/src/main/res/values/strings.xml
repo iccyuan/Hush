@@ -68,6 +68,10 @@
     <string name="cond_logic_hint">Same-type conditions match if any holds (e.g. several time windows); different types must all hold.</string>
     <string name="cond_join_and">and</string>
     <string name="cond_join_or">or</string>
+    <string name="cond_logic_label">Combine conditions</string>
+    <string name="condlogic_smart">Smart (recommended)</string>
+    <string name="condlogic_all">All — AND</string>
+    <string name="condlogic_any">Any — OR</string>
     <string name="section_actions">Actions</string>
     <string name="section_options">Options</string>
     <string name="applies_all_apps">Applies to all apps</string>

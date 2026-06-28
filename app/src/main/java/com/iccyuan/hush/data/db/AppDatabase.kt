@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 
-@Database(entities = [Rule::class, NotificationLog::class], version = 5, exportSchema = true)
+@Database(entities = [Rule::class, NotificationLog::class], version = 6, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
@@ -32,7 +32,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_4_5)
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // conditionLogic 改用 ConditionLogic（SMART/ALL/ANY）。早期该列存的 ALL/ANY 并未被引擎
+                // 实际使用（一律按智能分组），故把所有旧值归一为 SMART，保持既有行为不变。
+                db.execSQL("UPDATE rules SET conditionLogic = 'SMART'")
+            }
+        }
+
+        private val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_4_5, MIGRATION_5_6)
 
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {

@@ -68,6 +68,10 @@
     <string name="cond_logic_hint">同类条件「满足任一即可」（如多个时间段），不同类型之间需「全部满足」。</string>
     <string name="cond_join_and">且</string>
     <string name="cond_join_or">或</string>
+    <string name="cond_logic_label">条件组合方式</string>
+    <string name="condlogic_smart">智能（推荐）</string>
+    <string name="condlogic_all">且（全部满足）</string>
+    <string name="condlogic_any">或（任一满足）</string>
     <string name="section_actions">动作</string>
     <string name="section_options">选项</string>
     <string name="applies_all_apps">应用于所有应用</string>

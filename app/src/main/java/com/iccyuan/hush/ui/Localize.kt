@@ -7,6 +7,7 @@ import androidx.compose.ui.res.stringResource
 import com.iccyuan.hush.R
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
+import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.DayType
 import com.iccyuan.hush.data.model.DeviceEventType
 import com.iccyuan.hush.data.model.Importance
@@ -79,6 +80,13 @@ object Localize {
     fun logicRes(l: LogicMode): Int = when (l) {
         LogicMode.ALL -> R.string.match_all
         LogicMode.ANY -> R.string.match_any
+    }
+
+    @StringRes
+    fun condLogicRes(l: ConditionLogic): Int = when (l) {
+        ConditionLogic.SMART -> R.string.condlogic_smart
+        ConditionLogic.ALL -> R.string.condlogic_all
+        ConditionLogic.ANY -> R.string.condlogic_any
     }
 
     @Composable fun field(f: NotificationField) = stringResource(fieldRes(f))

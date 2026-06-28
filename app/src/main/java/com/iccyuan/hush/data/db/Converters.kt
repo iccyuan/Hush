@@ -3,6 +3,7 @@ package com.iccyuan.hush.data.db
 import androidx.room.TypeConverter
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
+import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Trigger
 import kotlinx.serialization.builtins.ListSerializer
@@ -56,4 +57,13 @@ class Converters {
 
     @TypeConverter
     fun toLogicMode(value: String): LogicMode = LogicMode.valueOf(value)
+
+    @TypeConverter
+    fun fromConditionLogic(value: ConditionLogic): String = value.name
+
+    // 兼容旧值：早期该列存的是 LogicMode（ALL/ANY），但当时引擎并未真正使用它，
+    // 一律按智能分组处理；因此把任何非 ConditionLogic 的旧值都归一为 SMART。
+    @TypeConverter
+    fun toConditionLogic(value: String): ConditionLogic =
+        runCatching { ConditionLogic.valueOf(value) }.getOrDefault(ConditionLogic.SMART)
 }
