@@ -73,6 +73,7 @@ import com.iccyuan.hush.ui.components.IOSSegmented
 import com.iccyuan.hush.ui.components.IOSSwitch
 import com.iccyuan.hush.ui.components.IOSTintedButton
 import com.iccyuan.hush.ui.components.InsetGroupedSection
+import com.iccyuan.hush.ui.components.cardFrost
 import com.iccyuan.hush.ui.theme.IOSColors
 
 private enum class AddKind { TRIGGER, CONDITION, ACTION }
@@ -406,33 +407,44 @@ private fun ConditionJoinChip(
         Modifier.fillMaxWidth().padding(vertical = 3.dp),
         contentAlignment = androidx.compose.ui.Alignment.Center,
     ) {
-        androidx.compose.foundation.layout.Row(
-            Modifier
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                .clickable { open = true }
-                .padding(horizontal = 10.dp, vertical = 3.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(text, style = MaterialTheme.typography.labelMedium, color = IOSColors.Blue)
-            androidx.compose.material3.Icon(
-                Icons.Filled.Edit,
-                contentDescription = stringResource(R.string.cond_logic_label),
-                tint = IOSColors.Blue,
-                modifier = Modifier.size(14.dp),
-            )
-        }
-        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            ConditionLogic.entries.forEach { opt ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(Localize.condLogicRes(opt)),
-                            color = if (opt == selected) IOSColors.Blue else MaterialTheme.colorScheme.onSurface,
-                        )
-                    },
-                    onClick = { onSelect(opt); open = false },
+        // 内层 Box 紧裹连接词，作为下拉菜单的锚点，使菜单贴着它弹出（而非整行左侧）。
+        Box {
+            androidx.compose.foundation.layout.Row(
+                Modifier
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                    .clickable { open = true }
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(text, style = MaterialTheme.typography.labelMedium, color = IOSColors.Blue)
+                androidx.compose.material3.Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.cond_logic_label),
+                    tint = IOSColors.Blue,
+                    modifier = Modifier.size(11.dp),
                 )
+            }
+            androidx.compose.material3.DropdownMenu(
+                expanded = open,
+                onDismissRequest = { open = false },
+                modifier = Modifier
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    .cardFrost(),
+                containerColor = Color.Transparent,
+            ) {
+                // 仅提供「且 / 或」；智能为默认行为，不在此列出。
+                listOf(ConditionLogic.ALL, ConditionLogic.ANY).forEach { opt ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(Localize.condLogicRes(opt)),
+                                color = if (opt == selected) IOSColors.Blue else MaterialTheme.colorScheme.onSurface,
+                            )
+                        },
+                        onClick = { onSelect(opt); open = false },
+                    )
+                }
             }
         }
     }
