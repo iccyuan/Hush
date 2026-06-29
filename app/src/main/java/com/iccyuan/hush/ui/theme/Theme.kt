@@ -31,6 +31,10 @@ private val IOSDarkColors = darkColorScheme(
     surfaceVariant = IOSColors.ElevatedDark,
     onSurfaceVariant = IOSColors.SecondaryLabelDark,
     outline = IOSColors.SeparatorDark,
+    // 深色主题下的反相表面（Snackbar 等用到）：浅底深字。
+    inverseSurface = IOSColors.GroupedBgLight,
+    inverseOnSurface = IOSColors.LabelLight,
+    inversePrimary = IOSColors.Blue,
 )
 
 private val IOSLightColors = lightColorScheme(
@@ -45,6 +49,10 @@ private val IOSLightColors = lightColorScheme(
     surfaceVariant = Color(0xFFEFEFF4),
     onSurfaceVariant = IOSColors.SecondaryLabelLight,
     outline = IOSColors.SeparatorLight,
+    // 浅色主题下的反相表面（Snackbar 等用到）：深底浅字。
+    inverseSurface = IOSColors.SurfaceDark,
+    inverseOnSurface = IOSColors.GroupedBgLight,
+    inversePrimary = IOSColors.BlueDark,
 )
 
 /** 圆角的、近似 iOS 连续圆角的形状。 */
