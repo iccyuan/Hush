@@ -53,6 +53,18 @@ enum class ConditionLogic {
     ANY,
 }
 
+/**
+ * 两个相邻条件之间的连接方式（每个间隔独立可改）。规则按**从左到右**求值：
+ * `A op1 B op2 C` = `((A op1 B) op2 C)`。
+ * - [AND]：且。  [OR]：或。  [GROUP]：无操作符（同组），按「或」求值，仅显示上更紧凑。
+ */
+@Serializable
+enum class GapOp {
+    AND,
+    OR,
+    GROUP,
+}
+
 /** 映射到 NotificationManager 常量的通知重要性级别。 */
 @Serializable
 enum class Importance(val label: String) {

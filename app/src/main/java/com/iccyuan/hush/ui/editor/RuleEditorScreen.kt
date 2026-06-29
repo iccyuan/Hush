@@ -58,7 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
-import com.iccyuan.hush.data.model.ConditionLogic
+import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Trigger
 import com.iccyuan.hush.ui.common.EnumDropdown
@@ -202,10 +202,13 @@ fun RuleEditorScreen(
                 }
             }
 
-            // 条件：组合方式见 conditionLogic（智能 / 且 / 或）。
+            // 条件：每个相邻间隔有独立的连接符（且/或/同组），从左到右求值。
             InsetGroupedSection(header = stringResource(R.string.section_conditions)) {
-                @Composable
-                fun conditionRow(condition: Condition) {
+                rule.conditions.forEachIndexed { i, condition ->
+                    if (i > 0) {
+                        val gap = rule.conditionJoins.getOrNull(i - 1) ?: GapOp.AND
+                        ConditionGapChip(gap) { vm.setGap(i - 1, it) }
+                    }
                     val (ic, col) = ComponentVisuals.of(condition)
                     IOSRow(
                         title = Localize.summary(condition),
@@ -213,29 +216,6 @@ fun RuleEditorScreen(
                         iconColor = col,
                         onClick = { editingCondition = condition },
                     )
-                }
-                // 连接词「且/或」可点击修改整条规则的条件组合方式（智能/且/或）。
-                val onPickLogic: (ConditionLogic) -> Unit = { vm.setConditionLogic(it) }
-                when (rule.conditionLogic) {
-                    ConditionLogic.SMART -> {
-                        // 时间段 + 节假日并为同一「时间」组（组内或）；其余按类型分组；组间与。
-                        val groups = rule.conditions.groupBy { smartGroupKey(it) }.values.toList()
-                        groups.forEachIndexed { gi, group ->
-                            if (gi > 0) ConditionJoinChip(stringResource(R.string.cond_join_and), rule.conditionLogic, onPickLogic)
-                            group.forEachIndexed { ci, condition ->
-                                if (ci > 0) ConditionJoinChip(stringResource(R.string.cond_join_or), rule.conditionLogic, onPickLogic)
-                                conditionRow(condition)
-                            }
-                        }
-                    }
-                    else -> {
-                        val join = if (rule.conditionLogic == ConditionLogic.ALL)
-                            stringResource(R.string.cond_join_and) else stringResource(R.string.cond_join_or)
-                        rule.conditions.forEachIndexed { i, condition ->
-                            if (i > 0) ConditionJoinChip(join, rule.conditionLogic, onPickLogic)
-                            conditionRow(condition)
-                        }
-                    }
                 }
                 if (rule.conditions.isNotEmpty()) HairlineDivider(startInset = 16.dp)
                 AddRow(stringResource(R.string.add_condition), Icons.Filled.Tune, IOSColors.Orange) {
@@ -386,23 +366,19 @@ private fun AddRow(
     IOSRow(title = label, icon = icon, iconColor = color, onClick = onClick)
 }
 
-/** SMART 分组键：时间段与节假日同属「时间」组，其余按类型分组（与 RuleEngine 口径一致）。 */
-private fun smartGroupKey(c: Condition): String = when (c) {
-    is Condition.TimeCondition, is Condition.HolidayCondition -> "temporal"
-    else -> c::class.qualifiedName ?: c::class.toString()
-}
-
 /**
- * 条件之间的连接词「且 / 或」，带编辑图标可点击；点击弹出菜单修改整条规则的条件组合方式
- * （智能 / 且 / 或）。
+ * 两个相邻条件之间的连接符「且 / 或 / 同组」，独立可改，带编辑图标可点击。
+ * 菜单提供「且 / 或 / 删除」；删除即设为「同组」（无操作符，按或求值）。
  */
 @Composable
-private fun ConditionJoinChip(
-    text: String,
-    selected: ConditionLogic,
-    onSelect: (ConditionLogic) -> Unit,
-) {
+private fun ConditionGapChip(gap: GapOp, onSelect: (GapOp) -> Unit) {
     var open by androidx.compose.runtime.remember { mutableStateOf(false) }
+    val (label, grouped) = when (gap) {
+        GapOp.AND -> stringResource(R.string.cond_join_and) to false
+        GapOp.OR -> stringResource(R.string.cond_join_or) to false
+        GapOp.GROUP -> stringResource(R.string.cond_join_group) to true
+    }
+    val tint = if (grouped) MaterialTheme.colorScheme.onSurfaceVariant else IOSColors.Blue
     Box(
         Modifier.fillMaxWidth().padding(vertical = 3.dp),
         contentAlignment = androidx.compose.ui.Alignment.Center,
@@ -417,11 +393,11 @@ private fun ConditionJoinChip(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Text(text, style = MaterialTheme.typography.labelMedium, color = IOSColors.Blue)
+                Text(label, style = MaterialTheme.typography.labelMedium, color = tint)
                 androidx.compose.material3.Icon(
                     Icons.Filled.Edit,
                     contentDescription = stringResource(R.string.cond_logic_label),
-                    tint = IOSColors.Blue,
+                    tint = tint,
                     modifier = Modifier.size(11.dp),
                 )
             }
@@ -433,18 +409,25 @@ private fun ConditionJoinChip(
                     .cardFrost(),
                 containerColor = Color.Transparent,
             ) {
-                // 仅提供「且 / 或」；智能为默认行为，不在此列出。
-                listOf(ConditionLogic.ALL, ConditionLogic.ANY).forEach { opt ->
+                @Composable
+                fun item(textRes: Int, value: GapOp) {
                     androidx.compose.material3.DropdownMenuItem(
                         text = {
                             Text(
-                                stringResource(Localize.condLogicRes(opt)),
-                                color = if (opt == selected) IOSColors.Blue else MaterialTheme.colorScheme.onSurface,
+                                stringResource(textRes),
+                                color = if (value == gap) IOSColors.Blue else MaterialTheme.colorScheme.onSurface,
                             )
                         },
-                        onClick = { onSelect(opt); open = false },
+                        onClick = { onSelect(value); open = false },
                     )
                 }
+                item(R.string.cond_join_and, GapOp.AND)
+                item(R.string.cond_join_or, GapOp.OR)
+                // 「删除」连接符 = 设为同组（无操作符）。
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(R.string.delete), color = IOSColors.Red) },
+                    onClick = { onSelect(GapOp.GROUP); open = false },
+                )
             }
         }
     }

@@ -23,8 +23,13 @@ data class Rule(
     val triggerLogic: LogicMode = LogicMode.ALL,
     val triggers: List<Trigger> = emptyList(),
     val conditions: List<Condition> = emptyList(),
-    /** 条件组合方式（高级）：SMART = 智能分组（默认），ALL = 全部满足（且），ANY = 任一满足（或）。 */
+    /** 历史字段，已弃用（保留以兼容数据库列），逻辑改由 [conditionJoins] 表达。 */
     val conditionLogic: ConditionLogic = ConditionLogic.SMART,
+    /**
+     * 相邻条件之间的连接符，长度 = max(0, conditions.size - 1)。
+     * 第 i 项是 conditions[i] 与 conditions[i+1] 之间的连接（[GapOp]）。从左到右求值。
+     */
+    val conditionJoins: List<GapOp> = emptyList(),
     val actions: List<Action> = emptyList(),
     /** 若为 true，则一旦本规则触发，后续规则将不再被评估。 */
     val stopProcessing: Boolean = false,

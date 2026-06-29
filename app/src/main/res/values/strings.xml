@@ -68,6 +68,7 @@
     <string name="cond_logic_hint">Same-type conditions match if any holds (e.g. several time windows); different types must all hold.</string>
     <string name="cond_join_and">and</string>
     <string name="cond_join_or">or</string>
+    <string name="cond_join_group">grouped</string>
     <string name="cond_logic_label">Combine conditions</string>
     <string name="condlogic_smart">Smart (recommended)</string>
     <string name="condlogic_all">All — AND</string>

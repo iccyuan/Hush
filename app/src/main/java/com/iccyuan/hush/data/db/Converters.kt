@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.ConditionLogic
+import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Trigger
 import kotlinx.serialization.builtins.ListSerializer
@@ -66,4 +67,13 @@ class Converters {
     @TypeConverter
     fun toConditionLogic(value: String): ConditionLogic =
         runCatching { ConditionLogic.valueOf(value) }.getOrDefault(ConditionLogic.SMART)
+
+    @TypeConverter
+    fun fromGapOps(value: List<GapOp>): String =
+        BuzzJson.encodeToString(ListSerializer(GapOp.serializer()), value)
+
+    @TypeConverter
+    fun toGapOps(value: String): List<GapOp> =
+        runCatching { BuzzJson.decodeFromString(ListSerializer(GapOp.serializer()), value) }
+            .getOrDefault(emptyList())
 }

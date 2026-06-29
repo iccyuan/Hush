@@ -14,8 +14,8 @@ import com.amap.api.location.AMapLocationClient
 import com.amap.api.location.DPoint
 import com.iccyuan.hush.data.HolidayProvider
 import com.iccyuan.hush.data.model.Condition
-import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.DayType
+import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.util.Logger
 import java.util.Calendar
@@ -86,23 +86,25 @@ object GeofenceManager {
     }
 
     /**
-     * 规则此刻是否「值得」注册围栏（省电门控）。按 [ConditionLogic] 判断：
-     * - ANY：位置单独就能命中，必须始终监控。
-     * - ALL：所有时间段与节假日都需成立，任一不满足即可跳过。
-     * - SMART：位置与「时间组」为「与」；时间组成立 =（任一时间段 或 任一节假日）成立，否则跳过。
+     * 规则此刻是否「值得」注册围栏（省电门控）。把规则的条件表达式按从左到右求值，其中位置与
+     * 其它设备状态乐观地视为「成立」，只用当前时间/节假日做判断：若即便如此表达式也不成立，说明
+     * 此刻规则不可能命中，便无需耗电定位。
      */
     private fun ruleTimeEligible(rule: Rule, now: TimeCtx): Boolean {
-        val times = rule.conditions.filterIsInstance<Condition.TimeCondition>()
-        val holidays = rule.conditions.filterIsInstance<Condition.HolidayCondition>()
-        return when (rule.conditionLogic) {
-            ConditionLogic.ANY -> true
-            ConditionLogic.ALL ->
-                (times.isEmpty() || times.all { inTimeWindow(it, now) }) &&
-                    (holidays.isEmpty() || holidays.all { it.dayTypes.contains(now.dayType) })
-            ConditionLogic.SMART ->
-                if (times.isEmpty() && holidays.isEmpty()) true
-                else times.any { inTimeWindow(it, now) } || holidays.any { it.dayTypes.contains(now.dayType) }
+        val conds = rule.conditions
+        if (conds.isEmpty()) return true
+        fun pred(c: Condition): Boolean = when (c) {
+            is Condition.TimeCondition -> inTimeWindow(c, now)
+            is Condition.HolidayCondition -> c.dayTypes.contains(now.dayType)
+            else -> true // 位置与其它设备状态：无法廉价判断，乐观视为成立。
         }
+        var result = pred(conds[0])
+        for (i in 1 until conds.size) {
+            val op = rule.conditionJoins.getOrNull(i - 1) ?: GapOp.AND
+            val v = pred(conds[i])
+            result = if (op == GapOp.AND) result && v else result || v
+        }
+        return result
     }
 
     private fun inTimeWindow(c: Condition.TimeCondition, now: TimeCtx): Boolean {

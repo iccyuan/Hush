@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 
-@Database(entities = [Rule::class, NotificationLog::class], version = 6, exportSchema = true)
+@Database(entities = [Rule::class, NotificationLog::class], version = 7, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
@@ -40,7 +40,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_4_5, MIGRATION_5_6)
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 改用「逐间隔连接符」表达条件逻辑（conditionJoins）。新增列，默认空列表；
+                // 引擎对缺失的间隔回退为「且」，老规则保持「全部满足」的稳妥行为。
+                db.execSQL("ALTER TABLE rules ADD COLUMN conditionJoins TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
+        private val MIGRATIONS: Array<Migration> =
+            arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {

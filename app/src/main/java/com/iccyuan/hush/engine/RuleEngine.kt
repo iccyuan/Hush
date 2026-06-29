@@ -2,8 +2,8 @@ package com.iccyuan.hush.engine
 
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
-import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.DayType
+import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.DeviceEventType
 import com.iccyuan.hush.data.model.HttpMethod
 import com.iccyuan.hush.data.model.LogicMode
@@ -163,27 +163,19 @@ class RuleEngine {
     }
 
     /**
-     * 条件组合（见 [ConditionLogic]）：
-     * - SMART：按类型分组，同类「或」；并把「时间段 + 节假日」并入同一「时间」组一起「或」；组间「与」。
-     * - ALL：全部条件都成立。
-     * - ANY：任一条件成立。
+     * 条件按相邻间隔的连接符（[Rule.conditionJoins]）**从左到右**求值：
+     * `A op1 B op2 C` = `((A op1 B) op2 C)`。GROUP（同组）按「或」处理。缺失的间隔回退为「且」。
      */
     private fun conditionsHold(rule: Rule, ctx: MatchContext): Boolean {
-        if (rule.conditions.isEmpty()) return true
-        return when (rule.conditionLogic) {
-            ConditionLogic.ALL -> rule.conditions.all { evalCondition(it, rule, ctx) }
-            ConditionLogic.ANY -> rule.conditions.any { evalCondition(it, rule, ctx) }
-            ConditionLogic.SMART -> rule.conditions
-                .groupBy { smartGroupKey(it) }
-                .values
-                .all { group -> group.any { evalCondition(it, rule, ctx) } }
+        val conds = rule.conditions
+        if (conds.isEmpty()) return true
+        var result = evalCondition(conds[0], rule, ctx)
+        for (i in 1 until conds.size) {
+            val op = rule.conditionJoins.getOrNull(i - 1) ?: GapOp.AND
+            val v = evalCondition(conds[i], rule, ctx)
+            result = if (op == GapOp.AND) result && v else result || v
         }
-    }
-
-    /** SMART 分组键：时间段与节假日同属「时间」组（一起「或」），其余按具体类型分组。 */
-    private fun smartGroupKey(c: Condition): String = when (c) {
-        is Condition.TimeCondition, is Condition.HolidayCondition -> "temporal"
-        else -> c::class.qualifiedName ?: c::class.toString()
+        return result
     }
 
     private fun evalCondition(c: Condition, rule: Rule, ctx: MatchContext): Boolean = when (c) {

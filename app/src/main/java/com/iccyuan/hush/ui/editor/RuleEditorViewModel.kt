@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.iccyuan.hush.data.RuleRepository
 import com.iccyuan.hush.data.model.Action
 import com.iccyuan.hush.data.model.Condition
+import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.data.model.Trigger
@@ -43,8 +44,6 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setStopProcessing(stop: Boolean) = update { it.copy(stopProcessing = stop) }
     fun setShowDanmaku(show: Boolean) = update { it.copy(showDanmaku = show) }
     fun setTriggerLogic(logic: LogicMode) = update { it.copy(triggerLogic = logic) }
-    fun setConditionLogic(logic: com.iccyuan.hush.data.model.ConditionLogic) =
-        update { it.copy(conditionLogic = logic) }
     fun setApps(packages: List<String>) = update { it.copy(appPackages = packages) }
 
     // --- 触发器 ---
@@ -57,12 +56,39 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // --- 条件 ---
-    fun addCondition(condition: Condition) = update { it.copy(conditions = it.conditions + condition) }
+    fun addCondition(condition: Condition) = update { r ->
+        val newConds = r.conditions + condition
+        // 新增条件时为新间隔补一个默认连接符：时间段/节假日之间默认「或」，其余默认「且」。
+        val newJoins = if (r.conditions.isEmpty()) r.conditionJoins
+        else r.conditionJoins + defaultGap(r.conditions.last(), condition)
+        r.copy(conditions = newConds, conditionJoins = newJoins)
+    }
+
     fun updateCondition(condition: Condition) = update {
         it.copy(conditions = it.conditions.map { c -> if (c.id == condition.id) condition else c })
     }
-    fun removeCondition(id: String) = update {
-        it.copy(conditions = it.conditions.filterNot { c -> c.id == id })
+
+    fun removeCondition(id: String) = update { r ->
+        val idx = r.conditions.indexOfFirst { it.id == id }
+        if (idx < 0) return@update r
+        val newConds = r.conditions.filterIndexed { i, _ -> i != idx }
+        // 删一个条件就删去与之相邻的一个间隔：非首个删它前面的间隔，首个删其后的间隔。
+        val gapToRemove = if (idx > 0) idx - 1 else 0
+        val newJoins =
+            if (r.conditionJoins.isEmpty()) r.conditionJoins
+            else r.conditionJoins.filterIndexed { i, _ -> i != gapToRemove }
+        r.copy(conditions = newConds, conditionJoins = newJoins)
+    }
+
+    /** 设置第 [index] 个间隔（conditions[index] 与 conditions[index+1] 之间）的连接符。 */
+    fun setGap(index: Int, op: GapOp) = update { r ->
+        if (index !in r.conditionJoins.indices) r
+        else r.copy(conditionJoins = r.conditionJoins.mapIndexed { i, g -> if (i == index) op else g })
+    }
+
+    private fun defaultGap(a: Condition, b: Condition): GapOp {
+        fun temporal(c: Condition) = c is Condition.TimeCondition || c is Condition.HolidayCondition
+        return if (temporal(a) && temporal(b)) GapOp.OR else GapOp.AND
     }
 
     // --- 动作 ---
