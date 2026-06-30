@@ -217,9 +217,14 @@ fun SettingsScreen(
                     IOSTintedButton(
                         text = stringResource(R.string.open_accessibility_settings),
                         onClick = {
-                            context.startActivity(
-                                android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                            )
+                            // LocalContext 在本应用里是经语言包装的非 Activity 上下文，必须带 NEW_TASK，
+                            // 否则 startActivity 会抛异常导致崩溃退回桌面。
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
                         },
                     )
                 }
