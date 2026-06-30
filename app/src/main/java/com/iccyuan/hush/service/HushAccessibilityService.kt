@@ -235,7 +235,7 @@ class HushAccessibilityService : AccessibilityService() {
         runCatching { wm.addView(v, lp) }
             .onFailure { Logger.w("add capture failed: ${it.message}"); return }
         capturing = true
-        // 安全兜底：录制最多持续 5 分钟，超时自动停止，避免任何情况下被长期困住。
+        // 安全兜底：录制最多持续 30 秒，超时自动停止，避免任何情况下被困住。
         scheduleCaptureTimeout()
         bubbleLabel?.text = getString(R.string.macro_rec_stop)
         // 把悬浮球重新加到最上层，否则会被全屏捕获层盖住。
@@ -257,11 +257,11 @@ class HushAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** 兜底：录制最多 5 分钟，超时自动停止捕获，杜绝任何「被困住」的可能。 */
+    /** 兜底：录制最多 30 秒，超时自动停止捕获，杜绝任何「被困住」的可能。 */
     private fun scheduleCaptureTimeout() {
         captureTimeoutJob?.cancel()
         captureTimeoutJob = scope.launch {
-            delay(5 * 60 * 1000L)
+            delay(30 * 1000L)
             if (capturing) stopCapture()
         }
     }

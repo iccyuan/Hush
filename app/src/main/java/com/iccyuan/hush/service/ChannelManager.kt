@@ -69,7 +69,9 @@ class ChannelManager(private val context: Context) {
         sound: SoundOverride?,
         bypassDnd: Boolean,
     ): String {
-        val imp = importance ?: Importance.DEFAULT
+        // 仅「静音」而未显式改重要性时，仍保留「弹出横幅」效果：用 HIGH 渠道但不发声、不震动，
+        // 即「静默横幅」——否则静音后会退到 DEFAULT，通知只进通知栏、不再弹出（用户反馈的现象）。
+        val imp = importance ?: if (sound?.silent == true) Importance.HIGH else Importance.DEFAULT
         val sig = buildString {
             append("repost_")
             append(imp.name)
