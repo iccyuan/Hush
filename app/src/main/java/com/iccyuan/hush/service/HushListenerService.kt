@@ -28,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
 
 /**
@@ -76,9 +77,12 @@ class HushListenerService : NotificationListenerService() {
                     (t.event == DeviceEventType.WIFI_CONNECTED || t.event == DeviceEventType.WIFI_DISCONNECTED)
             }
         }
-        // 按当前规则用到的位置条件，增量同步高德地理围栏（无则全部移除，不再耗电）。
-        GeofenceManager.sync(this, rules)
-        syncWifiEventMonitor()
+        // 围栏/事件监听同步各自兜底：任一抛异常都不得影响 activeRules 已更新的事实，
+        // 更不能让上游规则观察者因此崩溃（否则会退化成「改了规则要重开开关才生效」）。
+        runCatching { GeofenceManager.sync(this, rules) }
+            .onFailure { Logger.e("geofence sync failed", it) }
+        runCatching { syncWifiEventMonitor() }
+            .onFailure { Logger.e("wifi monitor sync failed", it) }
     }
 
     /** 按需注册/注销 Wi-Fi 网络回调；初始状态先 seed，避免注册瞬间把「已连」误报成一次连接事件。 */
@@ -165,11 +169,17 @@ class HushListenerService : NotificationListenerService() {
         // 围栏穿越的那一刻 → 触发位置事件规则。
         GeofenceManager.crossingListener = { key, entered -> onGeofenceEvent(key, entered) }
 
+        // 规则观察者必须长期存活：任一次更新处理出错都不能让整条 Flow 终止，
+        // 否则后续改规则将不再动态生效（需重开开关才行）。逐次 runCatching + 整体 retry 兜底。
         scope.launch {
-            repository.observeAll().collectLatest {
-                setActiveRules(it.filter(Rule::enabled))
-                Logger.i("rules loaded: ${activeRules.size} enabled of ${it.size}")
-            }
+            repository.observeAll()
+                .retry { e -> Logger.e("rules flow error; retrying", e); delay(1000); true }
+                .collectLatest { rules ->
+                    runCatching {
+                        setActiveRules(rules.filter(Rule::enabled))
+                        Logger.i("rules loaded: ${activeRules.size} enabled of ${rules.size}")
+                    }.onFailure { Logger.e("setActiveRules failed", it) }
+                }
         }
         scope.launch {
             settings.masterEnabled.collectLatest {
@@ -381,15 +391,33 @@ class HushListenerService : NotificationListenerService() {
 
         fun isConnected(): Boolean = instance != null
 
-        /** 当已授权但监听器未连接时，请求系统重新绑定（从 UI 打开时调用以加速恢复）。 */
+        /**
+         * 当已授权但监听器未连接时，强制系统重新绑定（UI 打开时 / 看门狗唤醒时调用以自动恢复）。
+         *
+         * ColorOS/MIUI 等被省电策略杀掉监听后，单纯 [NotificationListenerService.requestRebind]
+         * 往往无效——必须像用户手动「重开一次通知使用权」那样触发系统重绑。这里用「禁用→启用
+         * 组件」达到同样效果，但无需用户操作：通知使用权的授权不受影响，仅迫使系统重新绑定服务。
+         */
         fun requestRebindIfNeeded(context: android.content.Context) {
             if (isConnected()) return
             if (!NotificationAccess.isGranted(context)) return
+            val component = android.content.ComponentName(context, HushListenerService::class.java)
+            runCatching { NotificationListenerService.requestRebind(component) }
             runCatching {
-                NotificationListenerService.requestRebind(
-                    android.content.ComponentName(context, HushListenerService::class.java)
+                val pm = context.packageManager
+                pm.setComponentEnabledSetting(
+                    component,
+                    android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    android.content.pm.PackageManager.DONT_KILL_APP,
                 )
-            }
+                pm.setComponentEnabledSetting(
+                    component,
+                    android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    android.content.pm.PackageManager.DONT_KILL_APP,
+                )
+                // 切换组件后再请求一次绑定。
+                NotificationListenerService.requestRebind(component)
+            }.onFailure { Logger.w("force rebind failed: ${it.message}") }
         }
     }
 }
