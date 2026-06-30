@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.PixelFormat
 import android.graphics.Path
+import android.os.Build
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
@@ -38,6 +39,7 @@ class HushAccessibilityService : AccessibilityService() {
     private var bubbleLabel: TextView? = null
     private var captureView: View? = null
     private var capturing = false
+    private var captureTimeoutJob: kotlinx.coroutines.Job? = null
 
     // 录制手势的临时状态。
     private var downX = 0f
@@ -204,21 +206,37 @@ class HushAccessibilityService : AccessibilityService() {
         if (capturing) return
         lastEndTime = 0L
         val v = View(this).apply {
+            setBackgroundResource(R.drawable.bg_macro_capture) // 红框提示：正在录制
             setOnTouchListener { _, e -> onCaptureTouch(e) }
         }
         captureView = v
+        // 关键安全：捕获层**不**铺满全屏，刻意空出顶部状态栏与底部「返回桌面」手势区，
+        // 使用户随时能下拉通知栏 / 回到桌面——避免被全屏捕获层困住。
+        val density = resources.displayMetrics.density
+        val statusBar = sysDimen("status_bar_height")
+        val bottomReserve = maxOf(sysDimen("navigation_bar_height"), (52 * density).toInt())
+        val screenH = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            wm.maximumWindowMetrics.bounds.height()
+        } else {
+            @Suppress("DEPRECATION") resources.displayMetrics.heightPixels
+        }
+        val captureH = (screenH - statusBar - bottomReserve).coerceAtLeast((120 * density).toInt())
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+            captureH,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            // 不再用 FLAG_LAYOUT_IN_SCREEN / NO_LIMITS——否则会盖住系统栏与手势区、困住用户。
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT,
-        )
+        ).apply {
+            // 不设 IN_SCREEN，坐标原点已在状态栏之下；顶端贴内容区，底部靠缩短高度留出手势区。
+            gravity = Gravity.TOP or Gravity.START
+        }
         runCatching { wm.addView(v, lp) }
             .onFailure { Logger.w("add capture failed: ${it.message}"); return }
         capturing = true
+        // 安全兜底：录制最多持续 5 分钟，超时自动停止，避免任何情况下被长期困住。
+        scheduleCaptureTimeout()
         bubbleLabel?.text = getString(R.string.macro_rec_stop)
         // 把悬浮球重新加到最上层，否则会被全屏捕获层盖住。
         bubble?.let { b ->
@@ -230,12 +248,28 @@ class HushAccessibilityService : AccessibilityService() {
     }
 
     private fun stopCapture() {
+        captureTimeoutJob?.cancel(); captureTimeoutJob = null
         captureView?.let { runCatching { wm.removeView(it) } }
         captureView = null
         if (capturing) {
             capturing = false
             bubbleLabel?.text = getString(R.string.macro_rec_start)
         }
+    }
+
+    /** 兜底：录制最多 5 分钟，超时自动停止捕获，杜绝任何「被困住」的可能。 */
+    private fun scheduleCaptureTimeout() {
+        captureTimeoutJob?.cancel()
+        captureTimeoutJob = scope.launch {
+            delay(5 * 60 * 1000L)
+            if (capturing) stopCapture()
+        }
+    }
+
+    /** 读取系统 dimen（状态栏/导航栏高度），取不到时回退 0。 */
+    private fun sysDimen(name: String): Int {
+        val id = resources.getIdentifier(name, "dimen", "android")
+        return if (id > 0) resources.getDimensionPixelSize(id) else 0
     }
 
     private fun onCaptureTouch(e: MotionEvent): Boolean {
