@@ -129,12 +129,23 @@ class RuleEngine {
         }
         is Trigger.OngoingTrigger -> ctx.isOngoing == trigger.mustBeOngoing
         is Trigger.HasReplyTrigger -> ctx.hasReply == trigger.mustHaveReply
-        // 防骚扰：仅按通知类别识别营销/推广（Notification.CATEGORY_PROMO == "promo"）。
-        is Trigger.PromoTrigger ->
-            ctx.field(NotificationField.CATEGORY).equals(PROMO_CATEGORY, ignoreCase = true)
+        // 防骚扰：识别营销/推广通知。系统类别（CATEGORY_PROMO）在国内 App 上几乎从不设置，
+        // 单靠它形同虚设；因此再叠加一层内容关键词启发式（标题/正文里的促销用语）。
+        is Trigger.PromoTrigger -> isPromo(ctx)
         // 事件驱动触发器永不匹配通知——它们由 evaluateEvent / evaluateLocationEvent 单独处理。
         is Trigger.DeviceEvent -> false
         is Trigger.LocationTrigger -> false
+    }
+
+    /**
+     * 是否为营销/推广通知：命中系统类别 CATEGORY_PROMO，或标题/正文中出现促销关键词。
+     * 后者用于弥补国内 App 普遍不设 category 的现实（否则「屏蔽广告」几乎不生效）。
+     */
+    private fun isPromo(ctx: MatchContext): Boolean {
+        if (ctx.field(NotificationField.CATEGORY).equals(PROMO_CATEGORY, ignoreCase = true)) return true
+        val text = ctx.field(NotificationField.ANY)
+        if (text.isBlank()) return false
+        return PROMO_KEYWORDS.any { text.contains(it, ignoreCase = true) }
     }
 
     /**
@@ -401,6 +412,18 @@ class RuleEngine {
     private companion object {
         /** 营销/推广类别（对应 Notification.CATEGORY_PROMO，此处保持引擎与 Android 无关）。 */
         const val PROMO_CATEGORY = "promo"
+
+        /**
+         * 促销/营销内容关键词（启发式）。国内 App 极少设置 CATEGORY_PROMO，故按文案兜底识别。
+         * 尽量选取商业推广特征明显、日常正经通知里罕见的词，以降低误伤。
+         */
+        val PROMO_KEYWORDS = listOf(
+            "优惠券", "优惠", "红包", "领取", "促销", "秒杀", "折扣", "限时", "满减", "立减",
+            "特价", "抢购", "福利", "包邮", "大促", "钜惠", "爆款", "清仓", "返现", "瓜分",
+            "补贴", "专享", "拼团", "百亿补贴", "到手价", "惊喜价", "立即购买", "立即抢购",
+            "新人专享", "签到领", "点击领取", "免费领", "大额券", "满赠",
+            "sale", "discount", "coupon", "% off", "limited time", "buy now",
+        )
 
         /** 按规则开关使用的默认弹幕渲染模板。 */
         const val DANMAKU_TEMPLATE = "{app}: {title} {text}"

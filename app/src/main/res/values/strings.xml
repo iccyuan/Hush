@@ -263,7 +263,7 @@
     <string name="cat_trig_reply_desc">Match chat notifications with inline reply</string>
     <string name="cat_trig_promo">Anti-spam (promo)</string>
     <string name="cat_trig_promo_desc">Match notifications the system tags as marketing/promo</string>
-    <string name="promo_trigger_desc">Matches notifications whose category is marketing/promo (CATEGORY_PROMO). Note: only apps that correctly tag promos are caught — keyword/heuristic detection can be added later.</string>
+    <string name="promo_trigger_desc">Detects marketing/promo notifications — both the system promo category (CATEGORY_PROMO) and, as a fallback, promotional wording in the title/body (sale, coupon, discount, limited-time, etc.). No configuration needed.</string>
     <string name="cat_trig_event">Device event</string>
     <string name="cat_trig_event_desc">Fire the moment Wi-Fi connects/disconnects</string>
     <string name="device_event_hint">This rule runs its actions the instant the event happens — no notification needed. Conditions still apply.</string>

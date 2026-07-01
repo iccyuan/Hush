@@ -147,6 +147,48 @@ class RuleEngineTest {
         assertTrue(engine.previewMatches(rule, "com.chat", "Big sale", ""))
     }
 
+    private fun promoRule(id: Long = 1) = Rule(
+        id = id,
+        triggers = listOf(Trigger.PromoTrigger("p$id")),
+        actions = listOf(Action.DiscardAction("a$id")),
+    )
+
+    private fun ctxWith(
+        title: String = "",
+        text: String = "",
+        category: String? = null,
+    ): MatchContext {
+        val fields = mutableMapOf<NotificationField, String>()
+        if (title.isNotEmpty()) fields[NotificationField.TITLE] = title
+        if (text.isNotEmpty()) fields[NotificationField.TEXT] = text
+        if (category != null) fields[NotificationField.CATEGORY] = category
+        return MatchContext("com.shop", "Shop", fields, false, false, device())
+    }
+
+    @Test fun promoTriggerMatchesSystemCategory() {
+        val d = engine.evaluate(ctxWith(text = "你有一条新消息", category = "promo"), listOf(promoRule()))
+        assertTrue(d.matched)
+        assertTrue(d.discard)
+    }
+
+    @Test fun promoTriggerMatchesChineseKeywordWithoutCategory() {
+        // 国内 App 常不设 category，但文案里带促销词——应被兜底识别。
+        val d = engine.evaluate(ctxWith(title = "双11大促", text = "限时秒杀 5折优惠券等你领"), listOf(promoRule()))
+        assertTrue(d.matched)
+        assertTrue(d.discard)
+    }
+
+    @Test fun promoTriggerMatchesEnglishKeyword() {
+        val d = engine.evaluate(ctxWith(text = "Flash sale — 50% off today"), listOf(promoRule()))
+        assertTrue(d.matched)
+    }
+
+    @Test fun promoTriggerIgnoresNormalNotification() {
+        val d = engine.evaluate(ctxWith(title = "张三", text = "晚上一起吃饭吗？"), listOf(promoRule()))
+        assertFalse(d.matched)
+        assertFalse(d.discard)
+    }
+
     @Test fun setFieldActionRendersTemplateIntoEdit() {
         val rule = Rule(
             id = 1,

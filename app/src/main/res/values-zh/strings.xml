@@ -263,7 +263,7 @@
     <string name="cat_trig_reply_desc">匹配带内联回复的聊天通知</string>
     <string name="cat_trig_promo">防骚扰（营销）</string>
     <string name="cat_trig_promo_desc">匹配系统标记为营销/推广的通知</string>
-    <string name="promo_trigger_desc">匹配类别为营销/推广（CATEGORY_PROMO）的通知。注意：仅能识别规范标注 promo 的应用——关键词/启发式识别可后续再加。</string>
+    <string name="promo_trigger_desc">识别营销/推广通知：既匹配系统标注的推广类别（CATEGORY_PROMO），也会按标题/正文中的促销用语（优惠、红包、秒杀、满减、限时抢购等）兜底识别，无需手动配置。</string>
     <string name="cat_trig_event">设备事件</string>
     <string name="cat_trig_event_desc">Wi-Fi 连上/断开的那一刻触发</string>
     <string name="device_event_hint">这条规则会在事件发生的那一刻执行动作——无需通知。条件依然生效。</string>
