@@ -48,6 +48,7 @@
     <string name="preview_none">No recent notifications match yet</string>
     <string name="preview_unconstrained">Add a trigger or pick apps to preview matching notifications</string>
     <string name="preview_match_count">%1$d of recent notifications match</string>
+    <string name="preview_inactive_now">%1$d match the trigger, but conditions aren\'t met now (e.g. outside the chosen time window) — won\'t run</string>
 
     <!-- Rule list -->
     <string name="no_rules_title">No rules yet</string>

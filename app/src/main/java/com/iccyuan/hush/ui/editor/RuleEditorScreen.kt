@@ -10,8 +10,10 @@ import com.iccyuan.hush.data.NotificationLogRepository
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.engine.Decision
+import com.iccyuan.hush.engine.DeviceContext
 import com.iccyuan.hush.engine.RuleEngine
 import com.iccyuan.hush.service.DanmakuController
+import com.iccyuan.hush.service.DeviceState
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -466,11 +468,25 @@ private fun PreviewSection(rule: Rule) {
             .distinctBy { it.packageName + "|" + it.title + "|" + it.text }
     }
     val matches = allMatches.take(15)
+    // 「此刻」的设备状态：判断规则条件当前是否成立（如是否在所选时段内）。
+    // 内容匹配只看应用+触发器；命中与否还要看条件——否则过了时段仍会误显示为命中。
+    val device by androidx.compose.runtime.produceState<DeviceContext?>(null, rule) {
+        val needsHp = rule.conditions.any { it is Condition.HeadphonesCondition }
+        val needsWifi = rule.conditions.any { it is Condition.WifiCondition }
+        val needsLoc = rule.conditions.any { it is Condition.LocationCondition }
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            DeviceState.sample(context, needsHp, needsWifi, needsLoc)
+        }
+    }
+    val activeNow = device?.let { engine.conditionsActiveNow(rule, it) } ?: true
     InsetGroupedSection(
         header = stringResource(R.string.preview_title),
-        footer = if (allMatches.isNotEmpty())
-            stringResource(R.string.preview_match_count, allMatches.size)
-        else stringResource(R.string.preview_hint),
+        footer = when {
+            allMatches.isEmpty() -> stringResource(R.string.preview_hint)
+            activeNow -> stringResource(R.string.preview_match_count, allMatches.size)
+            // 触发器/内容匹配，但当前条件不满足（如已过所选时段）——此刻不会执行。
+            else -> stringResource(R.string.preview_inactive_now, allMatches.size)
+        },
     ) {
         when {
             unconstrained -> IOSRow(title = stringResource(R.string.preview_unconstrained))

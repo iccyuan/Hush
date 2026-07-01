@@ -33,6 +33,14 @@ class RuleEngine {
     }
 
     /**
+     * 预览用：给定「此刻」的设备状态，规则的条件当前是否成立（时段 / 节假日 / 充电 / 屏幕 /
+     * 网络 / 电量 / 位置 / 冷却等）。编辑器实时预览据此判断"此刻是否真的会执行"，
+     * 避免过了所选时段仍把通知显示为命中（[previewMatches] 只看内容，不看条件）。
+     */
+    fun conditionsActiveNow(rule: Rule, device: DeviceContext): Boolean =
+        conditionsHold(rule, MatchContext("", "", mutableMapOf(), false, false, device))
+
+    /**
      * 编辑器测试器：对一条样例通知做内容层面的完整模拟——评估应用 + 触发器，
      * 应用所有动作并产出结果 [Decision]（忽略时间/设备条件，与 [previewMatches] 同口径）。
      */

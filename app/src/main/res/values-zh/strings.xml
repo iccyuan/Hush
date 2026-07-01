@@ -48,6 +48,7 @@
     <string name="preview_none">近期还没有命中的通知</string>
     <string name="preview_unconstrained">添加触发器或选择应用后，可预览命中的通知</string>
     <string name="preview_match_count">近期 %1$d 条通知命中</string>
+    <string name="preview_inactive_now">%1$d 条匹配触发器，但当前不满足条件（如已过所选时段），此刻不会执行</string>
 
     <!-- Rule list -->
     <string name="no_rules_title">还没有规则</string>
