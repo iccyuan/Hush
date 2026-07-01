@@ -14,3 +14,5 @@ local.properties
 # 发布签名密钥与凭据 (切勿提交)
 *.jks
 keystore.properties
+# 端上营销分类器研究存档（未上线，保留在本地供日后重试；见 ml-research/promo/README.md）
+/ml-research/
