@@ -58,11 +58,6 @@ fun TriggerEditorDialog(
                 is Trigger.HasReplyTrigger -> SwitchRow(
                     stringResource(R.string.must_have_reply), t.mustHaveReply
                 ) { draft = t.copy(mustHaveReply = it) }
-                is Trigger.PromoTrigger -> Text(
-                    stringResource(R.string.promo_trigger_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 is Trigger.DeviceEvent -> DeviceEventFields(t) { draft = it }
                 is Trigger.LocationTrigger -> LocationTriggerFields(t) { draft = it }
             }

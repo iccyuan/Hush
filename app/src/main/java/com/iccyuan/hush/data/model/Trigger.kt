@@ -43,16 +43,6 @@ sealed class Trigger {
     ) : Trigger()
 
     /**
-     * 防骚扰：匹配系统标记为「营销 / 推广」类别（Notification.CATEGORY_PROMO）的通知。
-     * 纯本地按类别识别,无需配置。
-     */
-    @Serializable
-    @SerialName("promo")
-    data class PromoTrigger(
-        override val id: String,
-    ) : Trigger()
-
-    /**
      * 设备事件触发器：在某个设备状态切换的那一刻（如 Wi-Fi 连上/断开）触发规则的动作，
      * 与通知无关。带有此触发器的规则是「事件驱动」的，不参与通知匹配（见 RuleEngine）。
      */

@@ -7,9 +7,11 @@ import com.iccyuan.hush.data.model.ConditionLogic
 import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Trigger
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 
 /** 用于持久化与导入/导出的共享宽松 JSON 实例。 */
 val BuzzJson: Json = Json {
@@ -33,9 +35,21 @@ class Converters {
     fun fromTriggers(value: List<Trigger>): String =
         BuzzJson.encodeToString(ListSerializer(Trigger.serializer()), value)
 
+    // 逐元素宽松解码：某个触发器的多态 type 已不再存在（如已移除的 "promo" 触发器）时，
+    // 跳过该元素而非让整条规则读取抛异常崩溃。
     @TypeConverter
     fun toTriggers(value: String): List<Trigger> =
-        BuzzJson.decodeFromString(ListSerializer(Trigger.serializer()), value)
+        decodeListLenient(value, Trigger.serializer())
+
+    private fun <T> decodeListLenient(value: String, element: KSerializer<T>): List<T> =
+        runCatching { BuzzJson.decodeFromString(ListSerializer(element), value) }
+            .getOrElse {
+                runCatching {
+                    (BuzzJson.parseToJsonElement(value) as? JsonArray)?.mapNotNull { el ->
+                        runCatching { BuzzJson.decodeFromJsonElement(element, el) }.getOrNull()
+                    } ?: emptyList()
+                }.getOrDefault(emptyList())
+            }
 
     @TypeConverter
     fun fromConditions(value: List<Condition>): String =
