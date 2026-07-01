@@ -45,17 +45,14 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.amap.api.maps.CameraUpdateFactory
+import com.amap.api.maps.MapView
 import com.amap.api.maps.MapsInitializer
-import com.amap.api.maps.TextureMapView
 import com.amap.api.maps.model.CircleOptions
 import com.amap.api.maps.model.LatLng
 import com.amap.api.maps.model.MarkerOptions
 import com.amap.api.maps.model.MyLocationStyle
 import com.iccyuan.hush.R
-import com.iccyuan.hush.ui.components.frostedOverlay
-import com.iccyuan.hush.ui.components.hazeSourceLayer
 import com.iccyuan.hush.ui.theme.IOSColors
-import dev.chrisbanes.haze.HazeState
 
 private val LOCATION_PERMS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -158,17 +155,16 @@ private fun LocationMapContent(
     val userPicked = remember { booleanArrayOf(false) }
     val initialUnset = remember { lat == 0.0 && lng == 0.0 }
 
-    // 用 TextureMapView（而非默认的 GL SurfaceView 版 MapView）：它渲染进视图层级，
-    // Haze 才能捕获并对其做毛玻璃模糊，给控件做出真实的高斯模糊背景。
+    // 用 MapView（GL SurfaceView 版）：直接由系统合成，平移/缩放明显更流畅（不做逐帧纹理拷贝）。
+    // 代价是它在独立 Surface 上渲染，Haze 无法对其做毛玻璃，故控件改用不透明白底、圆角也不作用于地图。
     // 高德要求在构造 MapView 之前完成隐私合规声明，否则会抛异常/崩溃。
     val mapView = remember {
         runCatching {
             MapsInitializer.updatePrivacyShow(context, true, true)
             MapsInitializer.updatePrivacyAgree(context, true)
         }
-        TextureMapView(context)
+        MapView(context)
     }
-    val mapHaze = remember { HazeState() }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         mapView.onCreate(null)
@@ -229,10 +225,10 @@ private fun LocationMapContent(
     Box(modifier.fillMaxSize()) {
         AndroidView(
             factory = { mapView },
-            modifier = Modifier.fillMaxSize().hazeSourceLayer(mapHaze),
+            modifier = Modifier.fillMaxSize(),
         )
 
-        // 自绘控件：缩放（合并在一张卡上）+ 定位，靠右垂直排列。背景是对地图做毛玻璃模糊。
+        // 自绘控件：缩放（合并在一张卡上）+ 定位，靠右垂直排列。SurfaceView 上不能磨砂，改用不透明白底。
         Column(
             Modifier.align(Alignment.BottomEnd).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -242,7 +238,7 @@ private fun LocationMapContent(
                 Modifier
                     .shadow(3.dp, RoundedCornerShape(10.dp))
                     .clip(RoundedCornerShape(10.dp))
-                    .frostedOverlay(mapHaze),
+                    .background(MapControlBg),
             ) {
                 MapControl(Icons.Filled.Add) {
                     mapView.map.animateCamera(CameraUpdateFactory.zoomIn())
@@ -256,7 +252,7 @@ private fun LocationMapContent(
                 Modifier
                     .shadow(3.dp, RoundedCornerShape(10.dp))
                     .clip(RoundedCornerShape(10.dp))
-                    .frostedOverlay(mapHaze),
+                    .background(MapControlBg),
             ) {
                 MapControl(Icons.Filled.MyLocation) {
                     mapView.map.myLocation?.let { loc ->
@@ -269,6 +265,9 @@ private fun LocationMapContent(
         }
     }
 }
+
+/** 地图控件背景：近乎不透明的白色（地图为浅色，白底控件与原生地图一致）。 */
+private val MapControlBg = Color(0xF2FFFFFF)
 
 @Composable
 private fun MapControl(icon: ImageVector, onClick: () -> Unit) {
