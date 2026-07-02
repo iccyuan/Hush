@@ -21,8 +21,8 @@ data class Rule(
     /** 为空 = 适用于所有应用。 */
     val appPackages: List<String> = emptyList(),
     /**
-     * 作用范围：本体 / 分身（应用双开）/ 全部。分身指运行在其他用户空间、包名相同的克隆实例，
-     * 按通知所属用户区分（本体在主用户，分身在如 ColorOS user 999）。默认全部，与旧行为一致。
+     * 已弃用（0.1.16 引入，0.1.17 起改由 [appPackages] 的「包名@用户id」令牌区分本体/分身）。
+     * 保留字段仅为兼容 v8 数据库列（避免破坏性迁移），引擎不再读取。见 [appPackages]。
      */
     val appScope: AppScope = AppScope.ALL,
     val triggerLogic: LogicMode = LogicMode.ALL,

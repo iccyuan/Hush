@@ -1,7 +1,6 @@
 package com.iccyuan.hush.engine
 
 import com.iccyuan.hush.data.model.Action
-import com.iccyuan.hush.data.model.AppScope
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.DayType
 import com.iccyuan.hush.data.model.GapOp
@@ -83,7 +82,7 @@ class RuleEngine {
         for (rule in rules) {
             // 事件驱动规则（Wi-Fi 连断等）由 evaluateEvent 处理，不参与通知匹配。
             if (rule.isEventDriven) continue
-            if (!appMatches(rule, ctx.packageName, ctx.isClone)) continue
+            if (!appMatches(rule, ctx.packageName, ctx.userId)) continue
 
             val captures = mutableMapOf<String, String>()
             if (!triggersMatch(rule, ctx, captures)) continue
@@ -109,15 +108,22 @@ class RuleEngine {
         return decision
     }
 
-    private fun appMatches(rule: Rule, pkg: String, isClone: Boolean = false): Boolean {
-        val packageOk = rule.appPackages.isEmpty() || rule.appPackages.contains(pkg)
-        // 作用范围：本体只匹配主用户通知，分身只匹配克隆(非主用户)通知，全部则不限。
-        val scopeOk = when (rule.appScope) {
-            AppScope.ALL -> true
-            AppScope.MAIN -> !isClone
-            AppScope.CLONE -> isClone
+    /**
+     * 应用是否匹配。选择项（[Rule.appPackages]）支持两种令牌：
+     *  - 裸包名 `pkg`：匹配该包的**任意**用户空间（旧格式 / 「本体+分身都要」）。
+     *  - `pkg@userId`：仅匹配该包在指定用户空间的通知——用于区分本体（如 `pkg@0`）与
+     *    应用分身/双开（如 `pkg@999`）。本体与分身包名相同，只能靠所属用户区分。
+     */
+    private fun appMatches(rule: Rule, pkg: String, userId: Int = 0): Boolean {
+        if (rule.appPackages.isEmpty()) return true
+        return rule.appPackages.any { token ->
+            val at = token.indexOf('@')
+            if (at < 0) {
+                token == pkg
+            } else {
+                token.substring(0, at) == pkg && token.substring(at + 1).toIntOrNull() == userId
+            }
         }
-        return packageOk && scopeOk
     }
 
     private fun triggersMatch(

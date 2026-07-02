@@ -245,8 +245,8 @@ class HushListenerService : NotificationListenerService() {
         val device = DeviceState.sample(this, needsHeadphones, needsWifi, needsLocation)
         val appName = NotificationFields.appLabel(this, sbn.packageName)
         // 应用分身（应用双开）的通知运行在非主用户空间（如 ColorOS user 999），包名与本体相同，
-        // 只能靠所属用户区分：与本进程所在用户不同即视为分身。
-        val isClone = sbn.user != android.os.Process.myUserHandle()
+        // 只能靠所属用户区分。通知 key 形如 "userId|pkg|id|tag|uid"，前缀即所属 userId。
+        val userId = sbn.key.substringBefore("|").toIntOrNull() ?: 0
         val ctx = MatchContext(
             packageName = sbn.packageName,
             appName = appName,
@@ -254,7 +254,7 @@ class HushListenerService : NotificationListenerService() {
             isOngoing = sbn.isOngoing,
             hasReply = NotificationFields.hasReplyAction(sbn),
             device = device,
-            isClone = isClone,
+            userId = userId,
         )
 
         val decision = engine.evaluate(ctx, activeRules)

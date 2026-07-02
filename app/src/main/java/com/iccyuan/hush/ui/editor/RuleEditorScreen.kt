@@ -59,7 +59,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
 import com.iccyuan.hush.data.model.Action
-import com.iccyuan.hush.data.model.AppScope
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.LogicMode
@@ -203,36 +202,6 @@ fun RuleEditorScreen(
                         SelectedAppsChips(
                             packages = rule.appPackages,
                             onClick = { showAppPicker = true },
-                        )
-                    }
-                    // 作用范围：本体 / 分身（应用双开）/ 全部。分身与本体包名相同，无法在选择器里
-                    // 单独列出（本应用没有跨用户权限），故用此处的范围开关区分，命中时按通知所属用户判定。
-                    HairlineDivider(startInset = 16.dp)
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.app_scope_label),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        IOSSegmented(
-                            options = AppScope.entries,
-                            selected = rule.appScope,
-                            label = { scope ->
-                                stringResource(
-                                    when (scope) {
-                                        AppScope.ALL -> R.string.app_scope_all
-                                        AppScope.MAIN -> R.string.app_scope_main
-                                        AppScope.CLONE -> R.string.app_scope_clone
-                                    }
-                                )
-                            },
-                            onSelect = { vm.setAppScope(it) },
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            stringResource(R.string.app_scope_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }

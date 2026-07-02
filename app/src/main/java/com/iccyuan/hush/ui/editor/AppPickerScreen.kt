@@ -120,14 +120,21 @@ fun AppPickerScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    // 主体与分身共享包名，故用「包名 + 是否分身」作为唯一键，避免重复键崩溃。
-                    items(filtered, key = { "${it.packageName}|${it.isClone}" }) { app ->
+                    // 令牌「包名@用户id」唯一标识本体/分身，避免重复键崩溃、并使二者可分别勾选。
+                    items(filtered, key = { it.token }) { app ->
+                        // 兼容旧规则里保存的裸包名（视作已选中本体）。
+                        val isSel = selected.contains(app.token) ||
+                            (!app.isClone && selected.contains(app.packageName))
                         AppGridItem(
                             app = app,
-                            selected = selected.contains(app.packageName),
+                            selected = isSel,
                             onToggle = {
-                                if (selected.contains(app.packageName)) selected.remove(app.packageName)
-                                else selected.add(app.packageName)
+                                if (isSel) {
+                                    selected.remove(app.token)
+                                    if (!app.isClone) selected.remove(app.packageName)
+                                } else {
+                                    selected.add(app.token)
+                                }
                             },
                         )
                     }

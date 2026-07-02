@@ -6,7 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.iccyuan.hush.data.RuleRepository
 import com.iccyuan.hush.data.model.Action
-import com.iccyuan.hush.data.model.AppScope
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.GapOp
 import com.iccyuan.hush.data.model.LogicMode
@@ -46,7 +45,6 @@ class RuleEditorViewModel(app: Application) : AndroidViewModel(app) {
     fun setShowDanmaku(show: Boolean) = update { it.copy(showDanmaku = show) }
     fun setTriggerLogic(logic: LogicMode) = update { it.copy(triggerLogic = logic) }
     fun setApps(packages: List<String>) = update { it.copy(appPackages = packages) }
-    fun setAppScope(scope: AppScope) = update { it.copy(appScope = scope) }
 
     // --- 触发器 ---
     fun addTrigger(trigger: Trigger) = update { it.copy(triggers = it.triggers + trigger) }

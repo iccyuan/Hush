@@ -1,7 +1,6 @@
 package com.iccyuan.hush.engine
 
 import com.iccyuan.hush.data.model.Action
-import com.iccyuan.hush.data.model.AppScope
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.DayType
 import com.iccyuan.hush.data.model.LogicMode
@@ -35,12 +34,12 @@ class RuleEngineTest {
         title: String = "",
         text: String = "",
         device: DeviceContext = device(),
-        isClone: Boolean = false,
+        userId: Int = 0,
     ): MatchContext {
         val fields = mutableMapOf<NotificationField, String>()
         if (title.isNotEmpty()) fields[NotificationField.TITLE] = title
         if (text.isNotEmpty()) fields[NotificationField.TEXT] = text
-        return MatchContext(pkg, "Chat", fields, false, false, device, isClone = isClone)
+        return MatchContext(pkg, "Chat", fields, false, false, device, userId = userId)
     }
 
     private fun textRule(
@@ -81,22 +80,30 @@ class RuleEngineTest {
         assertTrue(engine.evaluate(ctx(pkg = "com.other", text = "x"), listOf(rule)).matched)
     }
 
-    @Test fun appScopeAllMatchesMainAndClone() {
-        val rule = textRule(1, "x").copy(appScope = AppScope.ALL)
-        assertTrue(engine.evaluate(ctx(text = "x", isClone = false), listOf(rule)).matched)
-        assertTrue(engine.evaluate(ctx(text = "x", isClone = true), listOf(rule)).matched)
+    @Test fun bareTokenMatchesAnyUser() {
+        // 旧格式裸包名：匹配任意用户空间（本体 + 分身）。
+        val rule = textRule(1, "x", pkg = listOf("com.chat"))
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 0), listOf(rule)).matched)
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 999), listOf(rule)).matched)
     }
 
-    @Test fun appScopeMainOnlyExcludesClone() {
-        val rule = textRule(1, "x").copy(appScope = AppScope.MAIN)
-        assertTrue(engine.evaluate(ctx(text = "x", isClone = false), listOf(rule)).matched)
-        assertFalse(engine.evaluate(ctx(text = "x", isClone = true), listOf(rule)).matched)
+    @Test fun mainTokenMatchesOnlyMainUser() {
+        val rule = textRule(1, "x", pkg = listOf("com.chat@0"))
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 0), listOf(rule)).matched)
+        assertFalse(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 999), listOf(rule)).matched)
     }
 
-    @Test fun appScopeCloneOnlyExcludesMain() {
-        val rule = textRule(1, "x").copy(appScope = AppScope.CLONE)
-        assertFalse(engine.evaluate(ctx(text = "x", isClone = false), listOf(rule)).matched)
-        assertTrue(engine.evaluate(ctx(text = "x", isClone = true), listOf(rule)).matched)
+    @Test fun cloneTokenMatchesOnlyCloneUser() {
+        val rule = textRule(1, "x", pkg = listOf("com.chat@999"))
+        assertFalse(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 0), listOf(rule)).matched)
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 999), listOf(rule)).matched)
+    }
+
+    @Test fun mixedTokensSelectMainAndCloneIndependently() {
+        // 只选分身：本体不受影响（用户报告的核心诉求）。
+        val cloneOnly = textRule(1, "x", pkg = listOf("com.chat@999"))
+        assertFalse(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 0), listOf(cloneOnly)).matched)
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 999), listOf(cloneOnly)).matched)
     }
 
     @Test fun negateInvertsTrigger() {
