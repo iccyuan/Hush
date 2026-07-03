@@ -264,7 +264,7 @@
     <string name="cat_trig_text">Text match</string>
     <string name="cat_trig_text_desc">Match a keyword or regex in a field</string>
     <string name="cat_trig_ongoing">Ongoing state</string>
-    <string name="cat_trig_ongoing_desc">Match ongoing (music/downloads) or dismissible</string>
+    <string name="cat_trig_ongoing_desc">Match persistent (music/downloads/VPN/foreground services) or dismissible</string>
     <string name="cat_trig_reply">Has reply action</string>
     <string name="cat_trig_reply_desc">Match chat notifications with inline reply</string>
     <string name="cat_trig_event">Device event</string>

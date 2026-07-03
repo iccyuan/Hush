@@ -264,7 +264,7 @@
     <string name="cat_trig_text">文本匹配</string>
     <string name="cat_trig_text_desc">匹配字段中的关键词或正则</string>
     <string name="cat_trig_ongoing">常驻状态</string>
-    <string name="cat_trig_ongoing_desc">匹配常驻（音乐/下载）或可清除通知</string>
+    <string name="cat_trig_ongoing_desc">匹配常驻（音乐/下载/VPN/前台服务等）或可清除通知</string>
     <string name="cat_trig_reply">含回复操作</string>
     <string name="cat_trig_reply_desc">匹配带内联回复的聊天通知</string>
     <string name="cat_trig_event">设备事件</string>

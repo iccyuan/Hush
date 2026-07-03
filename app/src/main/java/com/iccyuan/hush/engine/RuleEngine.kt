@@ -60,9 +60,7 @@ class RuleEngine {
         if (appMatches(rule, packageName) && triggersMatch(rule, ctx, captures)) {
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision)
-            // 规则里手动开启「弹幕显示」= 用户显式意图（「特殊场景」），即便是常驻通知也照弹。
-            // 常驻通知的排除只作用于「沉浸/自动弹幕」那条路（见 HushListenerService）。
-            if (rule.showDanmaku && decision.discard) {
+            if (shouldDanmaku(rule, ctx, decision)) {
                 decision.sideEffects.add(
                     SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
                 )
@@ -70,6 +68,18 @@ class RuleEngine {
             decision.matched = true
         }
         return decision
+    }
+
+    /**
+     * 该规则此刻是否应产出弹幕。前提：开启了「弹幕显示」且规则确实丢弃了通知（弹幕用于替代被屏蔽的
+     * 原生通知）。此外**默认排除常驻通知**（VPN / 音乐 / 下载 / 前台服务等，否则会不断刷屏）——
+     * 除非该规则显式带有「必须是常驻通知」触发器（[Trigger.OngoingTrigger] 且 mustBeOngoing），
+     * 即用户明确表示这条规则就是要针对常驻通知，此时才对常驻放行。
+     */
+    private fun shouldDanmaku(rule: Rule, ctx: MatchContext, decision: Decision): Boolean {
+        if (!rule.showDanmaku || !decision.discard) return false
+        if (!ctx.isPersistent) return true
+        return rule.triggers.any { it is Trigger.OngoingTrigger && it.mustBeOngoing }
     }
 
     fun evaluate(ctx: MatchContext, rules: List<Rule>): Decision {
@@ -108,9 +118,9 @@ class RuleEngine {
             applyActions(rule, ctx, decision)
 
             // 弹幕用于「替代」被屏蔽的通知，因此仅在该规则确实丢弃了通知时才显示——
-            // 否则原生通知仍在、又叠加弹幕，既矛盾又会出现时有时无的竞态。
-            // 规则里手动开启「弹幕显示」= 显式意图，即便常驻通知也照弹；常驻排除只作用于自动弹幕。
-            if (rule.showDanmaku && decision.discard) {
+            // 否则原生通知仍在、又叠加弹幕，既矛盾又会出现时有时无的竞态。默认排除常驻通知，
+            // 除非规则带「必须是常驻通知」触发器（见 shouldDanmaku）。
+            if (shouldDanmaku(rule, ctx, decision)) {
                 decision.sideEffects.add(
                     SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
                 )
@@ -167,7 +177,9 @@ class RuleEngine {
             if (res.matched) captures.putAll(res.groups)
             res.matched != trigger.negate
         }
-        is Trigger.OngoingTrigger -> ctx.isOngoing == trigger.mustBeOngoing
+        // 「必须是常驻通知」：常驻 = 完整判定（进行中 / 不可清除 / 前台服务 / 常驻类别），
+        // 与弹幕的常驻排除口径一致，从而 VPN、前台服务这类只带 NO_CLEAR/FGS 的也能被识别。
+        is Trigger.OngoingTrigger -> ctx.isPersistent == trigger.mustBeOngoing
         is Trigger.HasReplyTrigger -> ctx.hasReply == trigger.mustHaveReply
         // 事件驱动触发器永不匹配通知——它们由 evaluateEvent / evaluateLocationEvent 单独处理。
         is Trigger.DeviceEvent -> false

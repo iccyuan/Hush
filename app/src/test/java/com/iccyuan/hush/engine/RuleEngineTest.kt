@@ -107,14 +107,35 @@ class RuleEngineTest {
         assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "x", userId = 999), listOf(cloneOnly)).matched)
     }
 
-    @Test fun explicitRuleDanmakuShowsEvenForPersistent() {
-        // 规则里手动开启「弹幕显示」= 显式意图（特殊场景），常驻通知也照弹。
-        // 常驻通知的排除只作用于沉浸/自动弹幕那条路（在 HushListenerService，不在纯引擎里）。
+    @Test fun danmakuShownForNonPersistent() {
         val rule = textRule(1, "x").copy(showDanmaku = true) // 默认丢弃动作
-        val normal = engine.evaluate(ctx(text = "x", isPersistent = false), listOf(rule))
-        assertTrue(normal.sideEffects.any { it is SideEffect.Danmaku })
+        val d = engine.evaluate(ctx(text = "x", isPersistent = false), listOf(rule))
+        assertTrue(d.sideEffects.any { it is SideEffect.Danmaku })
+    }
+
+    @Test fun danmakuExcludesPersistentByDefault() {
+        // 普通规则遇到常驻通知（VPN 等）→ 仍丢弃，但不弹幕。
+        val rule = textRule(1, "x").copy(showDanmaku = true)
+        val d = engine.evaluate(ctx(text = "x", isPersistent = true), listOf(rule))
+        assertTrue(d.discard)
+        assertFalse(d.sideEffects.any { it is SideEffect.Danmaku })
+    }
+
+    @Test fun danmakuAllowedForPersistentWhenRuleTargetsOngoing() {
+        // 规则带「必须是常驻通知」触发器 = 明确针对常驻 → 对常驻放行弹幕。
+        val rule = Rule(
+            id = 1,
+            triggers = listOf(Trigger.OngoingTrigger("t", mustBeOngoing = true)),
+            actions = listOf(Action.DiscardAction("a")),
+            showDanmaku = true,
+        )
+        // 常驻通知：触发器命中（isPersistent==true）→ 丢弃 + 弹幕。
         val persistent = engine.evaluate(ctx(text = "x", isPersistent = true), listOf(rule))
+        assertTrue(persistent.discard)
         assertTrue(persistent.sideEffects.any { it is SideEffect.Danmaku })
+        // 非常驻通知：该触发器不命中 → 规则不触发。
+        val normal = engine.evaluate(ctx(text = "x", isPersistent = false), listOf(rule))
+        assertFalse(normal.matched)
     }
 
     @Test fun danmakuOnlyWhenRuleDiscards() {
