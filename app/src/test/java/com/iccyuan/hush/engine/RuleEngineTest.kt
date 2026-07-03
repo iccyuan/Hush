@@ -176,11 +176,83 @@ class RuleEngineTest {
     }
 
     @Test fun mutedAppShortCircuitsToDiscard() {
+        // 无条件的「静音应用」规则在场：其静音始终生效，丢弃该应用的一切通知（连不匹配触发器的也丢）。
+        val muteRule = Rule(id = 100_000L, appPackages = listOf("com.chat"),
+            actions = listOf(Action.MuteAppAction("m")))
         VariableStore.muteApp("com.chat", 100_000L)
         val d = engine.evaluate(ctx(pkg = "com.chat", text = "anything", device = device(nowMillis = 50_000L)),
-            listOf(textRule(1, "neverused")))
+            listOf(muteRule, textRule(1, "neverused")))
         assertTrue(d.matched)
         assertTrue(d.discard)
+    }
+
+    @Test fun mutedAppClearedWhenMutingRuleGone() {
+        // 设置静音的规则已删除/停用（不在 rules 中）→ 静音自动解除，不再丢弃。
+        VariableStore.muteApp("com.chat", 999L)
+        val d = engine.evaluate(ctx(pkg = "com.chat", text = "x"), listOf(textRule(1, "unrelated")))
+        assertFalse(d.discard)
+        assertFalse(VariableStore.isAppMuted("com.chat"))
+    }
+
+    @Test fun mutedAppRespectsTimeConditionOfMutingRule() {
+        // 「仅在 12:00–14:00 静音应用」：过了时段静音失效，回到时段自动恢复。这正是用户反馈的场景。
+        val rule = Rule(
+            id = 7, appPackages = listOf("com.chat"),
+            conditions = listOf(Condition.TimeCondition("tc", 12 * 60, 14 * 60, setOf(1, 2, 3, 4, 5, 6, 7))),
+            actions = listOf(Action.MuteAppAction("m")),
+        )
+        // 时段内命中并设置静音（模拟 SideEffectExecutor 执行 MuteApp）。
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "a", device = device(minuteOfDay = 13 * 60)), listOf(rule)).matched)
+        VariableStore.muteApp("com.chat", 7)
+        // 时段内后续通知：仍静音。
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "b", device = device(minuteOfDay = 13 * 60 + 30)), listOf(rule)).discard)
+        // 出了时段（15:00）：不再丢弃。
+        assertFalse(engine.evaluate(ctx(pkg = "com.chat", text = "c", device = device(minuteOfDay = 15 * 60)), listOf(rule)).discard)
+        // 回到时段（13:00）：自动恢复静音。
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "d", device = device(minuteOfDay = 13 * 60)), listOf(rule)).discard)
+    }
+
+    // --- 时间窗口条件：全面核验（in/out/跨午夜/星期/边界）---
+
+    private fun firesAt(rule: Rule, minute: Int, day: Int = 1): Boolean =
+        engine.evaluate(ctx(text = "x", device = device(minuteOfDay = minute, isoDayOfWeek = day)), listOf(rule)).discard
+
+    private fun timeRule(startMin: Int, endMin: Int, days: Set<Int> = setOf(1, 2, 3, 4, 5, 6, 7)) = Rule(
+        id = 1,
+        conditions = listOf(Condition.TimeCondition("tc", startMin, endMin, days)),
+        actions = listOf(Action.DiscardAction("a")),
+    )
+
+    @Test fun timeWindowNonCrossing() {
+        val r = timeRule(12 * 60, 14 * 60) // 12:00–14:00
+        assertTrue(firesAt(r, 13 * 60))   // 内部
+        assertTrue(firesAt(r, 12 * 60))   // 起点含
+        assertFalse(firesAt(r, 14 * 60))  // 终点不含
+        assertFalse(firesAt(r, 11 * 60))  // 之前
+        assertFalse(firesAt(r, 15 * 60))  // 之后 ← 用户反馈的「已过时段」
+    }
+
+    @Test fun timeWindowCrossingMidnight() {
+        val r = timeRule(22 * 60, 7 * 60) // 22:00–07:00
+        assertTrue(firesAt(r, 23 * 60))            // 深夜
+        assertTrue(firesAt(r, 5 * 60, day = 2))    // 凌晨（归属前一天窗口）
+        assertFalse(firesAt(r, 12 * 60))           // 正午 ← 窗口外
+        assertFalse(firesAt(r, 21 * 60))           // 起点前
+        assertTrue(firesAt(r, 22 * 60))            // 起点含
+        assertFalse(firesAt(r, 7 * 60, day = 2))   // 终点不含
+    }
+
+    @Test fun timeWindowRespectsDays() {
+        val r = timeRule(12 * 60, 14 * 60, days = setOf(1)) // 仅周一
+        assertTrue(firesAt(r, 13 * 60, day = 1))   // 周一
+        assertFalse(firesAt(r, 13 * 60, day = 2))  // 周二
+    }
+
+    @Test fun timeWindowCrossingMidnightDayAttribution() {
+        val r = timeRule(22 * 60, 7 * 60, days = setOf(1)) // 周一 22:00 – 周二 07:00
+        assertTrue(firesAt(r, 23 * 60, day = 1))   // 周一 23:00
+        assertTrue(firesAt(r, 5 * 60, day = 2))    // 周二 05:00 属周一窗口
+        assertFalse(firesAt(r, 5 * 60, day = 1))   // 周一 05:00 属周日窗口（未选）
     }
 
     @Test fun previewIgnoresConditions() {

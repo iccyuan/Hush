@@ -49,6 +49,14 @@ object VariableStore {
 
     fun isAppMuted(pkg: String): Boolean = mutedBy.containsKey(pkg)
 
+    /** 设置该应用静音的规则 id；未被静音则返回 null。 */
+    fun mutedRuleId(pkg: String): Long? = mutedBy[pkg]
+
+    /** 解除单个应用的静音（用于其静音规则的条件此刻不再成立时）。 */
+    fun unmuteApp(pkg: String) {
+        if (mutedBy.remove(pkg) != null) onChange?.invoke()
+    }
+
     /** 解除由指定规则设置的所有静音（规则被停用/删除时调用）。 */
     fun unmuteByRule(ruleId: Long) {
         // 可能有多个包由同一规则静音；一次性移除并在确有变化时触发持久化。

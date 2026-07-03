@@ -74,11 +74,25 @@ class RuleEngine {
 
     fun evaluate(ctx: MatchContext, rules: List<Rule>): Decision {
         val decision = Decision()
-        // 被静音的应用会短路一切处理。
+        // 被「静音应用」动作静音的应用：短路丢弃其所有通知。但静音必须尊重设置它的那条规则的
+        // 条件——例如「仅在某时段静音应用」，一旦过了该时段，静音就应失效，而不是无限期生效。
+        // 因此这里复查设置静音的规则此刻条件是否仍成立：
+        //  · 成立 → 静音生效，丢弃（回到时段内会自动恢复静音）。
+        //  · 规则已删除/停用（不在 rules 中）→ 解除该静音。
+        //  · 规则在、但条件此刻不成立（如已过时段）→ 静音暂不生效，照常继续处理，不解除，
+        //    以便回到时段内再次自动生效。
         if (VariableStore.isAppMuted(ctx.packageName)) {
-            decision.matched = true
-            decision.discard = true
-            return decision
+            val muteRuleId = VariableStore.mutedRuleId(ctx.packageName)
+            val muteRule = rules.firstOrNull { it.id == muteRuleId }
+            when {
+                muteRule == null -> VariableStore.unmuteApp(ctx.packageName)
+                conditionsHold(muteRule, ctx) -> {
+                    decision.matched = true
+                    decision.discard = true
+                    return decision
+                }
+                // else：条件此刻不成立——不静音、不解除，继续常规求值。
+            }
         }
 
         for (rule in rules) {
