@@ -162,11 +162,17 @@ object DanmakuController {
         }
 
         tv.post {
-            tv.translationX = container.width.toFloat().coerceAtLeast(screenWidth.toFloat())
+            val start = container.width.toFloat().coerceAtLeast(screenWidth.toFloat())
+            val end = -tv.width.toFloat()
+            // 恒定速度：以「屏宽 / durationMs」为基准速度，实际时长按总行程(屏宽 + 文字宽度)等比缩放。
+            // 这样长短不一、数量多少的弹幕都以**同一速度**滚动，速度不再随文字长度/通知条数变化。
+            val speedPxPerMs = screenWidth.toFloat() / cfg.durationMs.coerceAtLeast(1L).toFloat()
+            val duration = ((start - end) / speedPxPerMs).toLong().coerceIn(1200L, 30000L)
+            tv.translationX = start
             tv.alpha = 1f
             tv.animate()
-                .translationX(-tv.width.toFloat())
-                .setDuration(cfg.durationMs.coerceIn(1500, 20000))
+                .translationX(end)
+                .setDuration(duration)
                 .setInterpolator(LinearInterpolator())
                 .withEndAction {
                     runCatching { wm.removeView(container) }
