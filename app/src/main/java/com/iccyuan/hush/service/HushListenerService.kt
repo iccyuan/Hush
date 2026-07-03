@@ -190,6 +190,7 @@ class HushListenerService : NotificationListenerService() {
         }
         scope.launch { settings.logActivity.collectLatest { logActivity = it } }
         scope.launch { settings.immersiveDanmaku.collectLatest { immersiveDanmaku = it } }
+        scope.launch { settings.danmakuConfig.collectLatest { DanmakuController.updateConfig(it) } }
         Logger.i("service onCreate")
     }
 
@@ -270,10 +271,7 @@ class HushListenerService : NotificationListenerService() {
             isFullscreen() && DanmakuController.canShow(this)
         ) {
             decision.sideEffects.add(
-                SideEffect.Danmaku(
-                    TemplateEngine.render("{app}: {title} {text}", ctx),
-                    7000L,
-                )
+                SideEffect.Danmaku(TemplateEngine.render("{app}: {title} {text}", ctx))
             )
             decision.discard = true
             decision.matched = true

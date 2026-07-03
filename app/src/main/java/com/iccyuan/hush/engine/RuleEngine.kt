@@ -62,7 +62,7 @@ class RuleEngine {
             applyActions(rule, ctx, decision)
             if (shouldDanmaku(rule, ctx, decision)) {
                 decision.sideEffects.add(
-                    SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
+                    SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx))
                 )
             }
             decision.matched = true
@@ -122,7 +122,7 @@ class RuleEngine {
             // 除非规则带「必须是常驻通知」触发器（见 shouldDanmaku）。
             if (shouldDanmaku(rule, ctx, decision)) {
                 decision.sideEffects.add(
-                    SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx), DANMAKU_DURATION_MS)
+                    SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx))
                 )
             }
 
@@ -450,7 +450,6 @@ class RuleEngine {
     private companion object {
         /** 按规则开关使用的默认弹幕渲染模板。 */
         const val DANMAKU_TEMPLATE = "{app}: {title} {text}"
-        const val DANMAKU_DURATION_MS = 7000L
 
         /** 用于仅内容预览匹配的中性设备状态。 */
         val PREVIEW_DEVICE = DeviceContext(

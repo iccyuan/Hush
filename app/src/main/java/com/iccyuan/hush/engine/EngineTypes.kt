@@ -69,7 +69,7 @@ sealed class SideEffect {
         val body: String,
     ) : SideEffect()
     data class MuteApp(val pkg: String, val ruleId: Long) : SideEffect()
-    data class Danmaku(val text: String, val durationMs: Long) : SideEffect()
+    data class Danmaku(val text: String) : SideEffect()
     data class Digest(
         val pkg: String,
         val appName: String,

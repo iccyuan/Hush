@@ -3,79 +3,126 @@ package com.iccyuan.hush.service
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
 import android.view.animation.LinearInterpolator
+import android.widget.FrameLayout
 import android.widget.TextView
+import com.iccyuan.hush.data.DanmakuConfig
 import com.iccyuan.hush.util.Logger
 
 /**
- * 通过悬浮窗在屏幕顶部显示滚动的"弹幕"文字。每次调用都会添加一条弹幕，使其从右边缘动画移动
- * 到左侧屏幕外，然后将自身移除。弹幕会被放置在若干轮换的行上，以避免相互重叠。
- * 需要"在其他应用上层显示"的权限。
+ * 通过悬浮窗在屏幕顶部显示滚动的「弹幕」文字：每条从最右边缘匀速滑到左侧屏幕外后自行移除。
+ *
+ * 外观与行为由全局 [DanmakuConfig] 驱动（字号 / 颜色 / 背景透明度 / 速度 / 行数 / 顶部偏移），
+ * 由服务在设置变化时通过 [updateConfig] 推入。为避免刷屏与重叠：
+ *  - **去重**：相同文字在 [DEDUP_MS] 内只显示一次。
+ *  - **排队分行**：为每行维护「下一条可进入的时刻」，新弹幕分配到最早空闲的行，必要时延后进入，
+ *    使同一行的弹幕保持间距、互不重叠；积压过久则丢弃，避免无限排队。
+ *
+ * 需要「在其他应用上层显示」权限。
  */
 object DanmakuController {
 
+    private const val DEDUP_MS = 2500L
+    private const val MAX_QUEUE_DELAY = 8000L
+
     private val main = Handler(Looper.getMainLooper())
-    private var rowIndex = 0
-    private const val ROWS = 4
+
+    @Volatile
+    private var config = DanmakuConfig()
+
+    // 以下状态仅在主线程访问。
+    private var rowFreeAt = LongArray(config.rows)
+    private val recent = HashMap<String, Long>()
+
+    /** 由服务在设置变化时调用，更新全局弹幕外观/行为。 */
+    fun updateConfig(c: DanmakuConfig) {
+        config = c
+        main.post { if (rowFreeAt.size != c.rows) rowFreeAt = LongArray(c.rows) }
+    }
 
     fun canShow(context: Context): Boolean = Settings.canDrawOverlays(context)
 
-    fun show(context: Context, text: String, durationMs: Long) {
+    fun show(context: Context, text: String) {
         if (text.isBlank()) return
         if (!canShow(context)) {
-            // 未授予悬浮窗权限——规则虽匹配，但弹幕无法显示。在编辑器里会提示授权。
+            // 未授予悬浮窗权限——规则虽匹配，但弹幕无法显示。在编辑器/设置里会提示授权。
             Logger.w("danmaku skipped: overlay permission not granted")
             return
         }
         val app = context.applicationContext
-        main.post { showOnMain(app, text, durationMs) }
+        main.post { enqueue(app, text) }
     }
 
-    private fun showOnMain(app: Context, text: String, durationMs: Long) {
+    private fun enqueue(app: Context, text: String) {
+        val cfg = config
+        val now = SystemClock.uptimeMillis()
+
+        // 去重：清理过期项后，若同一文字仍在去重窗口内则跳过。
+        recent.entries.removeAll { now - it.value > DEDUP_MS }
+        recent[text]?.let { if (now - it < DEDUP_MS) return }
+        recent[text] = now
+
+        if (rowFreeAt.size != cfg.rows) rowFreeAt = LongArray(cfg.rows)
+        // 选最早空闲的行。
+        var row = 0
+        for (i in 1 until cfg.rows) if (rowFreeAt[i] < rowFreeAt[row]) row = i
+        val startAt = maxOf(now, rowFreeAt[row])
+        val delay = startAt - now
+        if (delay > MAX_QUEUE_DELAY) return // 积压过久：丢弃这一条，避免无限排队。
+        // 预留该行下一条的最早进入时刻（约为时长的 42%，保证同行两条之间留有间距）。
+        rowFreeAt[row] = startAt + (cfg.durationMs * 42 / 100).coerceAtLeast(700)
+        main.postDelayed({ showOnRow(app, text, row, cfg) }, delay)
+    }
+
+    private fun showOnRow(app: Context, text: String, row: Int, cfg: DanmakuConfig) {
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val metrics = app.resources.displayMetrics
+        val density = metrics.density
         val screenWidth = metrics.widthPixels
+
+        val padH = (cfg.fontSizeSp * density * 0.85f).toInt()
+        val padV = (cfg.fontSizeSp * density * 0.34f).toInt()
 
         val tv = TextView(app).apply {
             this.text = text
-            setTextColor(Color.WHITE)
-            textSize = 18f
+            setTextColor(cfg.color)
+            textSize = cfg.fontSizeSp
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setSingleLine()
-            // 更紧凑、更深的描边阴影，确保白字在任意壁纸上都有清晰边缘。
-            setShadowLayer(6f, 0f, 1f, Color.argb(220, 0, 0, 0))
-            // 半透明深色圆角胶囊背景：在浅色壁纸上也能保证对比度，同时更美观。
-            background = android.graphics.drawable.GradientDrawable().apply {
-                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                cornerRadius = metrics.density * 16
-                setColor(Color.argb(140, 0, 0, 0))
+            // 深色描边阴影：保证任意壁纸上文字都有清晰边缘。
+            setShadowLayer(density * 4f, 0f, density * 1f, Color.argb(230, 0, 0, 0))
+            letterSpacing = 0.01f
+            // 半透明深色圆角胶囊：上浅下深的细微渐变 + 一圈淡白描边，做出「玻璃」质感。
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = density * 20
+                val a = cfg.bgAlpha.coerceIn(0, 255)
+                colors = intArrayOf(
+                    Color.argb((a * 0.82f).toInt().coerceIn(0, 255), 28, 28, 32),
+                    Color.argb(a, 0, 0, 0),
+                )
+                gradientType = GradientDrawable.LINEAR_GRADIENT
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM
+                setStroke((density * 0.8f).toInt().coerceAtLeast(1), Color.argb(46, 255, 255, 255))
             }
-            val padH = (metrics.density * 14).toInt()
-            val padV = (metrics.density * 6).toInt()
             setPadding(padH, padV, padH, padV)
-            // 关键：在 addView 之前就定位到右边缘外并隐藏，避免视图先在左侧 (x=0) 画出一帧
-            // 再跳到右侧造成「闪烁」，也确保确实是从最右侧滑入。
+            // 在 addView 前就定位到右边缘外并隐藏，避免布局前在 x=0 画出一帧造成闪烁。
             translationX = screenWidth.toFloat()
             alpha = 0f
         }
 
-        // 承载弹幕的全屏宽容器：让 TextView 能在整屏范围内平移。若窗口只有内容宽度，
-        // 平移到窗口外的部分会被裁剪，导致「从最右侧滑入」失效（只在接近左侧才可见）。
-        // 容器透明、不可聚焦、不可触摸，不拦截用户操作。
-        val container = android.widget.FrameLayout(app).apply {
-            addView(
-                tv,
-                android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                    android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                ),
-            )
+        // 全屏宽的透明容器承载弹幕，使胶囊能在整屏范围内平移而不被窗口裁剪。
+        val container = FrameLayout(app).apply {
+            addView(tv, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT))
         }
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -84,8 +131,8 @@ object DanmakuController {
             @Suppress("DEPRECATION")
             WindowManager.LayoutParams.TYPE_PHONE
         }
+        val rowHeight = (cfg.fontSizeSp * density * 1.35f + padV * 2 + density * 8f).toInt()
         val lp = WindowManager.LayoutParams(
-            // 窗口占满屏宽（承载容器），胶囊 TextView 在其内平移；容器透明且不可触摸。
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             type,
@@ -95,27 +142,22 @@ object DanmakuController {
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            val topInset = (metrics.density * 48).toInt()
-            val rowHeight = (metrics.density * 40).toInt()
-            y = topInset + (rowIndex % ROWS) * rowHeight
+            y = (cfg.topOffsetDp * density).toInt() + row * rowHeight
         }
-        rowIndex = (rowIndex + 1) % ROWS
 
         runCatching { wm.addView(container, lp) }.onFailure {
-            // 某些 OEM（如 ColorOS）即使已授予「显示在其他应用上层」，仍会拦截
-            // 后台进程绘制悬浮窗，需额外开启「后台弹出界面」权限。记录原因便于排查。
+            // 某些 OEM（如 ColorOS）即使已授予「显示在其他应用上层」，仍会拦截后台进程绘制悬浮窗，
+            // 需额外开启「后台弹出界面」权限。记录原因便于排查。
             Logger.w("danmaku addView failed: ${it.message}")
             return
         }
 
-        // 布局完成（容器与文字宽度已知）后：从容器（全屏宽）最右侧滑入，淡入，
-        // 再匀速向左平移直至完全移出左边缘。
         tv.post {
             tv.translationX = container.width.toFloat().coerceAtLeast(screenWidth.toFloat())
             tv.alpha = 1f
             tv.animate()
                 .translationX(-tv.width.toFloat())
-                .setDuration(durationMs.coerceIn(2000, 20000))
+                .setDuration(cfg.durationMs.coerceIn(1500, 20000))
                 .setInterpolator(LinearInterpolator())
                 .withEndAction { runCatching { wm.removeView(container) } }
                 .start()

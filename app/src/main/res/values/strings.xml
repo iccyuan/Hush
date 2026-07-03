@@ -176,6 +176,24 @@
     <string name="settings_hide_recents_desc">Keep the app out of the recent-apps list</string>
     <string name="settings_immersive_danmaku">Immersive danmaku</string>
     <string name="settings_immersive_danmaku_desc">When fullscreen (landscape video / games), suppress native notifications and scroll them across as danmaku. Needs the overlay permission.</string>
+
+    <!-- Danmaku appearance -->
+    <string name="settings_danmaku">Danmaku</string>
+    <string name="settings_danmaku_desc">Appearance and speed of the scrolling danmaku that replace blocked notifications (global).</string>
+    <string name="danmaku_size">Text size</string>
+    <string name="size_small">Small</string>
+    <string name="size_medium">Medium</string>
+    <string name="size_large">Large</string>
+    <string name="danmaku_speed">Speed</string>
+    <string name="speed_slow">Slow</string>
+    <string name="speed_normal">Normal</string>
+    <string name="speed_fast">Fast</string>
+    <string name="danmaku_rows">Rows</string>
+    <string name="danmaku_color">Color</string>
+    <string name="danmaku_bg_opacity">Background opacity %1$d%%</string>
+    <string name="danmaku_top_offset">Top offset %1$d dp</string>
+    <string name="danmaku_preview">Preview danmaku</string>
+    <string name="danmaku_preview_sample">Hush · danmaku preview ✨</string>
     <string name="settings_access">Notification access</string>
     <string name="access_granted">Granted — Hush can read and modify notifications.</string>
     <string name="access_not_granted">Not granted. Hush cannot work without it.</string>

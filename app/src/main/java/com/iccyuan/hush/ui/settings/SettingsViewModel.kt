@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.iccyuan.hush.BuildConfig
+import com.iccyuan.hush.data.DanmakuConfig
 import com.iccyuan.hush.data.HolidayProvider
 import com.iccyuan.hush.data.RuleRepository
 import com.iccyuan.hush.data.SettingsStore
@@ -29,6 +30,8 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val immersiveDanmaku: StateFlow<Boolean> = settings.immersiveDanmaku
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val danmakuConfig: StateFlow<DanmakuConfig> = settings.danmakuConfig
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DanmakuConfig())
 
     fun setMasterEnabled(value: Boolean) = viewModelScope.launch {
         settings.setMasterEnabled(value)
@@ -44,6 +47,19 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setImmersiveDanmaku(value: Boolean) = viewModelScope.launch {
         settings.setImmersiveDanmaku(value)
+    }
+
+    /** 保存弹幕配置，并立即推给控制器（使「预览」即时生效）。 */
+    fun setDanmakuConfig(c: DanmakuConfig) = viewModelScope.launch {
+        settings.setDanmakuConfig(c)
+        com.iccyuan.hush.service.DanmakuController.updateConfig(c)
+    }
+
+    /** 用当前配置弹一条示例弹幕以供预览（需悬浮窗权限）。 */
+    fun previewDanmaku() {
+        val ctx = getApplication<Application>()
+        com.iccyuan.hush.service.DanmakuController.updateConfig(danmakuConfig.value)
+        com.iccyuan.hush.service.DanmakuController.show(ctx, ctx.getString(com.iccyuan.hush.R.string.danmaku_preview_sample))
     }
 
     fun exportRules(onResult: (String) -> Unit) = viewModelScope.launch {

@@ -10,6 +10,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
@@ -41,6 +44,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -58,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
+import com.iccyuan.hush.data.DanmakuConfig
 import com.iccyuan.hush.data.LanguageStore
 import com.iccyuan.hush.data.ThemeStore
 import com.iccyuan.hush.data.UpdateChecker
@@ -194,6 +199,17 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // 弹幕外观（全局）：字号 / 颜色 / 速度 / 行数 / 背景 / 位置 + 实时预览。
+            val dmConfig by vm.danmakuConfig.collectAsStateWithLifecycle()
+            DanmakuSettingsSection(
+                config = dmConfig,
+                onChange = { vm.setDanmakuConfig(it) },
+                onPreview = {
+                    if (DanmakuController.canShow(context)) vm.previewDanmaku()
+                    else runCatching { context.startActivity(DanmakuController.overlaySettingsIntent(context)) }
+                },
+            )
 
             // 自动操作（无障碍）：打卡宏的录制/回放依赖它。
             InsetGroupedSection(
@@ -460,5 +476,124 @@ private fun formatTime(epochMs: Long): String =
 private fun copyToClipboard(context: Context, text: String) {
     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cm.setPrimaryClip(ClipData.newPlainText("Hush rules", text))
+}
+
+/** 弹幕外观/行为设置（全局）：字号 / 速度 / 行数 / 颜色 / 背景不透明度 / 顶部偏移 + 预览。 */
+@Composable
+private fun DanmakuSettingsSection(
+    config: DanmakuConfig,
+    onChange: (DanmakuConfig) -> Unit,
+    onPreview: () -> Unit,
+) {
+    InsetGroupedSection(
+        header = stringResource(R.string.settings_danmaku),
+        footer = stringResource(R.string.settings_danmaku_desc),
+    ) {
+        DanmakuLabeled(stringResource(R.string.danmaku_size)) {
+            IOSSegmented(
+                options = DanmakuConfig.SIZES,
+                selected = config.fontSizeSp,
+                label = {
+                    stringResource(
+                        when {
+                            it <= DanmakuConfig.SIZES.first() -> R.string.size_small
+                            it >= DanmakuConfig.SIZES.last() -> R.string.size_large
+                            else -> R.string.size_medium
+                        }
+                    )
+                },
+                onSelect = { onChange(config.copy(fontSizeSp = it)) },
+            )
+        }
+        HairlineDivider(startInset = 16.dp)
+        DanmakuLabeled(stringResource(R.string.danmaku_speed)) {
+            IOSSegmented(
+                options = DanmakuConfig.SPEEDS,
+                selected = config.durationMs,
+                label = {
+                    stringResource(
+                        when {
+                            it >= DanmakuConfig.SPEEDS.first() -> R.string.speed_slow
+                            it <= DanmakuConfig.SPEEDS.last() -> R.string.speed_fast
+                            else -> R.string.speed_normal
+                        }
+                    )
+                },
+                onSelect = { onChange(config.copy(durationMs = it)) },
+            )
+        }
+        HairlineDivider(startInset = 16.dp)
+        DanmakuLabeled(stringResource(R.string.danmaku_rows)) {
+            IOSSegmented(
+                options = DanmakuConfig.ROWS_OPTIONS,
+                selected = config.rows.coerceIn(2, 5),
+                label = { it.toString() },
+                onSelect = { onChange(config.copy(rows = it)) },
+            )
+        }
+        HairlineDivider(startInset = 16.dp)
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(R.string.danmaku_color), style = MaterialTheme.typography.bodyLarge)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DanmakuConfig.COLORS.forEach { c ->
+                    val sel = c == config.color
+                    Box(
+                        Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(Color(c))
+                            .border(
+                                width = if (sel) 3.dp else 1.dp,
+                                color = if (sel) MaterialTheme.colorScheme.primary else Color(0x33000000),
+                                shape = CircleShape,
+                            )
+                            .clickable { onChange(config.copy(color = c)) },
+                    )
+                }
+            }
+        }
+        HairlineDivider(startInset = 16.dp)
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.danmaku_bg_opacity, config.bgAlpha * 100 / 255),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            var a by remember(config.bgAlpha) { mutableStateOf(config.bgAlpha.toFloat()) }
+            Slider(
+                value = a,
+                onValueChange = { a = it },
+                onValueChangeFinished = { onChange(config.copy(bgAlpha = a.toInt())) },
+                valueRange = 60f..255f,
+            )
+        }
+        HairlineDivider(startInset = 16.dp)
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.danmaku_top_offset, config.topOffsetDp.toInt()),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            var off by remember(config.topOffsetDp) { mutableStateOf(config.topOffsetDp) }
+            Slider(
+                value = off,
+                onValueChange = { off = it },
+                onValueChangeFinished = { onChange(config.copy(topOffsetDp = off)) },
+                valueRange = 0f..140f,
+            )
+        }
+        HairlineDivider(startInset = 16.dp)
+        Column(Modifier.padding(16.dp)) {
+            IOSTintedButton(text = stringResource(R.string.danmaku_preview), onClick = onPreview)
+        }
+    }
+}
+
+@Composable
+private fun DanmakuLabeled(label: String, control: @Composable () -> Unit) {
+    Column(Modifier.padding(16.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(10.dp))
+        control()
+    }
 }
 

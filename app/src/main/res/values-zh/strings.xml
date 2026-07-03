@@ -176,6 +176,24 @@
     <string name="settings_hide_recents_desc">不在「最近任务」列表中显示本应用</string>
     <string name="settings_immersive_danmaku">沉浸弹幕</string>
     <string name="settings_immersive_danmaku_desc">全屏时（横屏看视频、玩游戏）屏蔽原生通知，改以弹幕滚动显示。需要悬浮窗权限。</string>
+
+    <!-- 弹幕外观 -->
+    <string name="settings_danmaku">弹幕</string>
+    <string name="settings_danmaku_desc">被屏蔽的通知改以弹幕滚动显示时的外观与速度（全局）。</string>
+    <string name="danmaku_size">字号</string>
+    <string name="size_small">小</string>
+    <string name="size_medium">中</string>
+    <string name="size_large">大</string>
+    <string name="danmaku_speed">速度</string>
+    <string name="speed_slow">慢</string>
+    <string name="speed_normal">中</string>
+    <string name="speed_fast">快</string>
+    <string name="danmaku_rows">行数</string>
+    <string name="danmaku_color">颜色</string>
+    <string name="danmaku_bg_opacity">背景不透明度 %1$d%%</string>
+    <string name="danmaku_top_offset">顶部偏移 %1$d dp</string>
+    <string name="danmaku_preview">预览弹幕</string>
+    <string name="danmaku_preview_sample">静界 · 弹幕预览示例 ✨</string>
     <string name="settings_access">通知使用权</string>
     <string name="access_granted">已授予 — 静界可读取和修改通知。</string>
     <string name="access_not_granted">未授予。没有它静界无法工作。</string>

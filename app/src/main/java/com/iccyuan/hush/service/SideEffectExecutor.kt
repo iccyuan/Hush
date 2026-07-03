@@ -41,7 +41,7 @@ class SideEffectExecutor(
                 is SideEffect.MuteApp ->
                     VariableStore.muteApp(effect.pkg, effect.ruleId)
                 is SideEffect.Danmaku ->
-                    DanmakuController.show(context, effect.text, effect.durationMs)
+                    DanmakuController.show(context, effect.text)
                 is SideEffect.Digest ->
                     DigestController.add(context, effect.pkg, effect.appName, effect.line, effect.windowMinutes)
                 is SideEffect.LaunchApp -> launchApp(effect.pkg, effect.activity)
