@@ -40,7 +40,8 @@ object DanmakuController {
 
     // 以下状态仅在主线程访问。
     private var rowFreeAt = LongArray(config.rows)
-    private val recent = HashMap<String, Long>()
+    private val inflight = HashMap<String, Int>()   // 相同文字：当前排队中 + 屏幕上的条数
+    private val recentEnd = HashMap<String, Long>()  // 相同文字：上次离场时刻（离场后短暂冷却）
 
     /** 由服务在设置变化时调用，更新全局弹幕外观/行为。 */
     fun updateConfig(c: DanmakuConfig) {
@@ -65,10 +66,10 @@ object DanmakuController {
         val cfg = config
         val now = SystemClock.uptimeMillis()
 
-        // 去重：清理过期项后，若同一文字仍在去重窗口内则跳过。
-        recent.entries.removeAll { now - it.value > DEDUP_MS }
-        recent[text]?.let { if (now - it < DEDUP_MS) return }
-        recent[text] = now
+        // 同内容不重复显示：相同文字若仍在排队/屏幕上，或刚离场不久（冷却窗内），则跳过。
+        if ((inflight[text] ?: 0) > 0) return
+        recentEnd.entries.removeAll { now - it.value > DEDUP_MS }
+        recentEnd[text]?.let { if (now - it < DEDUP_MS) return }
 
         if (rowFreeAt.size != cfg.rows) rowFreeAt = LongArray(cfg.rows)
         // 选最早空闲的行。
@@ -79,7 +80,16 @@ object DanmakuController {
         if (delay > MAX_QUEUE_DELAY) return // 积压过久：丢弃这一条，避免无限排队。
         // 预留该行下一条的最早进入时刻（约为时长的 42%，保证同行两条之间留有间距）。
         rowFreeAt[row] = startAt + (cfg.durationMs * 42 / 100).coerceAtLeast(700)
+        // 占位：从此刻起到该弹幕离场，相同文字都会被去重跳过。
+        inflight[text] = (inflight[text] ?: 0) + 1
         main.postDelayed({ showOnRow(app, text, row, cfg) }, delay)
+    }
+
+    /** 一条弹幕离场（正常结束或添加失败）时调用：释放同文字占位并记录离场时刻用于冷却。 */
+    private fun endText(text: String) {
+        val c = (inflight[text] ?: 1) - 1
+        if (c <= 0) inflight.remove(text) else inflight[text] = c
+        recentEnd[text] = SystemClock.uptimeMillis()
     }
 
     private fun showOnRow(app: Context, text: String, row: Int, cfg: DanmakuConfig) {
@@ -97,8 +107,6 @@ object DanmakuController {
             textSize = cfg.fontSizeSp
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setSingleLine()
-            // 深色描边阴影：保证任意壁纸上文字都有清晰边缘。
-            setShadowLayer(density * 4f, 0f, density * 1f, Color.argb(230, 0, 0, 0))
             letterSpacing = 0.01f
             // 半透明深色圆角胶囊：上浅下深的细微渐变 + 一圈淡白描边，做出「玻璃」质感。
             background = GradientDrawable().apply {
@@ -149,6 +157,7 @@ object DanmakuController {
             // 某些 OEM（如 ColorOS）即使已授予「显示在其他应用上层」，仍会拦截后台进程绘制悬浮窗，
             // 需额外开启「后台弹出界面」权限。记录原因便于排查。
             Logger.w("danmaku addView failed: ${it.message}")
+            endText(text)
             return
         }
 
@@ -159,7 +168,10 @@ object DanmakuController {
                 .translationX(-tv.width.toFloat())
                 .setDuration(cfg.durationMs.coerceIn(1500, 20000))
                 .setInterpolator(LinearInterpolator())
-                .withEndAction { runCatching { wm.removeView(container) } }
+                .withEndAction {
+                    runCatching { wm.removeView(container) }
+                    endText(text)
+                }
                 .start()
         }
     }

@@ -12,8 +12,12 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,7 +33,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.BarChart
@@ -44,7 +50,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -555,36 +560,82 @@ private fun DanmakuSettingsSection(
         }
         HairlineDivider(startInset = 16.dp)
         Column(Modifier.padding(16.dp)) {
+            var a by remember(config.bgAlpha) { mutableStateOf(config.bgAlpha.toFloat()) }
             Text(
-                stringResource(R.string.danmaku_bg_opacity, config.bgAlpha * 100 / 255),
+                stringResource(R.string.danmaku_bg_opacity, (a * 100 / 255).toInt()),
                 style = MaterialTheme.typography.bodyLarge,
             )
-            var a by remember(config.bgAlpha) { mutableStateOf(config.bgAlpha.toFloat()) }
-            Slider(
+            Spacer(Modifier.height(8.dp))
+            IOSSlider(
                 value = a,
+                valueRange = 0f..255f,
                 onValueChange = { a = it },
                 onValueChangeFinished = { onChange(config.copy(bgAlpha = a.toInt())) },
-                valueRange = 60f..255f,
             )
         }
         HairlineDivider(startInset = 16.dp)
         Column(Modifier.padding(16.dp)) {
+            var off by remember(config.topOffsetDp) { mutableStateOf(config.topOffsetDp) }
             Text(
-                stringResource(R.string.danmaku_top_offset, config.topOffsetDp.toInt()),
+                stringResource(R.string.danmaku_top_offset, off.toInt()),
                 style = MaterialTheme.typography.bodyLarge,
             )
-            var off by remember(config.topOffsetDp) { mutableStateOf(config.topOffsetDp) }
-            Slider(
+            Spacer(Modifier.height(8.dp))
+            IOSSlider(
                 value = off,
+                valueRange = 0f..140f,
                 onValueChange = { off = it },
                 onValueChangeFinished = { onChange(config.copy(topOffsetDp = off)) },
-                valueRange = 0f..140f,
             )
         }
         HairlineDivider(startInset = 16.dp)
         Column(Modifier.padding(16.dp)) {
             IOSTintedButton(text = stringResource(R.string.danmaku_preview), onClick = onPreview)
         }
+    }
+}
+
+/** 极简 iOS 风格滑块：细圆角轨道 + 着色填充 + 白色圆点滑块（点按或拖动均可）。 */
+@Composable
+private fun IOSSlider(
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (() -> Unit)? = null,
+) {
+    val span = (valueRange.endInclusive - valueRange.start).takeIf { it > 0f } ?: 1f
+    val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
+    val fillColor = MaterialTheme.colorScheme.primary
+    val thumb = 24.dp
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .pointerInput(valueRange) {
+                detectTapGestures { p ->
+                    onValueChange(valueRange.start + (p.x / size.width).coerceIn(0f, 1f) * span)
+                    onValueChangeFinished?.invoke()
+                }
+            }
+            .pointerInput(valueRange) {
+                detectHorizontalDragGestures(onDragEnd = { onValueChangeFinished?.invoke() }) { change, _ ->
+                    change.consume()
+                    onValueChange(valueRange.start + (change.position.x / size.width).coerceIn(0f, 1f) * span)
+                }
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(trackColor))
+        Box(Modifier.fillMaxWidth(fraction).height(3.dp).clip(CircleShape).background(fillColor))
+        Box(
+            Modifier
+                .offset(x = (maxWidth - thumb) * fraction)
+                .size(thumb)
+                .shadow(2.dp, CircleShape)
+                .clip(CircleShape)
+                .background(Color.White),
+        )
     }
 }
 
