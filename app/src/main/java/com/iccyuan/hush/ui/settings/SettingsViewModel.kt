@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,8 +32,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
     val immersiveDanmaku: StateFlow<Boolean> = settings.immersiveDanmaku
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-    val danmakuConfig: StateFlow<DanmakuConfig> = settings.danmakuConfig
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DanmakuConfig())
+
+    // 弹幕配置以 VM 内存状态为唯一真源：改动立即生效并异步落盘。若直接映射 DataStore 的 Flow，
+    // 改一个字段后要等异步回读才更新，此时改另一个字段会基于旧值覆盖，导致「改一个回退另一个」。
+    private val _danmakuConfig = MutableStateFlow(DanmakuConfig())
+    val danmakuConfig: StateFlow<DanmakuConfig> = _danmakuConfig.asStateFlow()
+
+    init {
+        viewModelScope.launch { _danmakuConfig.value = settings.danmakuConfig.first() }
+    }
 
     fun setMasterEnabled(value: Boolean) = viewModelScope.launch {
         settings.setMasterEnabled(value)
@@ -49,17 +58,20 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         settings.setImmersiveDanmaku(value)
     }
 
-    /** 保存弹幕配置，并立即推给控制器（使「预览」即时生效）。 */
-    fun setDanmakuConfig(c: DanmakuConfig) = viewModelScope.launch {
-        settings.setDanmakuConfig(c)
+    /** 立即更新内存状态与控制器，并异步落盘。 */
+    fun setDanmakuConfig(c: DanmakuConfig) {
+        _danmakuConfig.value = c
         com.iccyuan.hush.service.DanmakuController.updateConfig(c)
+        viewModelScope.launch { settings.setDanmakuConfig(c) }
     }
 
     /** 用当前配置弹一条示例弹幕以供预览（需悬浮窗权限）。 */
     fun previewDanmaku() {
         val ctx = getApplication<Application>()
         com.iccyuan.hush.service.DanmakuController.updateConfig(danmakuConfig.value)
-        com.iccyuan.hush.service.DanmakuController.show(ctx, ctx.getString(com.iccyuan.hush.R.string.danmaku_preview_sample))
+        com.iccyuan.hush.service.DanmakuController.show(
+            ctx, ctx.getString(com.iccyuan.hush.R.string.danmaku_preview_sample), force = true,
+        )
     }
 
     fun exportRules(onResult: (String) -> Unit) = viewModelScope.launch {

@@ -59,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -608,20 +609,25 @@ private fun IOSSlider(
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
     val fillColor = MaterialTheme.colorScheme.primary
     val thumb = 24.dp
+    // pointerInput 的块只在 key 变化时重启；valueRange 恒定，故用 rememberUpdatedState 让手势
+    // 始终调用**最新**的回调（否则会捕获首次组合时的旧回调，导致拖动本滑块时把其他设置一并回退）。
+    val start = valueRange.start
+    val onChange by rememberUpdatedState(onValueChange)
+    val onFinished by rememberUpdatedState(onValueChangeFinished)
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
             .height(28.dp)
-            .pointerInput(valueRange) {
+            .pointerInput(Unit) {
                 detectTapGestures { p ->
-                    onValueChange(valueRange.start + (p.x / size.width).coerceIn(0f, 1f) * span)
-                    onValueChangeFinished?.invoke()
+                    onChange(start + (p.x / size.width).coerceIn(0f, 1f) * span)
+                    onFinished?.invoke()
                 }
             }
-            .pointerInput(valueRange) {
-                detectHorizontalDragGestures(onDragEnd = { onValueChangeFinished?.invoke() }) { change, _ ->
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(onDragEnd = { onFinished?.invoke() }) { change, _ ->
                     change.consume()
-                    onValueChange(valueRange.start + (change.position.x / size.width).coerceIn(0f, 1f) * span)
+                    onChange(start + (change.position.x / size.width).coerceIn(0f, 1f) * span)
                 }
             },
         contentAlignment = Alignment.CenterStart,

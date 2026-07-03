@@ -51,7 +51,8 @@ object DanmakuController {
 
     fun canShow(context: Context): Boolean = Settings.canDrawOverlays(context)
 
-    fun show(context: Context, text: String) {
+    /** [force] = true 时绕过「同内容去重」，无论如何都显示（用于「预览」这类显式操作）。 */
+    fun show(context: Context, text: String, force: Boolean = false) {
         if (text.isBlank()) return
         if (!canShow(context)) {
             // 未授予悬浮窗权限——规则虽匹配，但弹幕无法显示。在编辑器/设置里会提示授权。
@@ -59,17 +60,20 @@ object DanmakuController {
             return
         }
         val app = context.applicationContext
-        main.post { enqueue(app, text) }
+        main.post { enqueue(app, text, force) }
     }
 
-    private fun enqueue(app: Context, text: String) {
+    private fun enqueue(app: Context, text: String, force: Boolean) {
         val cfg = config
         val now = SystemClock.uptimeMillis()
 
         // 同内容不重复显示：相同文字若仍在排队/屏幕上，或刚离场不久（冷却窗内），则跳过。
-        if ((inflight[text] ?: 0) > 0) return
-        recentEnd.entries.removeAll { now - it.value > DEDUP_MS }
-        recentEnd[text]?.let { if (now - it < DEDUP_MS) return }
+        // 「预览」等显式操作用 force 跳过该去重，保证每次点击都显示。
+        if (!force) {
+            if ((inflight[text] ?: 0) > 0) return
+            recentEnd.entries.removeAll { now - it.value > DEDUP_MS }
+            recentEnd[text]?.let { if (now - it < DEDUP_MS) return }
+        }
 
         if (rowFreeAt.size != cfg.rows) rowFreeAt = LongArray(cfg.rows)
         // 选最早空闲的行。
