@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.TouchApp
@@ -69,6 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
 import com.iccyuan.hush.data.DanmakuConfig
+import com.iccyuan.hush.data.HolidayProvider
 import com.iccyuan.hush.data.LanguageStore
 import com.iccyuan.hush.data.ThemeStore
 import com.iccyuan.hush.data.UpdateChecker
@@ -305,6 +307,21 @@ fun SettingsScreen(
                     else stringResource(R.string.holiday_never),
                     icon = Icons.Filled.CalendarMonth,
                     iconColor = IOSColors.Red,
+                )
+                HairlineDivider(startInset = 16.dp)
+                IOSRow(
+                    title = stringResource(R.string.holiday_source),
+                    subtitle = stringResource(R.string.holiday_source_detail, HolidayProvider.SOURCE_NAME),
+                    icon = Icons.Filled.Language,
+                    iconColor = IOSColors.Blue,
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(HolidayProvider.SOURCE_SITE))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    },
                 )
                 HairlineDivider(startInset = 16.dp)
                 Column(Modifier.padding(16.dp)) {

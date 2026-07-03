@@ -53,6 +53,11 @@ object HolidayProvider {
     const val OVERRIDE_REST = "rest"
     const val OVERRIDE_WORK = "work"
 
+    /** 节假日数据来源（国务院公布日期，经公共 API 汇总）。用于抓取与在设置中展示。 */
+    const val SOURCE_NAME = "timor.tech"
+    const val SOURCE_SITE = "https://timor.tech"
+    const val SOURCE_API = "https://timor.tech/api/holiday"
+
     private const val PREFS = "hush_holiday"
     private const val KEY_UPDATED = "last_update"
     private const val KEY_OVERRIDE_DATE = "override_date"
@@ -154,7 +159,7 @@ object HolidayProvider {
     }
 
     private fun fetchYear(year: Int): TimorResp? = runCatching {
-        val conn = (URL("https://timor.tech/api/holiday/year/$year").openConnection() as HttpURLConnection)
+        val conn = (URL("$SOURCE_API/year/$year").openConnection() as HttpURLConnection)
         conn.apply {
             requestMethod = "GET"
             connectTimeout = 8000
