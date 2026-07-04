@@ -64,6 +64,8 @@ class HushListenerService : NotificationListenerService() {
     // Wi-Fi 连接/断开事件监听（仅当有事件规则用到时才注册，省资源）。
     private var wifiCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile private var wifiUp: Boolean = false
+    // 最近一次连接的 Wi-Fi SSID：断开事件用它做「指定 Wi-Fi」过滤（断开后已读不到）。
+    @Volatile private var lastSsid: String? = null
 
     /** 更新内存中的活动规则，并据此重算需要采样哪些设备状态、同步地理围栏与事件监听。 */
     private fun setActiveRules(rules: List<Rule>) {
@@ -90,6 +92,7 @@ class HushListenerService : NotificationListenerService() {
         val cm = getSystemService(ConnectivityManager::class.java) ?: return
         if (needsWifiEvents && wifiCallback == null) {
             wifiUp = isWifiConnectedNow(cm)
+            if (wifiUp) lastSsid = currentSsid() // seed，供后续断开事件过滤
             val cb = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     if (!wifiUp) { wifiUp = true; onWifiEvent(DeviceEventType.WIFI_CONNECTED) }
@@ -115,15 +118,29 @@ class HushListenerService : NotificationListenerService() {
         return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
+    /** 读取当前连接的 Wi-Fi SSID；需定位权限 + 定位开启，否则系统返回 <unknown ssid>（此时视为未知）。 */
+    private fun currentSsid(): String? = runCatching {
+        val wifi = getSystemService(android.net.wifi.WifiManager::class.java) ?: return null
+        @Suppress("DEPRECATION")
+        val raw = wifi.connectionInfo?.ssid ?: return null
+        raw.trim('"').takeIf { it.isNotBlank() && it != "<unknown ssid>" && !it.startsWith("0x") }
+    }.getOrNull()
+
     /** Wi-Fi 连/断的那一刻：评估事件规则并执行其副作用（如发提醒通知）。 */
     private fun onWifiEvent(event: DeviceEventType) {
         if (!masterEnabled) return
-        Logger.i("wifi event: $event")
+        // 连接时读取当前 SSID 并记住；断开时用记住的（断开后已读不到）。供「指定 Wi-Fi」触发器过滤。
+        val ssid = when (event) {
+            DeviceEventType.WIFI_CONNECTED -> currentSsid()?.also { lastSsid = it }
+            DeviceEventType.WIFI_DISCONNECTED -> lastSsid.also { lastSsid = null }
+            else -> null
+        }
+        Logger.i("wifi event: $event ssid=$ssid")
         scope.launch {
             try {
                 val device = DeviceState.sample(this@HushListenerService, needsHeadphones, true, needsLocation)
                 val appName = NotificationFields.appLabel(this@HushListenerService, packageName)
-                val decision = engine.evaluateEvent(event, activeRules, device, packageName, appName)
+                val decision = engine.evaluateEvent(event, ssid, activeRules, device, packageName, appName)
                 if (decision.matched) {
                     // 事件无源通知，仅执行副作用（通知提醒等），不涉及改写/丢弃通知。
                     sideEffects.execute(decision.sideEffects)

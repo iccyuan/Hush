@@ -290,6 +290,10 @@
     <string name="cat_trig_event">设备事件</string>
     <string name="cat_trig_event_desc">Wi-Fi 连上/断开的那一刻触发</string>
     <string name="device_event_hint">这条规则会在事件发生的那一刻执行动作——无需通知。条件依然生效。</string>
+    <string name="wifi_ssid_label">指定 Wi-Fi（可选）</string>
+    <string name="wifi_ssid_hint">留空 = 任意 Wi-Fi。读取网络名需定位权限并开启定位。点击标签可移除。</string>
+    <string name="wifi_ssid_input_hint">Wi-Fi 名称（SSID）</string>
+    <string name="wifi_ssid_add_current">添加当前 Wi-Fi</string>
     <string name="event_type">事件</string>
     <string name="event_wifi_connected">连上 Wi-Fi 时</string>
     <string name="event_wifi_disconnected">断开 Wi-Fi 时</string>

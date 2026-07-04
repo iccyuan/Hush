@@ -192,6 +192,7 @@ class RuleEngine {
      */
     fun evaluateEvent(
         event: DeviceEventType,
+        ssid: String?,
         rules: List<Rule>,
         device: DeviceContext,
         selfPackage: String,
@@ -199,7 +200,11 @@ class RuleEngine {
     ): Decision {
         val decision = Decision()
         for (rule in rules) {
-            val matches = rule.triggers.any { it is Trigger.DeviceEvent && it.event == event }
+            // Wi-Fi 事件可限定 SSID（多选）：ssids 为空则任意网络；否则需当前 SSID 命中其一。
+            val matches = rule.triggers.any {
+                it is Trigger.DeviceEvent && it.event == event &&
+                    (it.ssids.isEmpty() || (ssid != null && it.ssids.contains(ssid)))
+            }
             if (!matches) continue
             // 每条规则用独立的 ctx：事件无通知内容，仅承载设备状态供条件/模板使用。
             val ctx = MatchContext(selfPackage, selfAppName, mutableMapOf(), false, false, device)

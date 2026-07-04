@@ -2,7 +2,16 @@ package com.iccyuan.hush.ui.editor
 import com.iccyuan.hush.engine.TextMatcher
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -132,6 +141,7 @@ private fun LocationTriggerFields(
 @Composable
 private fun DeviceEventFields(t: Trigger.DeviceEvent, onChange: (Trigger.DeviceEvent) -> Unit) {
     val labels = DeviceEventType.entries.associateWith { stringResource(Localize.eventRes(it)) }
+    val context = androidx.compose.ui.platform.LocalContext.current
     Column {
         Text(
             stringResource(R.string.device_event_hint),
@@ -146,6 +156,89 @@ private fun DeviceEventFields(t: Trigger.DeviceEvent, onChange: (Trigger.DeviceE
             optionLabel = { labels.getValue(it) },
             onSelected = { onChange(t.copy(event = it)) },
         )
+        // 仅 Wi-Fi 事件可限定 SSID（多选）；为空=任意 Wi-Fi。
+        val isWifi = t.event == DeviceEventType.WIFI_CONNECTED || t.event == DeviceEventType.WIFI_DISCONNECTED
+        if (isWifi) {
+            Spacer(Modifier.height(14.dp))
+            Text(stringResource(R.string.wifi_ssid_label), style = MaterialTheme.typography.bodyLarge)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                stringResource(R.string.wifi_ssid_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (t.ssids.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                SsidChips(t.ssids) { removed -> onChange(t.copy(ssids = t.ssids - removed)) }
+            }
+            Spacer(Modifier.height(8.dp))
+            var input by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+            val addTyped = {
+                val s = input.trim()
+                if (s.isNotEmpty() && s !in t.ssids) onChange(t.copy(ssids = t.ssids + s))
+                input = ""
+            }
+            com.iccyuan.hush.ui.common.LabeledTextField(
+                label = stringResource(R.string.wifi_ssid_input_hint),
+                value = input,
+                onValueChange = { input = it },
+            )
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.foundation.layout.Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                com.iccyuan.hush.ui.components.IOSTintedButton(
+                    text = stringResource(R.string.add),
+                    onClick = addTyped,
+                    modifier = Modifier.weight(1f),
+                )
+                com.iccyuan.hush.ui.components.IOSTintedButton(
+                    text = stringResource(R.string.wifi_ssid_add_current),
+                    onClick = {
+                        val s = currentWifiSsid(context)
+                        if (s != null && s !in t.ssids) onChange(t.copy(ssids = t.ssids + s))
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+/** 当前连接的 Wi-Fi SSID（需定位权限 + 定位开启，否则返回 null）。 */
+private fun currentWifiSsid(context: android.content.Context): String? = runCatching {
+    val wifi = context.applicationContext.getSystemService(android.net.wifi.WifiManager::class.java) ?: return null
+    @Suppress("DEPRECATION")
+    val raw = wifi.connectionInfo?.ssid ?: return null
+    raw.trim('"').takeIf { it.isNotBlank() && it != "<unknown ssid>" && !it.startsWith("0x") }
+}.getOrNull()
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@androidx.compose.runtime.Composable
+private fun SsidChips(ssids: List<String>, onRemove: (String) -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        ssids.forEach { ssid ->
+            androidx.compose.foundation.layout.Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                    .clickable { onRemove(ssid) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(ssid, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(4.dp))
+                androidx.compose.material3.Icon(
+                    androidx.compose.material.icons.Icons.Filled.Close,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+        }
     }
 }
 

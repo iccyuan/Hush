@@ -290,6 +290,10 @@
     <string name="cat_trig_event">Device event</string>
     <string name="cat_trig_event_desc">Fire the moment Wi-Fi connects/disconnects</string>
     <string name="device_event_hint">This rule runs its actions the instant the event happens — no notification needed. Conditions still apply.</string>
+    <string name="wifi_ssid_label">Specific Wi-Fi (optional)</string>
+    <string name="wifi_ssid_hint">Empty = any Wi-Fi. Reading the network name needs location permission with location on. Tap a chip to remove.</string>
+    <string name="wifi_ssid_input_hint">Wi-Fi name (SSID)</string>
+    <string name="wifi_ssid_add_current">Add current Wi-Fi</string>
     <string name="event_type">Event</string>
     <string name="event_wifi_connected">When Wi-Fi connects</string>
     <string name="event_wifi_disconnected">When Wi-Fi disconnects</string>

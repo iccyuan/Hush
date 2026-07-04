@@ -51,6 +51,8 @@ sealed class Trigger {
     data class DeviceEvent(
         override val id: String,
         val event: DeviceEventType = DeviceEventType.WIFI_CONNECTED,
+        /** 仅对 Wi-Fi 事件生效：限定的网络 SSID（多选）；为空 = 任意 Wi-Fi。 */
+        val ssids: List<String> = emptyList(),
     ) : Trigger()
 
     /**
