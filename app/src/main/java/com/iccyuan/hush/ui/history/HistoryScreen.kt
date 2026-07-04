@@ -193,16 +193,23 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg),
             ) {
                 groups.forEach { (header, items) ->
-                    item {
+                    // 稳定 key（按分组标题）让 LazyColumn 能识别条目增删/重排，
+                    // 配合 animateItem 在「加载更多、删除、按天/周切换」时平滑淡入与移位。
+                    item(key = "h:$header", contentType = "header") {
                         Text(
                             header,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = Spacing.xxl, top = Spacing.xs),
+                            modifier = Modifier.animateItem().padding(start = Spacing.xxl, top = Spacing.xs),
                         )
                     }
-                    item {
-                        InsetGroupedSection {
+                    item(key = "s:$header", contentType = "section") {
+                        // animateContentSize：组内某行被删除后，卡片高度平滑收缩，而非瞬间跳变。
+                        InsetGroupedSection(
+                            modifier = Modifier
+                                .animateItem()
+                                .animateContentSize(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)),
+                        ) {
                             items.forEachIndexed { i, log ->
                                 if (i > 0) HairlineDivider(startInset = Spacing.lg)
                                 SwipeableLogRow(
@@ -219,9 +226,9 @@ fun HistoryScreen(
                     }
                 }
                 if (canLoadMore) {
-                    item {
+                    item(key = "loading", contentType = "loading") {
                         Box(
-                            Modifier.fillMaxWidth().padding(Spacing.lg),
+                            Modifier.fillMaxWidth().padding(Spacing.lg).animateItem(),
                             contentAlignment = Alignment.Center,
                         ) {
                             androidx.compose.material3.CircularProgressIndicator(
@@ -231,7 +238,7 @@ fun HistoryScreen(
                         }
                     }
                 }
-                item { Spacer(Modifier.height(Spacing.xl)) }
+                item(key = "bottom_spacer", contentType = "spacer") { Spacer(Modifier.height(Spacing.xl)) }
             }
         }
     }
