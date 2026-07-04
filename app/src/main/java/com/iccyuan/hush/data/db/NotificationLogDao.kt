@@ -17,6 +17,30 @@ interface NotificationLogDao {
     @Query("SELECT * FROM notification_log ORDER BY time DESC LIMIT :limit")
     fun observeRecent(limit: Int): Flow<List<NotificationLog>>
 
+    /**
+     * 历史列表的响应式「分页」：取最新 [limit] 条（可选按 [pkg] 过滤）。上拉加载更多即增大
+     * [limit]。用递增 LIMIT 而非 keyset，既能分批加载、又能在新通知到达时由 Room 自动刷新。
+     */
+    @Query(
+        "SELECT * FROM notification_log WHERE (:pkg IS NULL OR packageName = :pkg) " +
+            "ORDER BY time DESC LIMIT :limit"
+    )
+    fun observeRecentFiltered(pkg: String?, limit: Int): Flow<List<NotificationLog>>
+
+    /**
+     * 统计用：全部通知的时间戳（可选按 [pkg] 过滤），不设上限——按实际数据统计。
+     * 仅取 long 列，即使全表也很轻量；表大小由 [prune] 约束。与列表分页解耦。
+     */
+    @Query("SELECT time FROM notification_log WHERE (:pkg IS NULL OR packageName = :pkg) ORDER BY time DESC")
+    fun observeTimes(pkg: String?): Flow<List<Long>>
+
+    /** 过滤行用：按应用聚合的通知数（响应式），从多到少。 */
+    @Query(
+        "SELECT packageName, appName, COUNT(*) AS count FROM notification_log " +
+            "GROUP BY packageName ORDER BY count DESC LIMIT :limit"
+    )
+    fun observeAppCounts(limit: Int): Flow<List<AppCount>>
+
     @Query("SELECT * FROM notification_log ORDER BY time DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<NotificationLog>
 

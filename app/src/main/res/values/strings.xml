@@ -38,6 +38,7 @@
     <string name="stat_peak_hour">Peak time</string>
     <string name="stat_busiest_day">Busiest day</string>
     <string name="stat_total">%d notifications</string>
+    <string name="stat_bar_count">%1$d</string>
     <string name="outcome_modified">Modified</string>
     <string name="outcome_discarded">Discarded</string>
     <string name="outcome_dismissed">Dismissed</string>
@@ -221,8 +222,7 @@
     <string name="holiday_update">Update from network</string>
     <string name="holiday_last_updated">Last updated: %s</string>
     <string name="holiday_never">Never updated (using bundled data)</string>
-    <string name="holiday_source">Data source</string>
-    <string name="holiday_source_detail">%1$s · official State Council dates (bundled fallback)</string>
+    <string name="holiday_source_footer">Source: %1$s (official dates, bundled fallback)</string>
     <string name="holiday_update_done">Holiday data updated</string>
     <string name="holiday_update_failed">Update failed (offline?)</string>
     <string name="lang_system">Follow system</string>

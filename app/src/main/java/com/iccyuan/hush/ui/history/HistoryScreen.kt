@@ -10,6 +10,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -32,11 +34,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,12 +65,23 @@ import com.iccyuan.hush.ui.components.cardFrost
 import com.iccyuan.hush.ui.components.iosPressable
 import com.iccyuan.hush.ui.theme.Alpha
 import com.iccyuan.hush.ui.theme.IOSColors
+import com.iccyuan.hush.ui.theme.Spacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 private enum class Grouping { DAY, WEEK }
+
+// 统一集中的数值常量，避免散落硬编码。
+private const val ICON_PX = 48               // 历史行应用图标解析像素
+private const val LOAD_MORE_AHEAD = 4        // 距列表末尾多少项时预取下一批
+private val LoadingIndicatorSize = 22.dp
+private val LoadingIndicatorStroke = 2.dp
+private val ChartHeight = 48.dp
+private val ChartBarGap = 2.dp
+private val ChartBarMinHeight = 4.dp         // 空桶也留一点高度，便于点击
+private val ChartBarRange = 44.dp            // 满桶相对最小高度的额外高度
 
 @Composable
 fun HistoryScreen(
@@ -76,34 +91,36 @@ fun HistoryScreen(
     vm: HistoryViewModel = viewModel(),
 ) {
     val logs by vm.logs.collectAsStateWithLifecycle()
+    val times by vm.times.collectAsStateWithLifecycle()
+    val appCounts by vm.appCounts.collectAsStateWithLifecycle()
+    val selectedApp by vm.selectedApp.collectAsStateWithLifecycle()
+    val canLoadMore by vm.canLoadMore.collectAsStateWithLifecycle()
     val ruleNames by vm.ruleNames.collectAsStateWithLifecycle()
-    // 异步解析历史中各应用的图标（按包名去重），在每条记录前展示其 logo。
     val context = LocalContext.current
-    val packages = remember(logs) { logs.map { it.packageName }.distinct() }
-    val appIcons by produceState(emptyMap<String, ImageBitmap>(), packages) {
-        value = withContext(Dispatchers.IO) {
-            packages.mapNotNull { pkg ->
-                runCatching {
-                    pkg to context.packageManager.getApplicationIcon(pkg).toBitmap(48, 48).asImageBitmap()
-                }.getOrNull()
-            }.toMap()
+
+    // 增量解析应用图标：只为尚未缓存的新包名解析，避免每次「加载更多」都重解析全部。
+    val appIcons = remember { mutableStateMapOf<String, ImageBitmap>() }
+    LaunchedEffect(logs) {
+        val missing = logs.map { it.packageName }.distinct().filter { it !in appIcons }
+        if (missing.isNotEmpty()) {
+            val resolved = withContext(Dispatchers.IO) {
+                missing.mapNotNull { pkg ->
+                    runCatching {
+                        pkg to context.packageManager.getApplicationIcon(pkg).toBitmap(ICON_PX, ICON_PX).asImageBitmap()
+                    }.getOrNull()
+                }
+            }
+            resolved.forEach { (pkg, bmp) -> appIcons[pkg] = bmp }
         }
     }
     var grouping by remember { mutableStateOf(Grouping.DAY) }
-    var selectedApp by remember { mutableStateOf<String?>(null) }
 
-    val filtered = remember(logs, selectedApp) {
-        // 隐藏空白通知（既无标题也无正文）——它们会渲染为空行；同时兼顾历史里旧的空白记录。
+    // vm.logs 已按所选应用在查询层过滤；这里只再滤掉空白通知（既无标题也无正文）。
+    val filtered = remember(logs) {
         logs.filter { it.title.isNotBlank() || it.text.isNotBlank() }
-            .let { list -> if (selectedApp == null) list else list.filter { it.packageName == selectedApp } }
     }
-    // 日志中出现过的应用，按出现频率从高到低排列（这样即使应用很多，
-    // 常用应用也会排在可横向滚动的过滤行靠前的位置）。
-    val appList = remember(logs) {
-        logs.groupingBy { it.packageName }.eachCount()
-            .entries.sortedByDescending { it.value }
-            .map { entry -> entry.key to (logs.first { it.packageName == entry.key }.appName) }
-    }
+    // 过滤行的应用列表（按通知数从多到少），来自独立聚合查询，与分页无关。
+    val appList = remember(appCounts) { appCounts.map { it.packageName to it.appName } }
 
     GlassScaffold(
         title = stringResource(R.string.nav_history),
@@ -120,12 +137,14 @@ fun HistoryScreen(
             return@GlassScaffold
         }
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // 固定表头：统计 + 分组切换 + 应用过滤始终保持固定，这样无需
-            // 滚回顶部就能更改它们。
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Spacer(Modifier.height(4.dp))
-                StatsCard(filtered)
-                Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 固定表头：统计 + 分组切换 + 应用过滤始终保持固定，无需滚回顶部即可更改。
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                Spacer(Modifier.height(Spacing.xs))
+                StatsCard(times, grouping)
+                Row(
+                    Modifier.padding(horizontal = Spacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
                     IOSSegmented(
                         options = listOf(Grouping.DAY, Grouping.WEEK),
                         selected = grouping,
@@ -133,109 +152,151 @@ fun HistoryScreen(
                         onSelect = { grouping = it },
                     )
                 }
-                AppFilterChips(appList, selectedApp) { selectedApp = it }
+                AppFilterChips(appList, selectedApp) { vm.setSelectedApp(it) }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
+
+            // 上拉加载更多：接近列表末尾时请求下一批（VM 侧再做「上一批已加载完」的守卫）。
+            val listState = rememberLazyListState()
+            LaunchedEffect(listState, canLoadMore) {
+                snapshotFlow {
+                    val info = listState.layoutInfo
+                    (info.visibleItemsInfo.lastOrNull()?.index ?: 0) to info.totalItemsCount
+                }.collect { (last, total) ->
+                    if (canLoadMore && total > 0 && last >= total - LOAD_MORE_AHEAD) vm.loadMore()
+                }
+            }
 
             // 只有分组后的日志列表会滚动。用 weight 占据表头之后的剩余空间——
             // 若用 fillMaxSize 会撑出父容器、把列表底部裁掉，导致显示不全。
             val groups = groupLogs(filtered, grouping)
             LazyColumn(
+                state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
             ) {
-            groups.forEach { (header, items) ->
-                item {
-                    Text(
-                        header,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 32.dp, top = 4.dp),
-                    )
+                groups.forEach { (header, items) ->
+                    item {
+                        Text(
+                            header,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = Spacing.xxl, top = Spacing.xs),
+                        )
+                    }
+                    item {
+                        InsetGroupedSection {
+                            items.forEachIndexed { i, log ->
+                                if (i > 0) HairlineDivider(startInset = Spacing.lg)
+                                SwipeableLogRow(
+                                    log = log,
+                                    ruleNames = ruleNames,
+                                    icon = appIcons[log.packageName],
+                                    onDelete = { vm.delete(log) },
+                                    onCreateRule = onCreateRule?.let { cb ->
+                                        { vm.createRuleFrom(log) { id -> cb(id) } }
+                                    },
+                                )
+                            }
+                        }
+                    }
                 }
-                item {
-                    InsetGroupedSection {
-                        items.forEachIndexed { i, log ->
-                            if (i > 0) HairlineDivider(startInset = 16.dp)
-                            SwipeableLogRow(
-                                log = log,
-                                ruleNames = ruleNames,
-                                icon = appIcons[log.packageName],
-                                onDelete = { vm.delete(log) },
-                                onCreateRule = onCreateRule?.let { cb ->
-                                    { vm.createRuleFrom(log) { id -> cb(id) } }
-                                },
+                if (canLoadMore) {
+                    item {
+                        Box(
+                            Modifier.fillMaxWidth().padding(Spacing.lg),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(LoadingIndicatorSize),
+                                strokeWidth = LoadingIndicatorStroke,
                             )
                         }
                     }
                 }
-            }
-            item { Spacer(Modifier.height(24.dp)) }
+                item { Spacer(Modifier.height(Spacing.xl)) }
             }
         }
     }
 }
 
 @Composable
-private fun StatsCard(logs: List<NotificationLog>) {
+private fun StatsCard(times: List<Long>, grouping: Grouping) {
     val weekdays = stringArrayResource(R.array.weekday_full)
     val hours = IntArray(24)
     val days = IntArray(7)
     val cal = Calendar.getInstance()
-    logs.forEach {
-        cal.timeInMillis = it.time
+    times.forEach {
+        cal.timeInMillis = it
         hours[cal.get(Calendar.HOUR_OF_DAY)]++
         days[((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7)]++ // ISO 0=周一
     }
-    val peakHour = hours.indices.maxByOrNull { hours[it] } ?: 0
-    val busiestDay = days.indices.maxByOrNull { days[it] } ?: 0
-    val maxHour = (hours.maxOrNull() ?: 1).coerceAtLeast(1)
+    // 图表跟随分组：按天=24 小时分布，按周=周一~周日分布。
+    val byWeek = grouping == Grouping.WEEK
+    val values = if (byWeek) days.toList() else hours.toList()
+    val peak = values.indices.maxByOrNull { values[it] } ?: 0
+    val maxVal = (values.maxOrNull() ?: 1).coerceAtLeast(1)
+    // 点击某根柱：选中并在概要行显示其数值；再次点击取消。分组切换时清空选中。
+    var selected by remember(byWeek) { mutableStateOf<Int?>(null) }
 
     InsetGroupedSection {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(Spacing.lg)) {
             Text(
-                stringResource(R.string.stat_total, logs.size),
+                stringResource(R.string.stat_total, times.size),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Spacer(Modifier.height(4.dp))
-            Row {
-                Text(
-                    "${stringResource(R.string.stat_peak_hour)}: %02d:00".format(peakHour),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    "${stringResource(R.string.stat_busiest_day)}: ${weekdays.getOrElse(busiestDay) { "" }}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Spacer(Modifier.height(Spacing.xs))
+            val summary = when {
+                selected != null -> "${barLabel(byWeek, selected!!, weekdays)} · " +
+                    stringResource(R.string.stat_bar_count, values[selected!!])
+                byWeek -> "${stringResource(R.string.stat_busiest_day)}: ${weekdays.getOrElse(peak) { "" }}"
+                else -> "${stringResource(R.string.stat_peak_hour)}: %02d:00".format(peak)
             }
-            Spacer(Modifier.height(12.dp))
-            // 24 小时直方图。
+            Text(
+                summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(Spacing.md))
             Row(
-                Modifier.fillMaxWidth().height(48.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                Modifier.fillMaxWidth().height(ChartHeight),
+                horizontalArrangement = Arrangement.spacedBy(ChartBarGap),
                 verticalAlignment = Alignment.Bottom,
             ) {
-                for (h in 0..23) {
-                    val frac = hours[h].toFloat() / maxHour
+                val primary = MaterialTheme.colorScheme.primary
+                values.indices.forEach { i ->
+                    val frac = values[i].toFloat() / maxVal
+                    val isSel = selected == i
+                    val highlight = isSel || (selected == null && i == peak)
+                    // 整列（全高）都可点击，便于点中很矮/为空的柱子。
                     Box(
                         Modifier
                             .weight(1f)
-                            .height((4 + frac * 44).dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(
-                                if (h == peakHour) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                            ),
-                    )
+                            .fillMaxHeight()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { selected = if (isSel) null else i },
+                        contentAlignment = Alignment.BottomCenter,
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(ChartBarMinHeight + ChartBarRange * frac)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(if (highlight) primary else primary.copy(alpha = Alpha.Muted)),
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+/** 直方图某根柱的标签：按天=「HH:00」，按周=星期几。 */
+private fun barLabel(byWeek: Boolean, index: Int, weekdays: Array<String>): String =
+    if (byWeek) weekdays.getOrElse(index) { "" } else "%02d:00".format(index)
 
 @Composable
 private fun AppFilterChips(

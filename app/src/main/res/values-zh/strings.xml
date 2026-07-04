@@ -38,6 +38,7 @@
     <string name="stat_peak_hour">高峰时段</string>
     <string name="stat_busiest_day">最忙</string>
     <string name="stat_total">%d 条通知</string>
+    <string name="stat_bar_count">%1$d 条</string>
     <string name="outcome_modified">已修改</string>
     <string name="outcome_discarded">已丢弃</string>
     <string name="outcome_dismissed">已消除</string>
@@ -221,8 +222,7 @@
     <string name="holiday_update">从网络更新</string>
     <string name="holiday_last_updated">上次更新：%s</string>
     <string name="holiday_never">尚未更新（使用内置数据）</string>
-    <string name="holiday_source">数据来源</string>
-    <string name="holiday_source_detail">%1$s · 国务院公布节假日（含内置回退）</string>
+    <string name="holiday_source_footer">数据来源：%1$s（国务院公布，含内置回退）</string>
     <string name="holiday_update_done">节假日数据已更新</string>
     <string name="holiday_update_failed">更新失败（网络不可用？）</string>
     <string name="lang_system">跟随系统</string>

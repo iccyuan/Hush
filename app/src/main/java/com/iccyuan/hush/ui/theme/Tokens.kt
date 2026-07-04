@@ -1,5 +1,6 @@
 package com.iccyuan.hush.ui.theme
 
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
@@ -29,4 +30,15 @@ object Alpha {
 object FontSizes {
     /** 极小的角标（如节假日日历上的“休/班”标记）。 */
     val Tiny = 8.sp
+}
+
+/** 统一的间距刻度（dp）。调用处优先用这些语义档位，避免散落硬编码的数值。 */
+object Spacing {
+    val xxs = 2.dp
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 24.dp
+    val xxl = 32.dp
 }
