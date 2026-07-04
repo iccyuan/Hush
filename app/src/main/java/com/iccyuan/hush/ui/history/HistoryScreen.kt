@@ -83,6 +83,22 @@ private val ChartBarGap = 2.dp
 private val ChartBarMinHeight = 4.dp         // 空桶也留一点高度，便于点击
 private val ChartBarRange = 44.dp            // 满桶相对最小高度的额外高度
 
+/**
+ * 一周从哪天开始——与**应用语言**绑定，而非系统区域：中文→周一，英文→周日，其余语言用该地区默认。
+ * 返回 Calendar 的 DAY_OF_WEEK 常量（SUNDAY=1..SATURDAY=7）。同时用于图表与「按周」列表分组，保持一致。
+ */
+@Composable
+private fun rememberWeekStart(): Int {
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    return remember(locale) {
+        when (locale.language) {
+            "zh" -> Calendar.MONDAY
+            "en" -> Calendar.SUNDAY
+            else -> Calendar.getInstance(locale).firstDayOfWeek
+        }
+    }
+}
+
 @Composable
 fun HistoryScreen(
     onBack: (() -> Unit)? = null,
@@ -114,6 +130,7 @@ fun HistoryScreen(
         }
     }
     var grouping by remember { mutableStateOf(Grouping.DAY) }
+    val weekStart = rememberWeekStart()
 
     // vm.logs 已按所选应用在查询层过滤；这里只再滤掉空白通知（既无标题也无正文）。
     val filtered = remember(logs) {
@@ -140,7 +157,7 @@ fun HistoryScreen(
             // 固定表头：统计 + 分组切换 + 应用过滤始终保持固定，无需滚回顶部即可更改。
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Spacer(Modifier.height(Spacing.xs))
-                StatsCard(times, grouping)
+                StatsCard(times, grouping, weekStart)
                 Row(
                     Modifier.padding(horizontal = Spacing.lg),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -169,7 +186,7 @@ fun HistoryScreen(
 
             // 只有分组后的日志列表会滚动。用 weight 占据表头之后的剩余空间——
             // 若用 fillMaxSize 会撑出父容器、把列表底部裁掉，导致显示不全。
-            val groups = groupLogs(filtered, grouping)
+            val groups = groupLogs(filtered, grouping, weekStart)
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -221,7 +238,7 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun StatsCard(times: List<Long>, grouping: Grouping) {
+private fun StatsCard(times: List<Long>, grouping: Grouping, firstDow: Int) {
     val weekdays = stringArrayResource(R.array.weekday_full)
     val hours = IntArray(24)
     val days = IntArray(7)
@@ -229,9 +246,10 @@ private fun StatsCard(times: List<Long>, grouping: Grouping) {
     times.forEach {
         cal.timeInMillis = it
         hours[cal.get(Calendar.HOUR_OF_DAY)]++
-        days[((cal.get(Calendar.DAY_OF_WEEK) + 5) % 7)]++ // ISO 0=周一
+        // 周分布按本地一周起始日排序（与「按周」列表分组一致）：slot 0 = 一周起始日。
+        days[(cal.get(Calendar.DAY_OF_WEEK) - firstDow + 7) % 7]++
     }
-    // 图表跟随分组：按天=24 小时分布，按周=周一~周日分布。
+    // 图表跟随分组：按天=24 小时分布，按周=一周内各天分布（起始日随地区）。
     val byWeek = grouping == Grouping.WEEK
     val values = if (byWeek) days.toList() else hours.toList()
     val peak = values.indices.maxByOrNull { values[it] } ?: 0
@@ -248,9 +266,9 @@ private fun StatsCard(times: List<Long>, grouping: Grouping) {
             )
             Spacer(Modifier.height(Spacing.xs))
             val summary = when {
-                selected != null -> "${barLabel(byWeek, selected!!, weekdays)} · " +
+                selected != null -> "${barLabel(byWeek, selected!!, weekdays, firstDow)} · " +
                     stringResource(R.string.stat_bar_count, values[selected!!])
-                byWeek -> "${stringResource(R.string.stat_busiest_day)}: ${weekdays.getOrElse(peak) { "" }}"
+                byWeek -> "${stringResource(R.string.stat_busiest_day)}: ${barLabel(true, peak, weekdays, firstDow)}"
                 else -> "${stringResource(R.string.stat_peak_hour)}: %02d:00".format(peak)
             }
             Text(
@@ -294,9 +312,17 @@ private fun StatsCard(times: List<Long>, grouping: Grouping) {
     }
 }
 
-/** 直方图某根柱的标签：按天=「HH:00」，按周=星期几。 */
-private fun barLabel(byWeek: Boolean, index: Int, weekdays: Array<String>): String =
-    if (byWeek) weekdays.getOrElse(index) { "" } else "%02d:00".format(index)
+/**
+ * 直方图某根柱的标签：按天=「HH:00」；按周=该柱对应的星期几。
+ * 周柱的 [index] 是「距一周起始日的偏移」（slot），需按 [firstDow] 换算回真实星期，
+ * 再映射到 ISO 顺序（周一=0…周日=6）的 [weekdays] 数组。
+ */
+private fun barLabel(byWeek: Boolean, index: Int, weekdays: Array<String>, firstDow: Int): String =
+    if (!byWeek) "%02d:00".format(index)
+    else {
+        val calDow = ((firstDow - 1 + index) % 7) + 1 // 1=周日..7=周六（Calendar 约定）
+        weekdays.getOrElse((calDow + 5) % 7) { "" }   // 转 ISO 下标
+    }
 
 @Composable
 private fun AppFilterChips(
@@ -545,7 +571,11 @@ private fun timeOf(t: Long): String =
 private fun fullTimeOf(t: Long): String =
     java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(t))
 
-private fun groupLogs(logs: List<NotificationLog>, grouping: Grouping): List<Pair<String, List<NotificationLog>>> {
+private fun groupLogs(
+    logs: List<NotificationLog>,
+    grouping: Grouping,
+    firstDow: Int,
+): List<Pair<String, List<NotificationLog>>> {
     val cal = Calendar.getInstance()
     val dayFmt = java.text.SimpleDateFormat("yyyy-MM-dd EEE", java.util.Locale.getDefault())
     val rangeFmt = java.text.SimpleDateFormat("M-d", java.util.Locale.getDefault())
@@ -554,9 +584,9 @@ private fun groupLogs(logs: List<NotificationLog>, grouping: Grouping): List<Pai
         when (grouping) {
             Grouping.DAY -> dayFmt.format(java.util.Date(log.time))
             Grouping.WEEK -> {
-                // 用「本周一 ~ 本周日」的日期范围作为分组标题，比 "W26" 直观，
-                // 切换按周时标题变化也一目了然。
-                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                // 用「本周起始日 ~ 结束日」的日期范围作为分组标题；起始日与语言绑定（见 rememberWeekStart），
+                // 与上方图表保持一致。回退到本周起始日：
+                while (cal.get(Calendar.DAY_OF_WEEK) != firstDow) cal.add(Calendar.DAY_OF_MONTH, -1)
                 val start = cal.time
                 cal.add(Calendar.DAY_OF_MONTH, 6)
                 val end = cal.time

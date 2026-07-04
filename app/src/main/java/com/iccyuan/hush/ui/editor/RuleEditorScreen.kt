@@ -503,11 +503,29 @@ private fun PreviewSection(rule: Rule) {
 /** 交互式测试器：输入一条样例通知，调用引擎模拟并展示命中/改写/副作用结果。 */
 @Composable
 private fun SimulatorSection(rule: Rule) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val engine = remember { RuleEngine() }
+    // 从选择令牌里取真实包名（兼容「包名@用户id」的分身令牌）。
+    val pkg = rule.appPackages.firstOrNull()
+        ?.let { com.iccyuan.hush.data.AppInfo.packageOfToken(it) } ?: "com.example.app"
+    // 用**真实应用名**（而非从包名硬凑），使 {app} 模板与「应用名」触发器按实际情况判定。
+    val appName = remember(pkg) { com.iccyuan.hush.service.NotificationFields.appLabel(context, pkg) }
+    // 取该应用（未选应用时取任意）最近一条真实通知作为样例初值，让「测试」贴近实际；可编辑。
+    val sample by androidx.compose.runtime.produceState<NotificationLog?>(null, pkg, rule.appPackages) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            NotificationLogRepository.get(context).recent(200).firstOrNull {
+                (rule.appPackages.isEmpty() || it.packageName == pkg) &&
+                    (it.title.isNotBlank() || it.text.isNotBlank())
+            }
+        }
+    }
     var title by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("") }
-    val pkg = rule.appPackages.firstOrNull() ?: "com.example.app"
-    val appName = pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+    var edited by remember { mutableStateOf(false) }
+    // 首次拿到真实样例且用户尚未编辑时预填。
+    androidx.compose.runtime.LaunchedEffect(sample) {
+        if (!edited) sample?.let { title = it.title; text = it.text }
+    }
     val decision = remember(rule, title, text) {
         if (title.isBlank() && text.isBlank()) null
         else engine.simulate(rule, pkg, appName, title, text)
@@ -517,9 +535,9 @@ private fun SimulatorSection(rule: Rule) {
         footer = stringResource(R.string.sim_hint),
     ) {
         Column(Modifier.padding(12.dp)) {
-            LabeledTextField(stringResource(R.string.sim_sample_title), title) { title = it }
+            LabeledTextField(stringResource(R.string.sim_sample_title), title) { title = it; edited = true }
             Spacer(Modifier.height(6.dp))
-            LabeledTextField(stringResource(R.string.sim_sample_text), text) { text = it }
+            LabeledTextField(stringResource(R.string.sim_sample_text), text) { text = it; edited = true }
         }
         if (decision != null) {
             HairlineDivider(startInset = 16.dp)
