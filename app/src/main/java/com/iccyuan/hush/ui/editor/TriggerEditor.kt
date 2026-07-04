@@ -159,6 +159,12 @@ private fun DeviceEventFields(t: Trigger.DeviceEvent, onChange: (Trigger.DeviceE
         // 仅 Wi-Fi 事件可限定 SSID（多选）；为空=任意 Wi-Fi。
         val isWifi = t.event == DeviceEventType.WIFI_CONNECTED || t.event == DeviceEventType.WIFI_DISCONNECTED
         if (isWifi) {
+            // 读取 Wi-Fi 名称需定位权限——按需在此运行时申请，授予后自动添加当前网络。
+            val locLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+            ) { granted ->
+                if (granted) currentWifiSsid(context)?.let { s -> if (s !in t.ssids) onChange(t.copy(ssids = t.ssids + s)) }
+            }
             Spacer(Modifier.height(14.dp))
             Text(stringResource(R.string.wifi_ssid_label), style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(2.dp))
@@ -195,8 +201,14 @@ private fun DeviceEventFields(t: Trigger.DeviceEvent, onChange: (Trigger.DeviceE
                 com.iccyuan.hush.ui.components.IOSTintedButton(
                     text = stringResource(R.string.wifi_ssid_add_current),
                     onClick = {
-                        val s = currentWifiSsid(context)
-                        if (s != null && s !in t.ssids) onChange(t.copy(ssids = t.ssids + s))
+                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        if (granted) {
+                            currentWifiSsid(context)?.let { s -> if (s !in t.ssids) onChange(t.copy(ssids = t.ssids + s)) }
+                        } else {
+                            locLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
                     },
                     modifier = Modifier.weight(1f),
                 )
