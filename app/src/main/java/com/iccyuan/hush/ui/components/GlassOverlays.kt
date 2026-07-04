@@ -1,7 +1,11 @@
 package com.iccyuan.hush.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -16,11 +21,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 private val Scrim = Color(0x66000000)
 
@@ -65,6 +75,10 @@ fun GlassSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
+    val scope = rememberCoroutineScope()
+    val offsetY = remember { Animatable(0f) }
+    // 向下拖动超过该阈值即收起，否则回弹。
+    val dismissThreshold = with(LocalDensity.current) { 90.dp.toPx() }
     Box(
         Modifier
             .fillMaxSize()
@@ -74,6 +88,7 @@ fun GlassSheet(
         Column(
             Modifier
                 .align(Alignment.BottomCenter)
+                .offset { IntOffset(0, offsetY.value.roundToInt()) }
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
                 .glassPanel(haze)
@@ -81,15 +96,31 @@ fun GlassSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 12.dp),
         ) {
+            // 顶部把手区：可向下拖动收起面板（拖过阈值或快速下滑则关闭，否则回弹）。
             Box(
                 Modifier
-                    .padding(top = 8.dp, bottom = 4.dp)
-                    .align(Alignment.CenterHorizontally)
-                    .width(36.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-                    .padding(vertical = 2.5.dp),
-            )
+                    .fillMaxWidth()
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
+                            scope.launch { offsetY.snapTo((offsetY.value + delta).coerceAtLeast(0f)) }
+                        },
+                        onDragStopped = { velocity ->
+                            if (offsetY.value > dismissThreshold || velocity > 1500f) onDismiss()
+                            else offsetY.animateTo(0f)
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .padding(top = 8.dp, bottom = 4.dp)
+                        .width(36.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        .padding(vertical = 2.5.dp),
+                )
+            }
             content()
         }
     }
