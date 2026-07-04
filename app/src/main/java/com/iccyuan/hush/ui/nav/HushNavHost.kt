@@ -10,12 +10,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.iccyuan.hush.ui.editor.RuleEditorScreen
+import com.iccyuan.hush.ui.settings.SettingsCategory
+import com.iccyuan.hush.ui.settings.SettingsDetailScreen
 
 object Routes {
     const val MAIN = "main"
     const val EDITOR = "editor/{ruleId}"
     const val INSIGHTS = "insights"
+    const val SETTINGS_DETAIL = "settings/{category}"
     fun editor(ruleId: Long) = "editor/$ruleId"
+    fun settingsDetail(category: SettingsCategory) = "settings/${category.name}"
 }
 
 @Composable
@@ -35,7 +39,17 @@ fun HushNavHost() {
             MainScaffold(
                 onOpenRule = { id -> nav.navigate(Routes.editor(id)) },
                 onOpenInsights = { nav.navigate(Routes.INSIGHTS) },
+                onOpenSettingsCategory = { cat -> nav.navigate(Routes.settingsDetail(cat)) },
             )
+        }
+        composable(
+            Routes.SETTINGS_DETAIL,
+            arguments = listOf(navArgument("category") { type = NavType.StringType }),
+        ) { backStack ->
+            val cat = backStack.arguments?.getString("category")
+                ?.let { runCatching { SettingsCategory.valueOf(it) }.getOrNull() }
+                ?: SettingsCategory.GENERAL
+            SettingsDetailScreen(category = cat, onBack = { nav.popBackStack() })
         }
         composable(
             Routes.EDITOR,

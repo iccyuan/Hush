@@ -51,6 +51,7 @@ enum class MainTab { RULES, HISTORY, ADD, SETTINGS }
 fun MainScaffold(
     onOpenRule: (Long) -> Unit,
     onOpenInsights: () -> Unit = {},
+    onOpenSettingsCategory: (com.iccyuan.hush.ui.settings.SettingsCategory) -> Unit = {},
 ) {
     var tab by rememberSaveable { mutableStateOf(MainTab.RULES) }
     var addSession by remember { mutableIntStateOf(0) }
@@ -78,7 +79,11 @@ fun MainScaffold(
                 vm = androidx.lifecycle.viewmodel.compose.viewModel(key = "new-rule-$addSession"),
             )
         }
-        MainTab.SETTINGS -> SettingsScreen(bottomBar = bar, onOpenInsights = onOpenInsights)
+        MainTab.SETTINGS -> SettingsScreen(
+            bottomBar = bar,
+            onOpenInsights = onOpenInsights,
+            onOpenCategory = onOpenSettingsCategory,
+        )
     }
 }
 
