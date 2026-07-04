@@ -226,7 +226,7 @@
     <string name="theme_light">浅色</string>
     <string name="theme_dark">深色</string>
     <string name="settings_language">语言</string>
-    <string name="settings_holidays">节假日（中国）</string>
+    <string name="settings_holidays">节假日</string>
     <string name="holiday_update">从网络更新</string>
     <string name="holiday_last_updated">上次更新：%s</string>
     <string name="holiday_never">尚未更新（使用内置数据）</string>
@@ -541,7 +541,7 @@
     <string name="macro_accessibility_desc">允许静界录制并回放点击，用于打卡之类的自动化。</string>
 
     <!-- 无障碍设置卡片 -->
-    <string name="settings_accessibility">无障碍（自动点击）</string>
+    <string name="settings_accessibility">无障碍</string>
     <string name="settings_accessibility_desc">录制和回放打卡宏需要它。</string>
     <string name="open_accessibility_settings">打开无障碍设置</string>
     <string name="status_enabled">已开启</string>
