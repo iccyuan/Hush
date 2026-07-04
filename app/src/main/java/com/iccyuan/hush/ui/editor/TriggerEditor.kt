@@ -4,6 +4,7 @@ import com.iccyuan.hush.engine.TextMatcher
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.iccyuan.hush.ui.findActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -159,12 +160,6 @@ private fun DeviceEventFields(t: Trigger.DeviceEvent, onChange: (Trigger.DeviceE
         // 仅 Wi-Fi 事件可限定 SSID（多选）；为空=任意 Wi-Fi。
         val isWifi = t.event == DeviceEventType.WIFI_CONNECTED || t.event == DeviceEventType.WIFI_DISCONNECTED
         if (isWifi) {
-            // 读取 Wi-Fi 名称需定位权限——按需在此运行时申请，授予后自动添加当前网络。
-            val locLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
-            ) { granted ->
-                if (granted) currentWifiSsid(context)?.let { s -> if (s !in t.ssids) onChange(t.copy(ssids = t.ssids + s)) }
-            }
             Spacer(Modifier.height(14.dp))
             Text(stringResource(R.string.wifi_ssid_label), style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(2.dp))
@@ -207,7 +202,13 @@ private fun DeviceEventFields(t: Trigger.DeviceEvent, onChange: (Trigger.DeviceE
                         if (granted) {
                             currentWifiSsid(context)?.let { s -> if (s !in t.ssids) onChange(t.copy(ssids = t.ssids + s)) }
                         } else {
-                            locLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                            // GlassDialog 内取不到 ActivityResult 注册器，改用经典的 Activity 申请（与地图选点一致）；
+                            // 授予后再点一次即可添加当前 Wi-Fi。
+                            context.findActivity()?.let { act ->
+                                androidx.core.app.ActivityCompat.requestPermissions(
+                                    act, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 0,
+                                )
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f),
