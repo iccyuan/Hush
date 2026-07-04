@@ -27,12 +27,12 @@ import java.net.URLEncoder
 class SideEffectExecutor(
     private val context: Context,
     private val scope: CoroutineScope,
-    private val tts: TtsManager,
+    private val tts: Lazy<TtsManager>,
 ) {
     fun execute(effects: List<SideEffect>) {
         effects.forEach { effect ->
             when (effect) {
-                is SideEffect.ReadAloud -> tts.speak(effect.text)
+                is SideEffect.ReadAloud -> tts.value.speak(effect.text)
                 is SideEffect.WakeScreen -> wakeScreen(effect.durationMs)
                 is SideEffect.Toast -> showToast(effect.text)
                 is SideEffect.Notify -> postReminder(effect.text)

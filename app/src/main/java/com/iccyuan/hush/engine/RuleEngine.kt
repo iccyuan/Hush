@@ -443,7 +443,8 @@ class RuleEngine {
         return try {
             if (action.isRegex) {
                 val options = if (action.caseSensitive) emptySet() else setOf(RegexOption.IGNORE_CASE)
-                Regex(action.pattern, options).replace(input, action.replacement)
+                val regex = replaceCache.getOrPut(action.pattern to options) { Regex(action.pattern, options) }
+                regex.replace(input, action.replacement)
             } else {
                 input.replace(action.pattern, action.replacement, ignoreCase = !action.caseSensitive)
             }
@@ -455,6 +456,10 @@ class RuleEngine {
     private companion object {
         /** 按规则开关使用的默认弹幕渲染模板。 */
         const val DANMAKU_TEMPLATE = "{app}: {title} {text}"
+
+        // 按 (pattern, options) 缓存编译结果，避免每条通知都重新编译同一条替换动作的正则。
+        // 用 companion 而非实例字段共享缓存：编辑器预览会创建多个 RuleEngine 实例。
+        val replaceCache = java.util.concurrent.ConcurrentHashMap<Pair<String, Set<RegexOption>>, Regex>()
 
         /** 用于仅内容预览匹配的中性设备状态。 */
         val PREVIEW_DEVICE = DeviceContext(

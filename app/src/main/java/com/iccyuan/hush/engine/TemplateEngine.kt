@@ -1,8 +1,9 @@
 package com.iccyuan.hush.engine
 
 import com.iccyuan.hush.data.model.NotificationField
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -69,11 +70,13 @@ object TemplateEngine {
 
     // 以采样的设备时间（device.nowMillis）渲染。当 now 为 0（仅内容预览的中性
     // 设备状态）时，回退到当前挂钟时间，以免预览出现 1970 年。
-    private fun formatNow(fmt: SimpleDateFormat, ctx: MatchContext): String {
+    // DateTimeFormatter 不可变、线程安全，可放心在 onNotificationPosted 的多线程协程间共享
+    // ——不同于 SimpleDateFormat（此前的实现在并发渲染 {time}/{date} 时会有状态错乱风险）。
+    private fun formatNow(fmt: DateTimeFormatter, ctx: MatchContext): String {
         val millis = ctx.device.nowMillis.takeIf { it > 0L } ?: System.currentTimeMillis()
-        return fmt.format(Date(millis))
+        return fmt.format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
     }
 
-    private val TIME_FMT = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private val DATE_FMT = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val TIME_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
+    private val DATE_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
 }

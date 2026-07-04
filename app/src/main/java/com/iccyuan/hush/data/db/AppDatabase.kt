@@ -9,12 +9,14 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
+import com.iccyuan.hush.data.model.RuleFireStats
 
-@Database(entities = [Rule::class, NotificationLog::class], version = 8, exportSchema = true)
+@Database(entities = [Rule::class, NotificationLog::class, RuleFireStats::class], version = 9, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
     abstract fun notificationLogDao(): NotificationLogDao
+    abstract fun ruleFireStatsDao(): RuleFireStatsDao
 
     companion object {
         @Volatile
@@ -55,8 +57,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 触发计数迁到独立表，使热路径的计数写入不再触发 rules 表的 Flow 失效
+                // （见 [RuleFireStats] 上的说明）。把既有计数原样搬过去，rules.fireCount 列
+                // 保留但此后不再更新（仅为旧数据兼容，避免破坏性迁移）。
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS rule_fire_stats (" +
+                        "ruleId INTEGER NOT NULL PRIMARY KEY, " +
+                        "fireCount INTEGER NOT NULL DEFAULT 0)"
+                )
+                db.execSQL("INSERT INTO rule_fire_stats (ruleId, fireCount) SELECT id, fireCount FROM rules")
+            }
+        }
+
         private val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
 
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {

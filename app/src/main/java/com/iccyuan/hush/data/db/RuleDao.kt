@@ -39,9 +39,6 @@ interface RuleDao {
     @Query("UPDATE rules SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
-    @Query("UPDATE rules SET fireCount = fireCount + 1 WHERE id = :id")
-    suspend fun incrementFireCount(id: Long)
-
     @Query("UPDATE rules SET sortOrder = :order WHERE id = :id")
     suspend fun setSortOrder(id: Long, order: Int)
 

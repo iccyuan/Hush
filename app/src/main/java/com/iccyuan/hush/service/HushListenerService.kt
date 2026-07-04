@@ -1,11 +1,16 @@
 package com.iccyuan.hush.service
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.core.content.ContextCompat
 import com.iccyuan.hush.data.NotificationLogRepository
 import com.iccyuan.hush.data.RuleRepository
 import com.iccyuan.hush.data.RuntimeStateStore
@@ -47,7 +52,9 @@ class HushListenerService : NotificationListenerService() {
     private lateinit var settings: SettingsStore
     private lateinit var channels: ChannelManager
     private lateinit var modifier: NotificationModifier
-    private lateinit var tts: TtsManager
+    // 惰性构造：仅当某条动作真正朗读文本时才绑定 TextToSpeech 引擎，避免大多数从不使用
+    // 「朗读」功能的用户在服务启动时白白付出这份开销。
+    private val tts = lazy { TtsManager(this) }
     private lateinit var sideEffects: SideEffectExecutor
 
     @Volatile private var activeRules: List<Rule> = emptyList()
@@ -66,6 +73,13 @@ class HushListenerService : NotificationListenerService() {
     @Volatile private var wifiUp: Boolean = false
     // 最近一次连接的 Wi-Fi SSID：断开事件用它做「指定 Wi-Fi」过滤（断开后已读不到）。
     @Volatile private var lastSsid: String? = null
+
+    // 应用安装/卸载/更新时，失效对应包名的应用标签缓存（见 [NotificationFields.appLabel]）。
+    private val packageChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            intent.data?.schemeSpecificPart?.let { NotificationFields.invalidateAppLabel(it) }
+        }
+    }
 
     /** 更新内存中的活动规则，并据此重算需要采样哪些设备状态、同步地理围栏与事件监听。 */
     private fun setActiveRules(rules: List<Rule>) {
@@ -178,13 +192,23 @@ class HushListenerService : NotificationListenerService() {
         settings = SettingsStore.get(this)
         channels = ChannelManager(this)
         modifier = NotificationModifier(this, channels)
-        tts = TtsManager(this)
         sideEffects = SideEffectExecutor(this, scope, tts)
         channels.ensureBaseChannels()
         // 恢复并持久化运行时状态（冷却 / 静音 / 变量），使其跨进程重启依然有效。
         RuntimeStateStore.init(this)
         // 围栏穿越的那一刻 → 触发位置事件规则。
         GeofenceManager.crossingListener = { key, entered -> onGeofenceEvent(key, entered) }
+        ContextCompat.registerReceiver(
+            this,
+            packageChangeReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addDataScheme("package")
+            },
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
 
         // 规则观察者必须长期存活：任一次更新处理出错都不能让整条 Flow 终止，
         // 否则后续改规则将不再动态生效（需重开开关才行）。逐次 runCatching + 整体 retry 兜底。
@@ -400,7 +424,8 @@ class HushListenerService : NotificationListenerService() {
             runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) }
         }
         wifiCallback = null
-        tts.shutdown()
+        runCatching { unregisterReceiver(packageChangeReceiver) }
+        if (tts.isInitialized()) tts.value.shutdown()
         scope.cancel()
     }
 

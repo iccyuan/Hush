@@ -192,7 +192,9 @@ fun HistoryScreen(
 
             // 只有分组后的日志列表会滚动。用 weight 占据表头之后的剩余空间——
             // 若用 fillMaxSize 会撑出父容器、把列表底部裁掉，导致显示不全。
-            val groups = groupLogs(filtered, grouping, weekStart)
+            // 分组是 O(n) 的 groupBy + 日期格式化；用 remember 固定到实际影响分组结果的输入上，
+            // 避免 times/appCounts/ruleNames 等无关 StateFlow 更新触发的重组白白重算一遍。
+            val groups = remember(filtered, grouping, weekStart) { groupLogs(filtered, grouping, weekStart) }
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),

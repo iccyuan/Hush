@@ -43,6 +43,36 @@ object DanmakuController {
     private val inflight = HashMap<String, Int>()   // 相同文字：当前排队中 + 屏幕上的条数
     private val recentEnd = HashMap<String, Long>()  // 相同文字：上次离场时刻（离场后短暂冷却）
 
+    // 常驻悬浮窗容器：懒创建一次，后续弹幕仅作为子 View 增删，而非每条弹幕各开一个 WindowManager
+    // 窗口——通知密集时后者会造成明显的 surface 分配/销毁开销。空容器（无弹幕时）本身开销可忽略。
+    private var overlayRoot: FrameLayout? = null
+
+    /** 确保常驻悬浮窗已创建；已存在则直接复用。失败（如权限被收回）返回 null。 */
+    private fun ensureOverlay(app: Context): FrameLayout? {
+        overlayRoot?.let { return it }
+        val wm = app.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return null
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+        val root = FrameLayout(app)
+        return runCatching { wm.addView(root, lp); root }
+            .onSuccess { overlayRoot = it }
+            .onFailure { Logger.w("danmaku overlay create failed: ${it.message}") }
+            .getOrNull()
+    }
+
     /** 由服务在设置变化时调用，更新全局弹幕外观/行为。 */
     fun updateConfig(c: DanmakuConfig) {
         config = c
@@ -97,7 +127,7 @@ object DanmakuController {
     }
 
     private fun showOnRow(app: Context, text: String, row: Int, cfg: DanmakuConfig) {
-        val wm = app.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+        val root = ensureOverlay(app) ?: run { endText(text); return }
         val metrics = app.resources.displayMetrics
         val density = metrics.density
         val screenWidth = metrics.widthPixels
@@ -131,33 +161,18 @@ object DanmakuController {
             alpha = 0f
         }
 
-        // 全屏宽的透明容器承载弹幕，使胶囊能在整屏范围内平移而不被窗口裁剪。
-        val container = FrameLayout(app).apply {
-            addView(tv, FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT))
-        }
-
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        // 弹幕作为子 View 加入常驻悬浮窗（[ensureOverlay]），而非各自新开一个窗口；
+        // topMargin 决定其所在行，translationX 负责水平滚动。
         val rowHeight = (cfg.fontSizeSp * density * 1.35f + padV * 2 + density * 8f).toInt()
-        val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            type,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT,
+        val lp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            y = (cfg.topOffsetDp * density).toInt() + row * rowHeight
+            topMargin = (cfg.topOffsetDp * density).toInt() + row * rowHeight
         }
 
-        runCatching { wm.addView(container, lp) }.onFailure {
+        runCatching { root.addView(tv, lp) }.onFailure {
             // 某些 OEM（如 ColorOS）即使已授予「显示在其他应用上层」，仍会拦截后台进程绘制悬浮窗，
             // 需额外开启「后台弹出界面」权限。记录原因便于排查。
             Logger.w("danmaku addView failed: ${it.message}")
@@ -166,7 +181,7 @@ object DanmakuController {
         }
 
         tv.post {
-            val start = container.width.toFloat().coerceAtLeast(screenWidth.toFloat())
+            val start = root.width.toFloat().coerceAtLeast(screenWidth.toFloat())
             val end = -tv.width.toFloat()
             // 恒定速度：以「屏宽 / durationMs」为基准速度，实际时长按总行程(屏宽 + 文字宽度)等比缩放。
             // 这样长短不一、数量多少的弹幕都以**同一速度**滚动，速度不再随文字长度/通知条数变化。
@@ -179,7 +194,7 @@ object DanmakuController {
                 .setDuration(duration)
                 .setInterpolator(LinearInterpolator())
                 .withEndAction {
-                    runCatching { wm.removeView(container) }
+                    runCatching { root.removeView(tv) }
                     endText(text)
                 }
                 .start()

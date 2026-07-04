@@ -1,6 +1,7 @@
 package com.iccyuan.hush.engine
 
 import com.iccyuan.hush.data.model.MatchMode
+import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
 /** 文本比较的结果，携带任意正则捕获组。 */
@@ -8,6 +9,10 @@ data class MatchResult(val matched: Boolean, val groups: Map<String, String> = e
 
 /** 由触发器和替换动作共享的无状态比较辅助方法。 */
 object TextMatcher {
+
+    // 按 (pattern, flags) 缓存编译结果，避免每条通知都重新编译同一条规则的正则。
+    // 规则数量有限，缓存无需驱逐；模式文本变化会自然产生新键，编辑规则后旧模式的正则不会再被使用。
+    private val patternCache = ConcurrentHashMap<Pair<String, Int>, Pattern>()
 
     fun evaluate(
         mode: MatchMode,
@@ -30,7 +35,8 @@ object TextMatcher {
     private fun regex(pattern: String, value: String, caseSensitive: Boolean): MatchResult {
         return try {
             val flags = if (caseSensitive) 0 else Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CASE
-            val m = Pattern.compile(pattern, flags).matcher(value)
+            val compiled = patternCache.getOrPut(pattern to flags) { Pattern.compile(pattern, flags) }
+            val m = compiled.matcher(value)
             if (m.find()) {
                 val groups = buildMap {
                     for (i in 1..m.groupCount()) {

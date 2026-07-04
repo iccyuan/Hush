@@ -6,9 +6,18 @@ import android.content.pm.PackageManager
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
 import com.iccyuan.hush.data.model.NotificationField
+import java.util.concurrent.ConcurrentHashMap
 
 /** 从已发布的通知中提取可编辑的文本字段。 */
 object NotificationFields {
+
+    // 每条通知都会解析应用标签，而 PackageManager 的这一调用是 binder 往返，缓存以避免重复开销。
+    // 由 [invalidateAppLabel] 在包安装/卸载/更新时按包名失效。
+    private val appLabelCache = ConcurrentHashMap<String, String>()
+
+    fun invalidateAppLabel(packageName: String) {
+        appLabelCache.remove(packageName)
+    }
 
     fun extract(sbn: StatusBarNotification): MutableMap<NotificationField, String> {
         val notification = sbn.notification
@@ -78,11 +87,14 @@ object NotificationFields {
         }
     }
 
-    /** 解析面向用户的应用标签，若失败则回退为包名。 */
-    fun appLabel(context: Context, packageName: String): String = try {
-        val pm = context.packageManager
-        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-    } catch (_: PackageManager.NameNotFoundException) {
-        packageName
-    }
+    /** 解析面向用户的应用标签，若失败则回退为包名。结果按包名缓存，见 [invalidateAppLabel]。 */
+    fun appLabel(context: Context, packageName: String): String =
+        appLabelCache.getOrPut(packageName) {
+            try {
+                val pm = context.packageManager
+                pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+            } catch (_: PackageManager.NameNotFoundException) {
+                packageName
+            }
+        }
 }
