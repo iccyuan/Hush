@@ -249,65 +249,65 @@ private fun LocationMapContent(
     var searching by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
 
-    Box(modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { mapView },
-            modifier = Modifier.fillMaxSize(),
-        )
-
-        // 顶部搜索栏 + 结果下拉。
-        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(8.dp)) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .shadow(2.dp, RoundedCornerShape(10.dp))
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MapControlBg)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Filled.Search, null, tint = Color(0xFF8E8E93), modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    singleLine = true,
-                    textStyle = TextStyle(color = Color(0xFF1C1C1E), fontSize = 15.sp),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        searching = true
-                        searchPoi(context, query) { results = it; searching = false }
-                        focus.clearFocus()
-                    }),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { inner ->
-                        if (query.isEmpty()) {
-                            Text(
-                                stringResource(R.string.map_search_hint),
-                                color = Color(0xFF8E8E93),
-                                style = TextStyle(fontSize = 15.sp),
-                            )
-                        }
-                        inner()
-                    },
+    Column(modifier.fillMaxSize()) {
+        // 顶部搜索栏——放在地图**上方**（不再浮在地图上遮挡地图）。
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .shadow(2.dp, RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(10.dp))
+                .background(MapControlBg)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.Search, null, tint = Color(0xFF8E8E93), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            BasicTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                textStyle = TextStyle(color = Color(0xFF1C1C1E), fontSize = 15.sp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    searching = true
+                    searchPoi(context, query) { results = it; searching = false }
+                    focus.clearFocus()
+                }),
+                modifier = Modifier.weight(1f),
+                decorationBox = { inner ->
+                    if (query.isEmpty()) {
+                        Text(
+                            stringResource(R.string.map_search_hint),
+                            color = Color(0xFF8E8E93),
+                            style = TextStyle(fontSize = 15.sp),
+                        )
+                    }
+                    inner()
+                },
+            )
+            if (query.isNotEmpty()) {
+                Icon(
+                    Icons.Filled.Close, null, tint = Color(0xFF8E8E93),
+                    modifier = Modifier.size(18.dp).clickable { query = ""; results = emptyList() },
                 )
-                if (query.isNotEmpty()) {
-                    Icon(
-                        Icons.Filled.Close, null, tint = Color(0xFF8E8E93),
-                        modifier = Modifier.size(18.dp).clickable { query = ""; results = emptyList() },
-                    )
-                }
             }
-            // 结果下拉。
+        }
+
+        // 地图区域：占据搜索栏之下的剩余空间。搜索结果以浮层盖在地图顶部（不挤压布局）。
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+
             if (results.isNotEmpty()) {
-                Spacer(Modifier.size(6.dp))
                 Column(
                     Modifier
+                        .align(Alignment.TopCenter)
                         .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
                         .shadow(3.dp, RoundedCornerShape(10.dp))
                         .clip(RoundedCornerShape(10.dp))
                         .background(MapControlBg)
-                        .heightIn(max = 200.dp)
+                        .heightIn(max = 220.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
                     results.forEach { hit ->
@@ -343,11 +343,10 @@ private fun LocationMapContent(
                     }
                 }
             }
-        }
 
-        // 自绘控件：缩放（合并在一张卡上）+ 定位，靠右垂直排列。SurfaceView 上不能磨砂，改用不透明白底。
-        Column(
-            Modifier.align(Alignment.BottomEnd).padding(12.dp),
+            // 自绘控件：缩放（合并在一张卡上）+ 定位，靠右垂直排列。SurfaceView 上不能磨砂，改用不透明白底。
+            Column(
+                Modifier.align(Alignment.BottomEnd).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalAlignment = Alignment.End,
         ) {
@@ -379,6 +378,7 @@ private fun LocationMapContent(
                     }
                 }
             }
+        }
         }
     }
 }

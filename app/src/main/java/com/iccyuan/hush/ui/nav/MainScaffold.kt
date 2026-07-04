@@ -1,5 +1,6 @@
 package com.iccyuan.hush.ui.nav
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -64,26 +65,37 @@ fun MainScaffold(
             },
         )
     }
-    when (tab) {
-        MainTab.RULES -> RuleListScreen(
-            onOpenRule = onOpenRule,
-            onNewRule = { addSession++; tab = MainTab.ADD },
-            bottomBar = bar,
-        )
-        MainTab.HISTORY -> HistoryScreen(bottomBar = bar, onCreateRule = onOpenRule)
-        MainTab.ADD -> androidx.compose.runtime.key(addSession) {
-            RuleEditorScreen(
-                ruleId = 0L,
-                onDone = { tab = MainTab.RULES },
+    // 标签切换用淡入淡出过渡（二级页由 NavHost 负责 iOS 滑动动画）。底部栏在各页内相同，
+    // 交叉淡化时视觉上重叠不变，仅内容与选中态平滑切换。
+    androidx.compose.animation.AnimatedContent(
+        targetState = tab,
+        transitionSpec = {
+            androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220))
+                .togetherWith(androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)))
+        },
+        label = "tab",
+    ) { t ->
+        when (t) {
+            MainTab.RULES -> RuleListScreen(
+                onOpenRule = onOpenRule,
+                onNewRule = { addSession++; tab = MainTab.ADD },
                 bottomBar = bar,
-                vm = androidx.lifecycle.viewmodel.compose.viewModel(key = "new-rule-$addSession"),
+            )
+            MainTab.HISTORY -> HistoryScreen(bottomBar = bar, onCreateRule = onOpenRule)
+            MainTab.ADD -> androidx.compose.runtime.key(addSession) {
+                RuleEditorScreen(
+                    ruleId = 0L,
+                    onDone = { tab = MainTab.RULES },
+                    bottomBar = bar,
+                    vm = androidx.lifecycle.viewmodel.compose.viewModel(key = "new-rule-$addSession"),
+                )
+            }
+            MainTab.SETTINGS -> SettingsScreen(
+                bottomBar = bar,
+                onOpenInsights = onOpenInsights,
+                onOpenCategory = onOpenSettingsCategory,
             )
         }
-        MainTab.SETTINGS -> SettingsScreen(
-            bottomBar = bar,
-            onOpenInsights = onOpenInsights,
-            onOpenCategory = onOpenSettingsCategory,
-        )
     }
 }
 
