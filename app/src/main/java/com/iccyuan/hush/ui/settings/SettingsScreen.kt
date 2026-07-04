@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
@@ -92,11 +93,12 @@ import com.iccyuan.hush.ui.findActivity
 import kotlinx.coroutines.launch
 
 /** 设置里的分类，每个跳到二级详情页。 */
-enum class SettingsCategory { GENERAL, DANMAKU, ACCESSIBILITY, APPEARANCE, HOLIDAYS, BACKUP, ABOUT }
+enum class SettingsCategory { KEEPALIVE, GENERAL, DANMAKU, ACCESSIBILITY, APPEARANCE, HOLIDAYS, BACKUP, ABOUT }
 
 @Composable
 private fun categoryTitle(c: SettingsCategory): String = stringResource(
     when (c) {
+        SettingsCategory.KEEPALIVE -> R.string.settings_keepalive
         SettingsCategory.GENERAL -> R.string.settings_general
         SettingsCategory.DANMAKU -> R.string.settings_danmaku
         SettingsCategory.ACCESSIBILITY -> R.string.settings_accessibility
@@ -132,6 +134,17 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(4.dp))
             AccessCard(accessGranted, listenerConnected, context)
+            // 后台保活引导（可靠性关键项，紧随使用权卡片）
+            InsetGroupedSection {
+                IOSRow(
+                    title = stringResource(R.string.settings_keepalive),
+                    subtitle = stringResource(R.string.settings_keepalive_sub),
+                    icon = Icons.Filled.BatteryChargingFull,
+                    iconColor = IOSColors.Green,
+                    onClick = { onOpenCategory(SettingsCategory.KEEPALIVE) },
+                    trailing = { Chevron() },
+                )
+            }
             // 总开关（关键项，置顶保留）
             InsetGroupedSection {
                 IOSRow(
@@ -224,6 +237,7 @@ fun SettingsDetailScreen(
         ) {
             Spacer(Modifier.height(4.dp))
             when (category) {
+                SettingsCategory.KEEPALIVE -> KeepAliveContent(context)
                 SettingsCategory.GENERAL -> GeneralContent(vm)
                 SettingsCategory.DANMAKU -> DanmakuCategoryContent(vm, context)
                 SettingsCategory.ACCESSIBILITY -> AccessibilityContent(context)
@@ -271,6 +285,64 @@ private fun AccessCard(accessGranted: Boolean, listenerConnected: Boolean, conte
             )
         }
     }
+}
+
+@Composable
+private fun KeepAliveContent(context: Context) {
+    val notifOk = rememberNotificationAccessGranted()
+    val connected = rememberListenerConnected()
+    val batteryOk = com.iccyuan.hush.ui.common.rememberOnResume { com.iccyuan.hush.service.OemKeepAlive.isIgnoringBattery(context) }
+    val overlayOk = com.iccyuan.hush.ui.common.rememberOnResume { DanmakuController.canShow(context) }
+
+    InsetGroupedSection(
+        footer = stringResource(R.string.keepalive_footer, com.iccyuan.hush.service.OemKeepAlive.oemLabel()),
+    ) {
+        // 1) 通知使用权：已授权但断开时标红（正是被省电策略杀掉的表现）。
+        KeepAliveStep(
+            title = stringResource(R.string.settings_access),
+            done = if (notifOk && !connected) null else notifOk && connected,
+            attention = notifOk && !connected,
+        ) { runCatching { context.startActivity(NotificationAccess.settingsIntent()) } }
+        HairlineDivider(startInset = 16.dp)
+        // 2) 电池优化白名单（可检测）。
+        KeepAliveStep(
+            title = stringResource(R.string.keepalive_battery),
+            done = batteryOk,
+        ) { com.iccyuan.hush.service.OemKeepAlive.openBattery(context) }
+        HairlineDivider(startInset = 16.dp)
+        // 3) 自启动（无法检测状态，仅提供入口）。
+        KeepAliveStep(title = stringResource(R.string.keepalive_autostart), done = null) {
+            com.iccyuan.hush.service.OemKeepAlive.openAutostart(context)
+        }
+        HairlineDivider(startInset = 16.dp)
+        // 4) 后台运行 / 省电策略（无法检测，入口）。
+        KeepAliveStep(title = stringResource(R.string.keepalive_background), done = null) {
+            com.iccyuan.hush.service.OemKeepAlive.openBackground(context)
+        }
+        HairlineDivider(startInset = 16.dp)
+        // 5) 悬浮窗（弹幕显示所需，可检测）。
+        KeepAliveStep(
+            title = stringResource(R.string.grant_overlay),
+            done = overlayOk,
+        ) { runCatching { context.startActivity(DanmakuController.overlaySettingsIntent(context)) } }
+    }
+}
+
+/** 保活向导的一步：done=true 已完成 / false 未完成 / null 无法检测（只给入口）；attention 标红。 */
+@Composable
+private fun KeepAliveStep(title: String, done: Boolean?, attention: Boolean = false, onClick: () -> Unit) {
+    IOSRow(
+        title = title,
+        onClick = onClick,
+        trailing = {
+            when {
+                attention -> ConnectionStatus(stringResource(R.string.status_disconnected), IOSColors.Red)
+                done == true -> ConnectionStatus(stringResource(R.string.keepalive_done), IOSColors.Green)
+                done == false -> ConnectionStatus(stringResource(R.string.keepalive_todo), IOSColors.Orange)
+                else -> Chevron()
+            }
+        },
+    )
 }
 
 @Composable

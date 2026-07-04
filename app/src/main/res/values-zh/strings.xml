@@ -196,6 +196,14 @@
     <string name="danmaku_preview">预览弹幕</string>
     <string name="danmaku_preview_sample">静界 · 弹幕预览示例 ✨</string>
     <string name="settings_access">通知使用权</string>
+    <string name="settings_keepalive">后台保活</string>
+    <string name="settings_keepalive_sub">防止监听被系统省电策略杀掉</string>
+    <string name="keepalive_footer">已识别 %1$s。请逐项开启，避免通知监听被电池/省电策略杀掉。自启动/后台运行无法检测状态，请打开后手动开启。</string>
+    <string name="keepalive_battery">电池优化白名单</string>
+    <string name="keepalive_autostart">允许自启动</string>
+    <string name="keepalive_background">允许后台运行</string>
+    <string name="keepalive_done">已开启</string>
+    <string name="keepalive_todo">去开启</string>
     <string name="access_granted">已授予 — 静界可读取和修改通知。</string>
     <string name="access_not_granted">未授予。没有它静界无法工作。</string>
     <string name="access_disconnected">已授权,但监听器已断开 — 多半被省电策略杀死。正在尝试重连…若仍异常,请将静界加入电池优化白名单,或重新开关一次通知使用权。</string>

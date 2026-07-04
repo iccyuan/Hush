@@ -196,6 +196,14 @@
     <string name="danmaku_preview">Preview danmaku</string>
     <string name="danmaku_preview_sample">Hush · danmaku preview ✨</string>
     <string name="settings_access">Notification access</string>
+    <string name="settings_keepalive">Keep running in background</string>
+    <string name="settings_keepalive_sub">Stop the OS from killing the listener</string>
+    <string name="keepalive_footer">Detected %1$s. Enable each item below so the notification listener isn\'t killed by battery/power-saving policies. Autostart/background can\'t be detected — open and enable them manually.</string>
+    <string name="keepalive_battery">Battery-optimization allowlist</string>
+    <string name="keepalive_autostart">Allow auto-start</string>
+    <string name="keepalive_background">Allow background running</string>
+    <string name="keepalive_done">On</string>
+    <string name="keepalive_todo">Set up</string>
     <string name="access_granted">Granted — Hush can read and modify notifications.</string>
     <string name="access_not_granted">Not granted. Hush cannot work without it.</string>
     <string name="access_disconnected">Granted, but the listener is disconnected — likely killed by battery optimization. Reconnecting… If it persists, exempt Hush from battery optimization or re-toggle notification access.</string>

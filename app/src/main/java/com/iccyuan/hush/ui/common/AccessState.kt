@@ -52,3 +52,18 @@ fun rememberListenerConnected(): Boolean {
     }
     return connected
 }
+
+/** 每次屏幕恢复（ON_RESUME）时重新计算某个值——用于从系统设置页返回后刷新权限/状态。 */
+@Composable
+fun <T> rememberOnResume(compute: () -> T): T {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var value by remember { mutableStateOf(compute()) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) value = compute()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    return value
+}
