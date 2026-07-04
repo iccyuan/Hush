@@ -83,6 +83,12 @@ private val ChartBarGap = 2.dp
 private val ChartBarMinHeight = 4.dp         // 空桶也留一点高度，便于点击
 private val ChartBarRange = 44.dp            // 满桶相对最小高度的额外高度
 
+// 列表条目「位移」动画：柔和的缓入缓出补间，无弹簧回弹（避免突兀）。仅用于位置变化，不做淡入淡出。
+private val ListPlacementSpec = tween<androidx.compose.ui.unit.IntOffset>(
+    durationMillis = 240,
+    easing = FastOutSlowInEasing,
+)
+
 /**
  * 一周从哪天开始——与**应用语言**绑定，而非系统区域：中文→周一，英文→周日，其余语言用该地区默认。
  * 返回 Calendar 的 DAY_OF_WEEK 常量（SUNDAY=1..SATURDAY=7）。同时用于图表与「按周」列表分组，保持一致。
@@ -193,21 +199,30 @@ fun HistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.lg),
             ) {
                 groups.forEach { (header, items) ->
-                    // 稳定 key（按分组标题）让 LazyColumn 能识别条目增删/重排，
-                    // 配合 animateItem 在「加载更多、删除、按天/周切换」时平滑淡入与移位。
+                    // 稳定 key（按分组标题）让 LazyColumn 能识别条目增删/重排。
+                    // 只保留「位移」动画（去掉淡入淡出与弹簧回弹）：加载更多/删除时下方条目柔和上移，
+                    // 不闪不弹；按天/周切换直接换位而非整屏淡出淡入，避免突兀。
                     item(key = "h:$header", contentType = "header") {
                         Text(
                             header,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.animateItem().padding(start = Spacing.xxl, top = Spacing.xs),
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = null,
+                                placementSpec = ListPlacementSpec,
+                            ).padding(start = Spacing.xxl, top = Spacing.xs),
                         )
                     }
                     item(key = "s:$header", contentType = "section") {
                         // animateContentSize：组内某行被删除后，卡片高度平滑收缩，而非瞬间跳变。
                         InsetGroupedSection(
                             modifier = Modifier
-                                .animateItem()
+                                .animateItem(
+                                    fadeInSpec = null,
+                                    fadeOutSpec = null,
+                                    placementSpec = ListPlacementSpec,
+                                )
                                 .animateContentSize(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)),
                         ) {
                             items.forEachIndexed { i, log ->
@@ -228,7 +243,11 @@ fun HistoryScreen(
                 if (canLoadMore) {
                     item(key = "loading", contentType = "loading") {
                         Box(
-                            Modifier.fillMaxWidth().padding(Spacing.lg).animateItem(),
+                            Modifier.fillMaxWidth().padding(Spacing.lg).animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = null,
+                                placementSpec = ListPlacementSpec,
+                            ),
                             contentAlignment = Alignment.Center,
                         ) {
                             androidx.compose.material3.CircularProgressIndicator(
