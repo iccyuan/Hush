@@ -41,36 +41,6 @@ class RuleEngine {
         conditionsHold(rule, MatchContext("", "", mutableMapOf(), false, false, device))
 
     /**
-     * 编辑器测试器：对一条样例通知做内容层面的完整模拟——评估应用 + 触发器，
-     * 应用所有动作并产出结果 [Decision]（忽略时间/设备条件，与 [previewMatches] 同口径）。
-     */
-    fun simulate(
-        rule: Rule,
-        packageName: String,
-        appName: String,
-        title: String,
-        text: String,
-    ): Decision {
-        val fields = mutableMapOf<NotificationField, String>()
-        if (title.isNotEmpty()) fields[NotificationField.TITLE] = title
-        if (text.isNotEmpty()) fields[NotificationField.TEXT] = text
-        val ctx = MatchContext(packageName, appName, fields, false, false, PREVIEW_DEVICE)
-        val decision = Decision()
-        val captures = mutableMapOf<String, String>()
-        if (appMatches(rule, packageName) && triggersMatch(rule, ctx, captures)) {
-            ctx.captures.putAll(captures)
-            applyActions(rule, ctx, decision)
-            if (shouldDanmaku(rule, ctx, decision)) {
-                decision.sideEffects.add(
-                    SideEffect.Danmaku(TemplateEngine.render(DANMAKU_TEMPLATE, ctx))
-                )
-            }
-            decision.matched = true
-        }
-        return decision
-    }
-
-    /**
      * 该规则此刻是否应产出弹幕。前提：开启了「弹幕显示」且规则确实丢弃了通知（弹幕用于替代被屏蔽的
      * 原生通知）。此外**默认排除常驻通知**（VPN / 音乐 / 下载 / 前台服务等，否则会不断刷屏）——
      * 除非该规则显式带有「必须是常驻通知」触发器（[Trigger.OngoingTrigger] 且 mustBeOngoing），
@@ -84,10 +54,11 @@ class RuleEngine {
 
     fun evaluate(ctx: MatchContext, rules: List<Rule>): Decision {
         val decision = Decision()
-        // 被「静音应用」动作静音的应用：短路丢弃其所有通知。但静音必须尊重设置它的那条规则的
-        // 条件——例如「仅在某时段静音应用」，一旦过了该时段，静音就应失效，而不是无限期生效。
+        // 被「静音应用」动作静音的应用：短路静音其所有通知——只是不发声不震动，仍会以「静默横幅」
+        // 弹出（否则跟「丢弃」动作没有区别）。但静音必须尊重设置它的那条规则的条件——例如「仅在
+        // 某时段静音应用」，一旦过了该时段，静音就应失效，而不是无限期生效。
         // 因此这里复查设置静音的规则此刻条件是否仍成立：
-        //  · 成立 → 静音生效，丢弃（回到时段内会自动恢复静音）。
+        //  · 成立 → 静音生效（回到时段内会自动恢复静音）。
         //  · 规则已删除/停用（不在 rules 中）→ 解除该静音。
         //  · 规则在、但条件此刻不成立（如已过时段）→ 静音暂不生效，照常继续处理，不解除，
         //    以便回到时段内再次自动生效。
@@ -98,7 +69,7 @@ class RuleEngine {
                 muteRule == null -> VariableStore.unmuteApp(ctx.packageName)
                 conditionsHold(muteRule, ctx) -> {
                     decision.matched = true
-                    decision.discard = true
+                    decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)
                     return decision
                 }
                 // else：条件此刻不成立——不静音、不解除，继续常规求值。
@@ -385,8 +356,12 @@ class RuleEngine {
                         },
                     )
                 )
-            is Action.MuteAppAction ->
+            is Action.MuteAppAction -> {
                 decision.sideEffects.add(SideEffect.MuteApp(ctx.packageName, ruleId))
+                // 「静音」= 不发声不震动但仍弹出，而非丢弃（与「丢弃」动作区分开）；见 evaluate() 顶部
+                // 对后续通知的同等处理。设置当前这条——否则触发静音的这一条会被漏过，仍按原生提醒。
+                decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)
+            }
             is Action.DigestAction -> {
                 decision.sideEffects.add(
                     SideEffect.Digest(

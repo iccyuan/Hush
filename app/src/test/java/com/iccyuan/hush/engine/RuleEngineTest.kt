@@ -10,6 +10,7 @@ import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.data.model.Trigger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -196,22 +197,25 @@ class RuleEngineTest {
         assertTrue(third.matched)
     }
 
-    @Test fun mutedAppShortCircuitsToDiscard() {
-        // 无条件的「静音应用」规则在场：其静音始终生效，丢弃该应用的一切通知（连不匹配触发器的也丢）。
+    @Test fun mutedAppShortCircuitsToSilence() {
+        // 无条件的「静音应用」规则在场：其静音始终生效——不发声不震动但仍弹出（不同于「丢弃」），
+        // 连不匹配触发器的通知也会被静音。
         val muteRule = Rule(id = 100_000L, appPackages = listOf("com.chat"),
             actions = listOf(Action.MuteAppAction("m")))
         VariableStore.muteApp("com.chat", 100_000L)
         val d = engine.evaluate(ctx(pkg = "com.chat", text = "anything", device = device(nowMillis = 50_000L)),
             listOf(muteRule, textRule(1, "neverused")))
         assertTrue(d.matched)
-        assertTrue(d.discard)
+        assertFalse(d.discard)
+        assertTrue(d.sound?.silent == true)
     }
 
     @Test fun mutedAppClearedWhenMutingRuleGone() {
-        // 设置静音的规则已删除/停用（不在 rules 中）→ 静音自动解除，不再丢弃。
+        // 设置静音的规则已删除/停用（不在 rules 中）→ 静音自动解除，不再静音。
         VariableStore.muteApp("com.chat", 999L)
         val d = engine.evaluate(ctx(pkg = "com.chat", text = "x"), listOf(textRule(1, "unrelated")))
         assertFalse(d.discard)
+        assertNull(d.sound)
         assertFalse(VariableStore.isAppMuted("com.chat"))
     }
 
@@ -222,15 +226,17 @@ class RuleEngineTest {
             conditions = listOf(Condition.TimeCondition("tc", 12 * 60, 14 * 60, setOf(1, 2, 3, 4, 5, 6, 7))),
             actions = listOf(Action.MuteAppAction("m")),
         )
-        // 时段内命中并设置静音（模拟 SideEffectExecutor 执行 MuteApp）。
-        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "a", device = device(minuteOfDay = 13 * 60)), listOf(rule)).matched)
+        // 时段内命中：这一条本身也应立即被静音（不发声不震动，仍弹出），而不必等到下一条才生效。
+        val first = engine.evaluate(ctx(pkg = "com.chat", text = "a", device = device(minuteOfDay = 13 * 60)), listOf(rule))
+        assertTrue(first.matched)
+        assertTrue(first.sound?.silent == true)
         VariableStore.muteApp("com.chat", 7)
         // 时段内后续通知：仍静音。
-        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "b", device = device(minuteOfDay = 13 * 60 + 30)), listOf(rule)).discard)
-        // 出了时段（15:00）：不再丢弃。
-        assertFalse(engine.evaluate(ctx(pkg = "com.chat", text = "c", device = device(minuteOfDay = 15 * 60)), listOf(rule)).discard)
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "b", device = device(minuteOfDay = 13 * 60 + 30)), listOf(rule)).sound?.silent == true)
+        // 出了时段（15:00）：不再静音。
+        assertNull(engine.evaluate(ctx(pkg = "com.chat", text = "c", device = device(minuteOfDay = 15 * 60)), listOf(rule)).sound)
         // 回到时段（13:00）：自动恢复静音。
-        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "d", device = device(minuteOfDay = 13 * 60)), listOf(rule)).discard)
+        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "d", device = device(minuteOfDay = 13 * 60)), listOf(rule)).sound?.silent == true)
     }
 
     // --- 时间窗口条件：全面核验（in/out/跨午夜/星期/边界）---
