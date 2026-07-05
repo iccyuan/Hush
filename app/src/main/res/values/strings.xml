@@ -460,17 +460,6 @@
     <!-- History → create rule -->
     <string name="history_create_rule">Create rule from this</string>
 
-    <!-- Rule simulator -->
-    <string name="sim_title">Test</string>
-    <string name="sim_sample_title">Sample title</string>
-    <string name="sim_sample_text">Sample text</string>
-    <string name="sim_hint">Enter a sample notification to see what this rule would do.</string>
-    <string name="sim_match">Matches ✓</string>
-    <string name="sim_no_match">No match</string>
-    <string name="sim_outcome">Result: %s</string>
-    <string name="sim_field">%1$s → %2$s</string>
-    <string name="sim_effects">Side effects: %s</string>
-
     <!-- Insights -->
     <string name="settings_insights">Insights</string>
     <string name="insights_title">Insights</string>

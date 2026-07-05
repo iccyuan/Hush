@@ -9,7 +9,6 @@ import com.iccyuan.hush.data.InstalledApps
 import com.iccyuan.hush.data.NotificationLogRepository
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
-import com.iccyuan.hush.engine.Decision
 import com.iccyuan.hush.engine.DeviceContext
 import com.iccyuan.hush.engine.RuleEngine
 import com.iccyuan.hush.service.DanmakuController
@@ -65,7 +64,6 @@ import com.iccyuan.hush.data.model.LogicMode
 import com.iccyuan.hush.data.model.Trigger
 import com.iccyuan.hush.data.model.isEventDriven
 import com.iccyuan.hush.ui.common.EnumDropdown
-import com.iccyuan.hush.engine.SideEffect
 import com.iccyuan.hush.ui.Localize
 import com.iccyuan.hush.ui.common.LabeledTextField
 import com.iccyuan.hush.ui.components.GlassScaffold
@@ -290,9 +288,6 @@ fun RuleEditorScreen(
             // 实时预览匹配该规则的近期通知。
             PreviewSection(rule)
 
-            // 交互式测试器：输入一条样例通知，查看该规则的处理结果。
-            SimulatorSection(rule)
-
             if (ruleId != 0L) {
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     IOSFilledButton(
@@ -498,109 +493,6 @@ private fun PreviewSection(rule: Rule) {
             }
         }
     }
-}
-
-/** 交互式测试器：输入一条样例通知，调用引擎模拟并展示命中/改写/副作用结果。 */
-@Composable
-private fun SimulatorSection(rule: Rule) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val engine = remember { RuleEngine() }
-    // 从选择令牌里取真实包名（兼容「包名@用户id」的分身令牌）。
-    val pkg = rule.appPackages.firstOrNull()
-        ?.let { com.iccyuan.hush.data.AppInfo.packageOfToken(it) } ?: "com.example.app"
-    // 用**真实应用名**（而非从包名硬凑），使 {app} 模板与「应用名」触发器按实际情况判定。
-    val appName = remember(pkg) { com.iccyuan.hush.service.NotificationFields.appLabel(context, pkg) }
-    // 取该应用（未选应用时取任意）最近一条真实通知作为样例初值，让「测试」贴近实际；可编辑。
-    val sample by androidx.compose.runtime.produceState<NotificationLog?>(null, pkg, rule.appPackages) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            NotificationLogRepository.get(context).recent(200).firstOrNull {
-                (rule.appPackages.isEmpty() || it.packageName == pkg) &&
-                    (it.title.isNotBlank() || it.text.isNotBlank())
-            }
-        }
-    }
-    var title by remember { mutableStateOf("") }
-    var text by remember { mutableStateOf("") }
-    var edited by remember { mutableStateOf(false) }
-    // 首次拿到真实样例且用户尚未编辑时预填。
-    androidx.compose.runtime.LaunchedEffect(sample) {
-        if (!edited) sample?.let { title = it.title; text = it.text }
-    }
-    val decision = remember(rule, title, text) {
-        if (title.isBlank() && text.isBlank()) null
-        else engine.simulate(rule, pkg, appName, title, text)
-    }
-    InsetGroupedSection(
-        header = stringResource(R.string.sim_title),
-        footer = stringResource(R.string.sim_hint),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            LabeledTextField(stringResource(R.string.sim_sample_title), title) { title = it; edited = true }
-            Spacer(Modifier.height(6.dp))
-            LabeledTextField(stringResource(R.string.sim_sample_text), text) { text = it; edited = true }
-        }
-        if (decision != null) {
-            HairlineDivider(startInset = 16.dp)
-            SimResult(decision)
-        }
-    }
-}
-
-@Composable
-private fun SimResult(decision: Decision) {
-    Column(Modifier.padding(16.dp)) {
-        Text(
-            stringResource(if (decision.matched) R.string.sim_match else R.string.sim_no_match),
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (decision.matched) IOSColors.Green else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (!decision.matched) return@Column
-        val outcome = stringResource(
-            when {
-                decision.discard -> R.string.outcome_discarded
-                decision.needsRepost -> R.string.outcome_modified
-                decision.dismiss -> R.string.outcome_dismissed
-                decision.snoozeMinutes != null -> R.string.outcome_snoozed
-                else -> R.string.outcome_matched
-            }
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.sim_outcome, outcome),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        decision.fieldEdits.forEach { (field, value) ->
-            Text(
-                stringResource(R.string.sim_field, Localize.field(field), value),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        val effects = decision.sideEffects.mapNotNull { effectName(it) }
-        if (effects.isNotEmpty()) {
-            Text(
-                stringResource(R.string.sim_effects, effects.joinToString(", ")),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun effectName(effect: SideEffect): String? = when (effect) {
-    is SideEffect.ReadAloud -> stringResource(R.string.cat_act_readaloud)
-    is SideEffect.Toast -> stringResource(R.string.cat_act_toast)
-    is SideEffect.Notify -> stringResource(R.string.cat_act_notify)
-    is SideEffect.WakeScreen -> stringResource(R.string.cat_act_wake)
-    is SideEffect.AutoReply -> stringResource(R.string.cat_act_autoreply)
-    is SideEffect.Webhook -> stringResource(R.string.cat_act_webhook)
-    is SideEffect.MuteApp -> stringResource(R.string.cat_act_mute)
-    is SideEffect.Digest -> stringResource(R.string.cat_act_digest)
-    is SideEffect.Danmaku -> stringResource(R.string.danmaku_switch)
-    is SideEffect.LaunchApp -> stringResource(R.string.cat_act_launch)
-    is SideEffect.RunMacro -> stringResource(R.string.cat_act_macro)
 }
 
 /** 已选应用以图标 + 名称标签的形式展示；点击任意位置都会打开选择器。 */

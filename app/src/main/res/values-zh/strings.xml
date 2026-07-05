@@ -460,17 +460,6 @@
     <!-- 历史 → 创建规则 -->
     <string name="history_create_rule">据此创建规则</string>
 
-    <!-- 规则测试器 -->
-    <string name="sim_title">测试</string>
-    <string name="sim_sample_title">示例标题</string>
-    <string name="sim_sample_text">示例正文</string>
-    <string name="sim_hint">输入一条示例通知，看看该规则会怎么处理。</string>
-    <string name="sim_match">命中 ✓</string>
-    <string name="sim_no_match">未命中</string>
-    <string name="sim_outcome">结果：%s</string>
-    <string name="sim_field">%1$s → %2$s</string>
-    <string name="sim_effects">副作用：%s</string>
-
     <!-- 统计 -->
     <string name="settings_insights">统计</string>
     <string name="insights_title">统计</string>
