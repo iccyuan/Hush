@@ -35,9 +35,9 @@ android {
         applicationId = "com.iccyuan.hush"
         minSdk = 26
         targetSdk = 35
-        versionCode = 22
+        versionCode = 23
         // 默认与当前迭代一致; CI 可通过 -PversionName=1.2.3 (由 git tag 推导) 覆盖
-        versionName = (project.findProperty("versionName") as String?) ?: "0.1.22"
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.23"
         vectorDrawables { useSupportLibrary = true }
 
         // 高德 SDK 要求的 apikey 以 manifest meta-data 提供；用占位符注入，key 不写进版本控制。
