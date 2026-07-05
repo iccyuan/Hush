@@ -275,11 +275,17 @@ class HushListenerService : NotificationListenerService() {
         }
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        super.onNotificationRemoved(sbn)
+    override fun onNotificationRemoved(sbn: StatusBarNotification, rankingMap: RankingMap, reason: Int) {
+        super.onNotificationRemoved(sbn, rankingMap, reason)
         // 当源通知被移除（用户清除或应用自行撤回）时，连带移除我们为其重新发布的副本，
         // 否则改写后的副本会滞留在通知栏。我们自己重发的副本由本应用拥有，跳过它以免误删/递归。
         if (sbn.packageName == packageName) return
+        // 重新发布流程本身会调用 cancelNotification(key) 撤销源通知——这会让本方法以
+        // REASON_LISTENER_CANCEL 收到同一条源通知的移除回调。此时绝不能连带撤销副本：
+        // 副本和「源通知撤销」共用同一个由 sbn.key 派生的通知 id（见 NotificationModifier.
+        // notifyId），若照常清理会把刚发布的副本原地撤销掉——静音/改写类通知因此从不显示。
+        // 只有真正的外部移除（用户清除 / 源应用自行撤回或更新）才需要连带清理副本。
+        if (reason == REASON_LISTENER_CANCEL) return
         if (::modifier.isInitialized) modifier.cancelReposted(sbn)
     }
 
