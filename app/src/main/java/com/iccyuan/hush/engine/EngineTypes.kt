@@ -38,6 +38,11 @@ class MatchContext(
     val userId: Int = 0,
     /** 是否为常驻通知（VPN / 音乐 / 下载 / 前台服务等）。默认不触发弹幕。 */
     val isPersistent: Boolean = false,
+    /**
+     * 源通知自身的重要性（来自系统 Ranking，而非我们的渠道）。仅供「静音应用」短路
+     * 使用，以便重发副本保持原通知本来的横幅行为——不像单条「静音」动作那样固定 HIGH。
+     */
+    val originalImportance: Importance? = null,
 ) {
     /** 来自正则分组的 {1}..{9} 以及来自变量的命名捕获。 */
     val captures: MutableMap<String, String> = mutableMapOf()

@@ -17,6 +17,7 @@ import com.iccyuan.hush.data.RuntimeStateStore
 import com.iccyuan.hush.data.SettingsStore
 import com.iccyuan.hush.data.model.Condition
 import com.iccyuan.hush.data.model.DeviceEventType
+import com.iccyuan.hush.data.model.Importance
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.data.model.Trigger
@@ -307,6 +308,7 @@ class HushListenerService : NotificationListenerService() {
             device = device,
             userId = userId,
             isPersistent = isPersistent,
+            originalImportance = originalImportanceOf(sbn),
         )
 
         val decision = engine.evaluate(ctx, activeRules)
@@ -330,6 +332,21 @@ class HushListenerService : NotificationListenerService() {
         }
         // 规则仍会照常对常驻通知求值——这里只跳过记录。
         if (logActivity && !isPersistent) logNotification(sbn, appName, decision)
+    }
+
+    /** 源通知自身的系统重要性（来自 Ranking），映射失败/取不到时返回 null。 */
+    private fun originalImportanceOf(sbn: StatusBarNotification): Importance? {
+        val ranking = android.service.notification.NotificationListenerService.Ranking()
+        val found = runCatching { currentRanking?.getRanking(sbn.key, ranking) }.getOrNull() ?: return null
+        if (!found) return null
+        return when (ranking.importance) {
+            android.app.NotificationManager.IMPORTANCE_MIN -> Importance.MIN
+            android.app.NotificationManager.IMPORTANCE_LOW -> Importance.LOW
+            android.app.NotificationManager.IMPORTANCE_DEFAULT -> Importance.DEFAULT
+            android.app.NotificationManager.IMPORTANCE_HIGH,
+            android.app.NotificationManager.IMPORTANCE_MAX -> Importance.HIGH
+            else -> null
+        }
     }
 
     private suspend fun logNotification(sbn: StatusBarNotification, appName: String, decision: Decision) {

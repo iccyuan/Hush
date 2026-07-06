@@ -54,9 +54,10 @@ class RuleEngine {
 
     fun evaluate(ctx: MatchContext, rules: List<Rule>): Decision {
         val decision = Decision()
-        // 被「静音应用」动作静音的应用：短路静音其所有通知——只是不发声不震动，仍会以「静默横幅」
-        // 弹出（否则跟「丢弃」动作没有区别）。但静音必须尊重设置它的那条规则的条件——例如「仅在
-        // 某时段静音应用」，一旦过了该时段，静音就应失效，而不是无限期生效。
+        // 被「静音应用」动作静音的应用：短路静音其所有通知——只是不发声不震动，横幅是否弹出、是否
+        // 留在通知栏都跟随源通知本来的重要性（见下方 ctx.originalImportance），不额外拉高或压低。
+        // 但静音必须尊重设置它的那条规则的条件——例如「仅在某时段静音应用」，一旦过了该时段，
+        // 静音就应失效，而不是无限期生效。
         // 因此这里复查设置静音的规则此刻条件是否仍成立：
         //  · 成立 → 静音生效（回到时段内会自动恢复静音）。
         //  · 规则已删除/停用（不在 rules 中）→ 解除该静音。
@@ -70,6 +71,9 @@ class RuleEngine {
                 conditionsHold(muteRule, ctx) -> {
                     decision.matched = true
                     decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)
+                    // 保持源通知本来的重要性/横幅行为——「静音应用」只是不发声不震动，
+                    // 不应像单条「静音」动作那样固定拉到 HIGH（那是专门为一次性静音保留横幅做的取舍）。
+                    decision.importance = ctx.originalImportance
                     return decision
                 }
                 // else：条件此刻不成立——不静音、不解除，继续常规求值。
