@@ -47,7 +47,15 @@ object DanmakuController {
     // 窗口——通知密集时后者会造成明显的 surface 分配/销毁开销。空容器（无弹幕时）本身开销可忽略。
     private var overlayRoot: FrameLayout? = null
 
-    /** 确保常驻悬浮窗已创建；已存在则直接复用。失败（如权限被收回）返回 null。 */
+    /**
+     * 悬浮窗是否已创建；持有以便在弹幕清空时拆除窗口（见 [showOnRow] 的 withEndAction）。
+     * 该悬浮窗即使自身 FLAG_NOT_TOUCHABLE 不拦截触摸，只要它还覆盖在屏幕上，就会让开启了
+     * `setFilterTouchesWhenObscured` 的控件（不少银行/支付/系统权限弹窗都会开）静默丢弃触摸——
+     * 因此绝不能让它在无弹幕时也常驻，否则会造成"用过一次弹幕后，某些应用再也点不动"。
+     */
+    private var windowManager: WindowManager? = null
+
+    /** 确保悬浮窗已创建；已存在则直接复用。失败（如权限被收回）返回 null。 */
     private fun ensureOverlay(app: Context): FrameLayout? {
         overlayRoot?.let { return it }
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return null
@@ -68,9 +76,19 @@ object DanmakuController {
         ).apply { gravity = Gravity.TOP or Gravity.START }
         val root = FrameLayout(app)
         return runCatching { wm.addView(root, lp); root }
-            .onSuccess { overlayRoot = it }
+            .onSuccess { overlayRoot = it; windowManager = wm }
             .onFailure { Logger.w("danmaku overlay create failed: ${it.message}") }
             .getOrNull()
+    }
+
+    /** 弹幕清空（最后一条离场）时调用：拆除悬浮窗，避免其在无弹幕时也常驻覆盖全屏。 */
+    private fun teardownOverlayIfEmpty() {
+        val root = overlayRoot ?: return
+        if (root.childCount > 0) return
+        val wm = windowManager ?: return
+        runCatching { wm.removeView(root) }.onFailure { Logger.w("danmaku overlay teardown failed: ${it.message}") }
+        overlayRoot = null
+        windowManager = null
     }
 
     /** 由服务在设置变化时调用，更新全局弹幕外观/行为。 */
@@ -177,6 +195,7 @@ object DanmakuController {
             // 需额外开启「后台弹出界面」权限。记录原因便于排查。
             Logger.w("danmaku addView failed: ${it.message}")
             endText(text)
+            teardownOverlayIfEmpty()
             return
         }
 
@@ -196,6 +215,7 @@ object DanmakuController {
                 .withEndAction {
                     runCatching { root.removeView(tv) }
                     endText(text)
+                    teardownOverlayIfEmpty()
                 }
                 .start()
         }
