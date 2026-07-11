@@ -22,12 +22,13 @@ data class NotificationLog(
     val matched: Boolean,
     /** 触发的规则 id，以逗号分隔（若无则为空）。 */
     val firedRuleIds: String,
-    /** 发生的处理结果：none / modified / discarded / dismissed / snoozed。 */
+    /** 发生的处理结果：none / modified / silenced / discarded / dismissed / snoozed。 */
     val outcome: String,
 ) {
     companion object {
         const val OUTCOME_NONE = "none"
         const val OUTCOME_MODIFIED = "modified"
+        const val OUTCOME_SILENCED = "silenced"
         const val OUTCOME_DISCARDED = "discarded"
         const val OUTCOME_DISMISSED = "dismissed"
         const val OUTCOME_SNOOZED = "snoozed"

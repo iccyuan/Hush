@@ -40,6 +40,7 @@
     <string name="stat_total">%d notifications</string>
     <string name="stat_bar_count">%1$d</string>
     <string name="outcome_modified">Modified</string>
+    <string name="outcome_silenced">Silenced</string>
     <string name="outcome_discarded">Discarded</string>
     <string name="outcome_dismissed">Dismissed</string>
     <string name="outcome_snoozed">Snoozed</string>

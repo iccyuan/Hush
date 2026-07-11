@@ -344,7 +344,7 @@ class HushListenerService : NotificationListenerService() {
             recordFires(decision)
         }
         // 规则仍会照常对常驻通知求值——这里只跳过记录。
-        if (logActivity && !isPersistent) logNotification(sbn, appName, decision)
+        if (logActivity && !isPersistent) logNotification(sbn, appName, decision, originalImportance)
     }
 
     /** 源通知自身的系统重要性（来自 Ranking），映射失败/取不到时返回 null。 */
@@ -362,7 +362,12 @@ class HushListenerService : NotificationListenerService() {
         }
     }
 
-    private suspend fun logNotification(sbn: StatusBarNotification, appName: String, decision: Decision) {
+    private suspend fun logNotification(
+        sbn: StatusBarNotification,
+        appName: String,
+        decision: Decision,
+        originalImportance: Importance?,
+    ) {
         val extras = sbn.notification.extras
         val title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString().orEmpty()
         val text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString().orEmpty()
@@ -370,6 +375,8 @@ class HushListenerService : NotificationListenerService() {
         if (title.isBlank() && text.isBlank()) return
         val outcome = when {
             decision.discard -> NotificationLog.OUTCOME_DISCARDED
+            // 「仅静音」并未改写通知（原通知保留，只是不响不震），与重发副本的「已修改」区分开。
+            decision.silenceOnly(originalImportance) -> NotificationLog.OUTCOME_SILENCED
             decision.needsRepost -> NotificationLog.OUTCOME_MODIFIED
             decision.snoozeMinutes != null -> NotificationLog.OUTCOME_SNOOZED
             decision.dismiss -> NotificationLog.OUTCOME_DISMISSED
@@ -420,10 +427,11 @@ class HushListenerService : NotificationListenerService() {
             // 系统会静默忽略 snooze（掐不断，还会留下永不放回的脏记录），一并跳过。
             // Android 11 以下 snooze 放回时会再次响铃，就地静音不可用——宁可放过这一声，
             // 也不重发副本。
-            decision.silenceOnly(originalImportance) -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !isPersistent && wouldAlert(sbn)) {
-                    silenceInPlace(sbn)
-                }
+            decision.silenceOnly(originalImportance) -> when {
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
+                    Logger.i("silence: pre-R, leaving ${sbn.key} untouched")
+                isPersistent -> Logger.i("silence: persistent, skip snooze ${sbn.key}")
+                wouldAlert(sbn) -> silenceInPlace(sbn)
             }
             decision.needsRepost -> {
                 modifier.repost(sbn, decision, appName)
@@ -459,8 +467,12 @@ class HushListenerService : NotificationListenerService() {
      */
     private fun silenceInPlace(sbn: StatusBarNotification) {
         inPlaceSilenced[sbn.key] = SystemClock.elapsedRealtime() + SILENCE_SKIP_WINDOW_MS
-        if (runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }.isFailure) {
+        val result = runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }
+        if (result.isFailure) {
             inPlaceSilenced.remove(sbn.key)
+            Logger.w("silence: snooze failed for ${sbn.key}", result.exceptionOrNull())
+        } else {
+            Logger.i("silence: snoozed ${sbn.key}")
         }
     }
 
@@ -482,19 +494,30 @@ class HushListenerService : NotificationListenerService() {
         val ranking = android.service.notification.NotificationListenerService.Ranking()
         val found = runCatching { currentRanking?.getRanking(sbn.key, ranking) }.getOrNull()
         if (found == true) {
-            if (ranking.importance < android.app.NotificationManager.IMPORTANCE_DEFAULT) return false
-            if (!ranking.matchesInterruptionFilter()) return false
+            if (ranking.importance < android.app.NotificationManager.IMPORTANCE_DEFAULT) {
+                return silentBecause("importance=${ranking.importance}", sbn)
+            }
+            if (!ranking.matchesInterruptionFilter()) return silentBecause("dnd", sbn)
             val alertedBefore = ranking.lastAudiblyAlertedMillis in 1 until sbn.postTime
-            if (n.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE != 0 && alertedBefore) return false
+            if (n.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE != 0 && alertedBefore) {
+                return silentBecause("alert-once update", sbn)
+            }
         }
         if (sbn.isGroup) {
             val isSummary = n.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0
             when (n.groupAlertBehavior) {
-                android.app.Notification.GROUP_ALERT_SUMMARY -> if (!isSummary) return false
-                android.app.Notification.GROUP_ALERT_CHILDREN -> if (isSummary) return false
+                android.app.Notification.GROUP_ALERT_SUMMARY ->
+                    if (!isSummary) return silentBecause("group alerts via summary", sbn)
+                android.app.Notification.GROUP_ALERT_CHILDREN ->
+                    if (isSummary) return silentBecause("group alerts via children", sbn)
             }
         }
         return true
+    }
+
+    private fun silentBecause(reason: String, sbn: StatusBarNotification): Boolean {
+        Logger.i("silence: $reason, no alert expected, skip snooze ${sbn.key}")
+        return false
     }
 
     /**

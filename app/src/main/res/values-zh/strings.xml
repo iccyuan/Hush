@@ -40,6 +40,7 @@
     <string name="stat_total">%d 条通知</string>
     <string name="stat_bar_count">%1$d 条</string>
     <string name="outcome_modified">已修改</string>
+    <string name="outcome_silenced">已静音</string>
     <string name="outcome_discarded">已丢弃</string>
     <string name="outcome_dismissed">已消除</string>
     <string name="outcome_snoozed">已稍后</string>
