@@ -277,7 +277,10 @@ class HushListenerService : NotificationListenerService() {
         if (sbn.packageName == packageName) return
         // 就地静音后由系统放回的原通知：跳过处理（本来就已静默）。见 [inPlaceSilenced]。
         inPlaceSilenced.remove(sbn.key)?.let { deadline ->
-            if (SystemClock.elapsedRealtime() < deadline) return
+            if (SystemClock.elapsedRealtime() < deadline) {
+                verifySilentPutback(sbn.key)
+                return
+            }
         }
 
         scope.launch {
@@ -518,6 +521,28 @@ class HushListenerService : NotificationListenerService() {
     private fun silentBecause(reason: String, sbn: StatusBarNotification): Boolean {
         Logger.i("silence: $reason, no alert expected, skip snooze ${sbn.key}")
         return false
+    }
+
+    /**
+     * 诊断：就地静音的放回到达后，延迟复查系统的「最近发声/振动」时间戳，确认放回确实是
+     * 静默的。AOSP 在 Android 11+ 保证放回不重新提醒，但部分 OEM ROM 会破坏该约定——
+     * 若发现二次响铃，以 warning 记录，便于现场从 logcat 定位机型问题。
+     */
+    private fun verifySilentPutback(key: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val putbackAt = System.currentTimeMillis()
+        scope.launch {
+            delay(3_000)
+            val ranking = android.service.notification.NotificationListenerService.Ranking()
+            val found = runCatching { currentRanking?.getRanking(key, ranking) }.getOrNull() ?: return@launch
+            if (!found) return@launch
+            val alerted = ranking.lastAudiblyAlertedMillis
+            if (alerted >= putbackAt) {
+                Logger.w("silence: putback RE-ALERTED for $key (alerted=$alerted, putback=$putbackAt) — OEM breaks silent putback")
+            } else {
+                Logger.i("silence: putback stayed silent for $key (lastAudibly=$alerted, putback=$putbackAt)")
+            }
+        }
     }
 
     /**
