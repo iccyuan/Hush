@@ -38,11 +38,6 @@ class MatchContext(
     val userId: Int = 0,
     /** 是否为常驻通知（VPN / 音乐 / 下载 / 前台服务等）。默认不触发弹幕。 */
     val isPersistent: Boolean = false,
-    /**
-     * 源通知自身的重要性（来自系统 Ranking，而非我们的渠道）。仅供「静音应用」短路
-     * 使用，以便重发副本保持原通知本来的横幅行为——不像单条「静音」动作那样固定 HIGH。
-     */
-    val originalImportance: Importance? = null,
 ) {
     /** 来自正则分组的 {1}..{9} 以及来自变量的命名捕获。 */
     val captures: MutableMap<String, String> = mutableMapOf()
@@ -123,4 +118,19 @@ class Decision {
     /** 当通知内容/提醒必须重新构建并重新发布时为 true。 */
     val needsRepost: Boolean
         get() = !discard && (fieldEdits.isNotEmpty() || importance != null || sound != null)
+
+    /**
+     * 是否为「仅静音」：除了不发声不震动之外没有任何其他改动（不改字段、不换铃声、
+     * 不绕过勿扰、不丢弃/移除/暂缓）。这类决定必须**保留原通知、绝不重发副本**：服务在
+     * 通知确实会发声/震动时短暂 snooze 掐断提醒，让系统把原通知**原样放回**（Android 11+
+     * 保证放回时静默）；本就静默的通知、常驻通知以及 Android 11 以下则不作任何处理。
+     * 通知始终归属原应用，渠道、长按设置、后续更新都不受影响。
+     *
+     * [originalImportance] 为源通知本来的重要性：把 [importance] 显式设为与原值相同不算
+     * “改动”，仍按「仅静音」处理；改成其他重要性才需要重发副本。
+     */
+    fun silenceOnly(originalImportance: Importance?): Boolean =
+        !discard && !dismiss && snoozeMinutes == null && fieldEdits.isEmpty() && !bypassDnd &&
+            sound?.silent == true && sound?.soundUri == null &&
+            (importance == null || importance == originalImportance)
 }

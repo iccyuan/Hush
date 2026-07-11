@@ -8,8 +8,11 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
+import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.iccyuan.hush.data.NotificationLogRepository
 import com.iccyuan.hush.data.RuleRepository
@@ -36,6 +39,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 实时入口点：接收每一条发布的通知，通过 [RuleEngine] 对其进行处理，
@@ -74,6 +78,11 @@ class HushListenerService : NotificationListenerService() {
     @Volatile private var wifiUp: Boolean = false
     // 最近一次连接的 Wi-Fi SSID：断开事件用它做「指定 Wi-Fi」过滤（断开后已读不到）。
     @Volatile private var lastSsid: String? = null
+
+    // 「就地静音」short-snooze 后系统会把原通知放回并再次回调 onNotificationPosted。
+    // 记录这些 key（值为跳过窗口的截止时刻），以便跳过放回的那一次——否则放回的通知会
+    // 再次命中规则 → 再次 snooze，循环不止，且副作用（toast/webhook 等）会重复执行。
+    private val inPlaceSilenced = ConcurrentHashMap<String, Long>()
 
     // 应用安装/卸载/更新时，失效对应包名的应用标签缓存（见 [NotificationFields.appLabel]）。
     private val packageChangeReceiver = object : BroadcastReceiver() {
@@ -266,6 +275,10 @@ class HushListenerService : NotificationListenerService() {
         if (!masterEnabled) return
         // 切勿处理我们自己重新发布的副本——否则会陷入无限循环。
         if (sbn.packageName == packageName) return
+        // 就地静音后由系统放回的原通知：跳过处理（本来就已静默）。见 [inPlaceSilenced]。
+        inPlaceSilenced.remove(sbn.key)?.let { deadline ->
+            if (SystemClock.elapsedRealtime() < deadline) return
+        }
 
         scope.launch {
             try {
@@ -299,6 +312,7 @@ class HushListenerService : NotificationListenerService() {
         // 常驻通知（VPN / 音乐 / 下载 / 前台服务 / 来电 / 导航等）：综合 flags 与 category 判定，
         // 见 [NotificationFields.isPersistent]。这类通知不写入历史、默认也不触发弹幕。
         val isPersistent = NotificationFields.isPersistent(sbn)
+        val originalImportance = originalImportanceOf(sbn)
         val ctx = MatchContext(
             packageName = sbn.packageName,
             appName = appName,
@@ -308,7 +322,6 @@ class HushListenerService : NotificationListenerService() {
             device = device,
             userId = userId,
             isPersistent = isPersistent,
-            originalImportance = originalImportanceOf(sbn),
         )
 
         val decision = engine.evaluate(ctx, activeRules)
@@ -327,7 +340,7 @@ class HushListenerService : NotificationListenerService() {
         }
 
         if (decision.matched) {
-            applyDecision(sbn, decision, appName)
+            applyDecision(sbn, decision, appName, originalImportance, isPersistent)
             recordFires(decision)
         }
         // 规则仍会照常对常驻通知求值——这里只跳过记录。
@@ -378,7 +391,13 @@ class HushListenerService : NotificationListenerService() {
         }
     }
 
-    private fun applyDecision(sbn: StatusBarNotification, decision: Decision, appName: String) {
+    private fun applyDecision(
+        sbn: StatusBarNotification,
+        decision: Decision,
+        appName: String,
+        originalImportance: Importance?,
+        isPersistent: Boolean,
+    ) {
         // 自动回复需要原始通知的 RemoteInput。
         decision.sideEffects.filterIsInstance<SideEffect.AutoReply>().forEach {
             AutoReplyHelper.reply(this, sbn, it.message)
@@ -393,6 +412,19 @@ class HushListenerService : NotificationListenerService() {
 
         when {
             decision.discard -> safeCancel(sbn.key)
+            // 「仅静音」（不发声不震动之外无任何改动）：必须保留原通知，绝不重发副本——
+            // 副本会脱离原应用，渠道、长按设置、后续更新等原生行为全部丢失。只有本次确实
+            // 会发声/震动时才就地静音（短暂 snooze 掐断提醒，系统随后把原通知原样、静默地
+            // 放回）；本就静默的通知（渠道重要性低、勿扰拦截、「仅首次提醒」的同 key 更新、
+            // 组内提醒收敛）什么也不做，避免通知在栏上无谓地消失又闪回。常驻/ongoing 通知
+            // 系统会静默忽略 snooze（掐不断，还会留下永不放回的脏记录），一并跳过。
+            // Android 11 以下 snooze 放回时会再次响铃，就地静音不可用——宁可放过这一声，
+            // 也不重发副本。
+            decision.silenceOnly(originalImportance) -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !isPersistent && wouldAlert(sbn)) {
+                    silenceInPlace(sbn)
+                }
+            }
             decision.needsRepost -> {
                 modifier.repost(sbn, decision, appName)
                 // 移除源通知；由我们重建的副本取而代之。
@@ -418,6 +450,51 @@ class HushListenerService : NotificationListenerService() {
 
     private fun safeCancel(key: String) {
         runCatching { cancelNotification(key) }
+    }
+
+    /**
+     * 就地静音：短暂 snooze 源通知以掐断正在播放的声音/振动，到期后系统把原通知原样、
+     * 静默地放回。先登记 key 再 snooze，确保放回回调到达时一定能被 [inPlaceSilenced] 跳过；
+     * snooze 失败则收回登记（不做任何回退——保留原通知优先于掐断这一声）。
+     */
+    private fun silenceInPlace(sbn: StatusBarNotification) {
+        inPlaceSilenced[sbn.key] = SystemClock.elapsedRealtime() + SILENCE_SKIP_WINDOW_MS
+        if (runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }.isFailure) {
+            inPlaceSilenced.remove(sbn.key)
+        }
+    }
+
+    /**
+     * 判断这次发布是否会真正发声/震动——只有会响的才值得 snooze 掐断。刻意不拿
+     * lastAudiblyAlertedMillis 与本次 postTime 比先后来判断“这次响没响”：该时间戳经排名
+     * 更新异步送达，读到的多半还是响铃前的快照，会把该掐的误判成不用掐。改用确定性的
+     * 信号做排除：
+     *  · 渠道重要性低于 DEFAULT → 系统本就不发声不震动；
+     *  · 被勿扰模式拦截 → 不发声；
+     *  · 带 FLAG_ONLY_ALERT_ONCE 且此前已响过（时间戳早于本次发布，属旧快照的可靠信息）
+     *    → 同 key 更新不再响；
+     *  · 通知组按 groupAlertBehavior 收敛提醒时，被静默的那一方（child 或 summary）不响。
+     * 排除不了的一律视为会响（宁可多 snooze 一次，不能漏掉掐断）；取不到排名时同理。
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun wouldAlert(sbn: StatusBarNotification): Boolean {
+        val n = sbn.notification
+        val ranking = android.service.notification.NotificationListenerService.Ranking()
+        val found = runCatching { currentRanking?.getRanking(sbn.key, ranking) }.getOrNull()
+        if (found == true) {
+            if (ranking.importance < android.app.NotificationManager.IMPORTANCE_DEFAULT) return false
+            if (!ranking.matchesInterruptionFilter()) return false
+            val alertedBefore = ranking.lastAudiblyAlertedMillis in 1 until sbn.postTime
+            if (n.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE != 0 && alertedBefore) return false
+        }
+        if (sbn.isGroup) {
+            val isSummary = n.flags and android.app.Notification.FLAG_GROUP_SUMMARY != 0
+            when (n.groupAlertBehavior) {
+                android.app.Notification.GROUP_ALERT_SUMMARY -> if (!isSummary) return false
+                android.app.Notification.GROUP_ALERT_CHILDREN -> if (isSummary) return false
+            }
+        }
+        return true
     }
 
     /**
@@ -453,6 +530,12 @@ class HushListenerService : NotificationListenerService() {
     }
 
     companion object {
+
+        /** 就地静音的 snooze 时长：足以让系统掐断声音/振动，又短到通知栏几乎无感。 */
+        private const val SILENCE_SNOOZE_MS = 1_000L
+
+        /** 放回跳过窗口：放回一般在 1 秒后到达，Doze 等延迟场景放宽到 30 秒兜底。 */
+        private const val SILENCE_SKIP_WINDOW_MS = 30_000L
 
         /** 当监听器处于连接状态时非空；供 UI 用于显示状态。 */
         @Volatile

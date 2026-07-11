@@ -73,6 +73,8 @@ class ChannelManager(private val context: Context) {
         // 并留在通知栏（「静默横幅」）——否则只进通知栏、不再弹出。这是用户明确要的行为。
         // 代价：部分 OEM（如 ColorOS）对 HIGH 横幅即使关了震动仍会给一下轻微触感，无法从渠道层
         // 消除（要消除就得降到 LOW，但那样横幅也不弹了）。用户权衡后选择保留横幅、接受该触感。
+        // 注：“仅静音”的决定已不再重发副本（就地静音或不作处理，见 applyDecision），不会经过
+        // 本渠道；这里的 HIGH 兜底只对「静音 + 其他改动（如改字段）」的重发副本生效。
         val imp = importance ?: if (sound?.silent == true) Importance.HIGH else Importance.DEFAULT
         val sig = buildString {
             append("repost_")
