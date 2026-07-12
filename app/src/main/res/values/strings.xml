@@ -38,6 +38,7 @@
     <string name="stat_peak_hour">Peak time</string>
     <string name="stat_busiest_day">Busiest day</string>
     <string name="stat_total">%d notifications</string>
+    <string name="stat_span">Over %1$d days · %2$d per day</string>
     <string name="stat_bar_count">%1$d</string>
     <string name="outcome_modified">Modified</string>
     <string name="outcome_silenced">Silenced</string>

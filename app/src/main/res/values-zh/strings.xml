@@ -38,6 +38,7 @@
     <string name="stat_peak_hour">高峰时段</string>
     <string name="stat_busiest_day">最忙</string>
     <string name="stat_total">%d 条通知</string>
+    <string name="stat_span">近 %1$d 天 · 日均 %2$d 条</string>
     <string name="stat_bar_count">%1$d 条</string>
     <string name="outcome_modified">已修改</string>
     <string name="outcome_silenced">已静音</string>

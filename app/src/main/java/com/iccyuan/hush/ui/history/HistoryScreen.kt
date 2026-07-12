@@ -289,6 +289,14 @@ private fun StatsCard(times: List<Long>, grouping: Grouping, firstDow: Int) {
     // 点击某根柱：选中并在概要行显示其数值；再次点击取消。分组切换时清空选中。
     var selected by remember(byWeek) { mutableStateOf<Int?>(null) }
 
+    // 总数是**全部历史**的累计（可跨越好几周），单说一个「384 条通知」会被读成「今天 384 条」。
+    // 补上覆盖天数与日均，数字才有尺度。
+    val spanDays = remember(times) {
+        val first = times.minOrNull() ?: return@remember 0
+        val last = times.maxOrNull() ?: return@remember 0
+        (((last - first) / 86_400_000L) + 1).toInt().coerceAtLeast(1)
+    }
+
     InsetGroupedSection {
         Column(Modifier.padding(Spacing.lg)) {
             Text(
@@ -296,6 +304,13 @@ private fun StatsCard(times: List<Long>, grouping: Grouping, firstDow: Int) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            if (times.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.stat_span, spanDays, times.size / spanDays),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(Spacing.xs))
             val summary = when {
                 selected != null -> "${barLabel(byWeek, selected!!, weekdays, firstDow)} · " +
