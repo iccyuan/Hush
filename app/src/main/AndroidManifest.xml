@@ -21,6 +21,20 @@
          Android 11+ 的静默放回约定。此权限允许在放回窗口内临时静音「通知」音量流，把那声
          响铃吞掉——见 HushListenerService.suppressNotificationSound。 -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- 「系统级静音」所需：Android 只对持有配套设备关联的应用开放「改写其他应用通知渠道」
+         的能力（NotificationListenerService.updateNotificationChannel）。关联时系统会列出附近的
+         蓝牙设备供用户选择，故需扫描权限；本应用不与所选设备通信、也不需要它保持连接。 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

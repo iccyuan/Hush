@@ -39,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
@@ -144,6 +145,31 @@ fun SettingsScreen(
                     onClick = { onOpenCategory(SettingsCategory.KEEPALIVE) },
                     trailing = { Chevron() },
                 )
+            }
+            // 系统级静音：需要一次配套设备关联，之后「静音应用」才能直接改目标应用的通知渠道
+            // （不发声不振动、通知原样保留）。未开通时静音退回到 snooze 掐断，在部分 ROM 上会失效。
+            if (companionSupported(context)) {
+                val (paired, startPairing) = rememberCompanionPairing(context)
+                InsetGroupedSection(footer = stringResource(R.string.settings_channel_mute_footer)) {
+                    IOSRow(
+                        title = stringResource(R.string.settings_channel_mute),
+                        subtitle = stringResource(
+                            if (paired.value) R.string.settings_channel_mute_on
+                            else R.string.settings_channel_mute_off
+                        ),
+                        icon = Icons.Filled.NotificationsOff,
+                        iconColor = IOSColors.Red,
+                        onClick = { if (!paired.value) startPairing() },
+                        trailing = {
+                            IOSSwitch(paired.value) { on ->
+                                if (on) startPairing() else {
+                                    CompanionPairing.unpair(context)
+                                    paired.value = false
+                                }
+                            }
+                        },
+                    )
+                }
             }
             // 总开关（关键项，置顶保留）
             InsetGroupedSection {
