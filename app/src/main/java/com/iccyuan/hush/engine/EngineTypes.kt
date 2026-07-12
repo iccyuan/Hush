@@ -115,6 +115,8 @@ class Decision {
     val sideEffects: MutableList<SideEffect> = mutableListOf()
     /** 已触发的规则 id，用于触发计数的记账。 */
     val firedRuleIds: MutableSet<Long> = mutableSetOf()
+    /** 每条命中规则「为什么命中」的取证记录，写入通知历史供用户回溯。见 [MatchTrace]。 */
+    val traces: MutableList<MatchTrace> = mutableListOf()
 
     /** 当通知内容/提醒必须重新构建并重新发布时为 true。 */
     val needsRepost: Boolean

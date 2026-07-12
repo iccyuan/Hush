@@ -24,6 +24,14 @@ data class NotificationLog(
     val firedRuleIds: String,
     /** 发生的处理结果：none / modified / silenced / discarded / dismissed / snoozed。 */
     val outcome: String,
+    /**
+     * 「为什么被这样处理」的取证：命中规则 + 实际命中的触发器 + 当时成立的条件，
+     * 序列化的 [com.iccyuan.hush.engine.MatchTrace] 列表（JSON）。旧记录为空串。
+     *
+     * 之所以随日志存一份而不是回查规则：规则随时会被改、被删，事后回查只能得到**现在**的样子，
+     * 答不了「当时为什么命中」——那恰恰是用户翻历史时要问的。
+     */
+    val traces: String = "",
 ) {
     companion object {
         const val OUTCOME_NONE = "none"

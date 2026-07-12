@@ -81,6 +81,18 @@ class RuleEngine {
                     decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)
                     // 不改重要性、不改字段——这样 silenceOnly() 成立，服务会保留原通知
                     // （就地静音或不作处理，绝不重发副本），横幅行为跟随源通知本来的重要性。
+                    //
+                    // 这条短路不走规则循环，取证记录得在这里补上——否则历史里会出现「已静音，
+                    // 但没有任何规则命中」的记录，用户无从知道是谁静音了它。触发器留空：静音一旦
+                    // 生效就作用于该应用的每一条通知，本就与触发器无关。
+                    decision.traces.add(
+                        MatchTrace(
+                            ruleId = muteRule.id,
+                            ruleName = muteRule.name,
+                            conditions = holdingConditions(muteRule, ctx),
+                            actions = muteRule.actions,
+                        )
+                    )
                     return decision
                 }
                 // else：条件此刻不成立——不静音、不解除，继续常规求值。
@@ -93,11 +105,22 @@ class RuleEngine {
             if (!appMatches(rule, ctx.packageName, ctx.userId)) continue
 
             val captures = mutableMapOf<String, String>()
-            if (!triggersMatch(rule, ctx, captures)) continue
+            val firedTriggers = mutableListOf<Trigger>()
+            if (!triggersMatch(rule, ctx, captures, firedTriggers)) continue
             if (!conditionsHold(rule, ctx)) continue
 
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision, readOnly)
+            // 记下「为什么命中」：哪条规则、被哪个触发器命中、当时哪些条件成立、执行了什么动作。
+            decision.traces.add(
+                MatchTrace(
+                    ruleId = rule.id,
+                    ruleName = rule.name,
+                    triggers = firedTriggers,
+                    conditions = holdingConditions(rule, ctx),
+                    actions = rule.actions,
+                )
+            )
 
             // 弹幕用于「替代」被屏蔽的通知，因此仅在该规则确实丢弃了通知时才显示——
             // 否则原生通知仍在、又叠加弹幕，既矛盾又会出现时有时无的竞态。默认排除常驻通知，
@@ -135,18 +158,29 @@ class RuleEngine {
         }
     }
 
+    /**
+     * [firedTriggers] 收集**实际命中**的触发器，供 [MatchTrace] 向用户解释「为什么命中」。
+     * ALL 逻辑下全部触发器都得成立，故全部记入；ANY 逻辑下只记真正说了算的那些。
+     */
     private fun triggersMatch(
         rule: Rule,
         ctx: MatchContext,
         captures: MutableMap<String, String>,
+        firedTriggers: MutableList<Trigger>? = null,
     ): Boolean {
         if (rule.matchesEverything) return true
-        val results = rule.triggers.map { evalTrigger(it, ctx, captures) }
-        return when (rule.triggerLogic) {
-            LogicMode.ALL -> results.all { it }
-            LogicMode.ANY -> results.any { it }
+        val hits = rule.triggers.filter { evalTrigger(it, ctx, captures) }
+        val matched = when (rule.triggerLogic) {
+            LogicMode.ALL -> hits.size == rule.triggers.size
+            LogicMode.ANY -> hits.isNotEmpty()
         }
+        if (matched) firedTriggers?.addAll(hits)
+        return matched
     }
+
+    /** 当前成立的条件——用来解释「为什么是此刻生效」（时段、充电、Wi-Fi 等）。 */
+    private fun holdingConditions(rule: Rule, ctx: MatchContext): List<Condition> =
+        rule.conditions.filter { runCatching { evalCondition(it, rule, ctx) }.getOrDefault(false) }
 
     private fun evalTrigger(
         trigger: Trigger,

@@ -57,7 +57,11 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
+import com.iccyuan.hush.data.db.BuzzJson
 import com.iccyuan.hush.data.model.NotificationLog
+import com.iccyuan.hush.engine.MatchTrace
+import com.iccyuan.hush.ui.Localize
+import kotlinx.serialization.builtins.ListSerializer
 import com.iccyuan.hush.ui.components.GlassScaffold
 import com.iccyuan.hush.ui.components.HairlineDivider
 import com.iccyuan.hush.ui.components.InsetGroupedSection
@@ -516,16 +520,7 @@ private fun LogRow(
                 if (log.text.isNotBlank()) DetailLine(stringResource(R.string.detail_text), log.text)
                 DetailLine(stringResource(R.string.detail_package), log.packageName)
                 DetailLine(stringResource(R.string.detail_time), fullTimeOf(log.time))
-                if (log.matched) {
-                    val ids = log.firedRuleIds.split(",").mapNotNull { it.trim().toLongOrNull() }
-                    val names = ids.mapNotNull { ruleNames[it] }
-                    val display = when {
-                        names.isNotEmpty() -> names.joinToString("、")
-                        ids.isNotEmpty() -> stringResource(R.string.rule_deleted)
-                        else -> null
-                    }
-                    if (display != null) DetailLine(stringResource(R.string.detail_rules), display)
-                }
+                MatchReason(log, ruleNames)
                 if (onCreateRule != null) {
                     TextButton(
                         onClick = onCreateRule,
@@ -561,12 +556,13 @@ private fun DetailLine(label: String, value: String) {
 @Composable
 private fun OutcomeBadge(log: NotificationLog) {
     if (!log.matched) return
+    // 每种结果各自成色，「已丢弃」尤其不能混进泛泛的「命中」里——通知被拦下了是最该看清的一件事。
     val (label, color) = when (log.outcome) {
+        NotificationLog.OUTCOME_DISCARDED -> stringResource(R.string.outcome_discarded) to IOSColors.Red
         NotificationLog.OUTCOME_MODIFIED -> stringResource(R.string.outcome_modified) to IOSColors.Blue
         NotificationLog.OUTCOME_SILENCED -> stringResource(R.string.outcome_silenced) to IOSColors.Gray
         NotificationLog.OUTCOME_DISMISSED -> stringResource(R.string.outcome_dismissed) to IOSColors.Orange
         NotificationLog.OUTCOME_SNOOZED -> stringResource(R.string.outcome_snoozed) to IOSColors.Indigo
-        // 丢弃同样属于「被规则命中」，按命中（绿色）展示更贴切，避免满屏红色「已丢弃」。
         else -> stringResource(R.string.outcome_matched) to IOSColors.Green
     }
     Box(
@@ -578,6 +574,71 @@ private fun OutcomeBadge(log: NotificationLog) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = color)
     }
 }
+
+/**
+ * 展开后的「为什么」：命中了哪条规则、被其中哪个触发器命中、当时哪些条件成立、执行了什么动作。
+ *
+ * 读的是随日志存下的取证快照，而不是回查规则——规则会被改、被删，回查只能给出**现在**的样子，
+ * 答不了「当时为什么命中」。取证缺失（旧记录）时退回只列规则名。
+ */
+@Composable
+private fun MatchReason(log: NotificationLog, ruleNames: Map<Long, String>) {
+    if (!log.matched) return
+    val traces = remember(log.traces) {
+        if (log.traces.isBlank()) emptyList()
+        else runCatching { BuzzJson.decodeFromString(TRACE_LIST, log.traces) }.getOrDefault(emptyList())
+    }
+
+    if (traces.isEmpty()) {
+        // 旧记录没有取证，只能列出规则名（还得看规则是否仍存在）。
+        val ids = log.firedRuleIds.split(",").mapNotNull { it.trim().toLongOrNull() }
+        val names = ids.mapNotNull { ruleNames[it] }
+        val display = when {
+            names.isNotEmpty() -> names.joinToString("、")
+            ids.isNotEmpty() -> stringResource(R.string.rule_deleted)
+            else -> null
+        }
+        if (display != null) DetailLine(stringResource(R.string.detail_rules), display)
+        return
+    }
+
+    for (trace in traces) {
+        DetailLine(stringResource(R.string.detail_rules), trace.ruleName)
+        // 触发器为空 = 该规则没设触发器，即「这个应用的所有通知都算命中」。说清楚它，
+        // 否则用户会以为是漏记了。
+        val why = if (trace.triggers.isEmpty()) {
+            stringResource(R.string.trace_matches_all)
+        } else {
+            summaries(trace.triggers) { Localize.summary(it) }
+        }
+        DetailLine(stringResource(R.string.trace_trigger), why)
+        if (trace.conditions.isNotEmpty()) {
+            DetailLine(
+                stringResource(R.string.trace_condition),
+                summaries(trace.conditions) { Localize.summary(it) },
+            )
+        }
+        if (trace.actions.isNotEmpty()) {
+            DetailLine(
+                stringResource(R.string.trace_action),
+                summaries(trace.actions) { Localize.summary(it) },
+            )
+        }
+    }
+}
+
+/**
+ * 把一组规则组件渲染成一行摘要。用 for 循环而非 joinToString：[Localize] 的摘要是
+ * @Composable（要按当前语言取字符串资源），不能在普通 lambda 里调用。
+ */
+@Composable
+private fun <T> summaries(items: List<T>, summary: @Composable (T) -> String): String {
+    val parts = mutableListOf<String>()
+    for (item in items) parts += summary(item)
+    return parts.joinToString("、")
+}
+
+private val TRACE_LIST = ListSerializer(MatchTrace.serializer())
 
 @Composable
 private fun EmptyHistory() {

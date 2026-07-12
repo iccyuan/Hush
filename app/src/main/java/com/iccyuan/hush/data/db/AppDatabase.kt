@@ -11,7 +11,7 @@ import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.data.model.RuleFireStats
 
-@Database(entities = [Rule::class, NotificationLog::class, RuleFireStats::class], version = 9, exportSchema = true)
+@Database(entities = [Rule::class, NotificationLog::class, RuleFireStats::class], version = 10, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
@@ -71,8 +71,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 新增「命中取证」列：记下这条通知为何被这样处理（哪条规则、哪个触发器、
+                // 当时哪些条件成立）。旧记录没有取证，留空即可——历史界面对空值只显示结果。
+                db.execSQL("ALTER TABLE notification_log ADD COLUMN traces TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATIONS: Array<Migration> = arrayOf(
+            MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+        )
 
         fun get(context: Context): AppDatabase =
             instance ?: synchronized(this) {

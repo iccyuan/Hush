@@ -25,8 +25,10 @@ import com.iccyuan.hush.data.model.Importance
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.data.model.Trigger
+import com.iccyuan.hush.data.db.BuzzJson
 import com.iccyuan.hush.engine.Decision
 import com.iccyuan.hush.engine.MatchContext
+import com.iccyuan.hush.engine.MatchTrace
 import com.iccyuan.hush.engine.RuleEngine
 import com.iccyuan.hush.engine.SideEffect
 import com.iccyuan.hush.engine.TemplateEngine
@@ -423,6 +425,10 @@ class HushListenerService : NotificationListenerService() {
                     matched = decision.matched,
                     firedRuleIds = decision.firedRuleIds.joinToString(","),
                     outcome = outcome,
+                    traces = if (decision.traces.isEmpty()) "" else {
+                        runCatching { BuzzJson.encodeToString(TRACES, decision.traces.toList()) }
+                            .getOrDefault("")
+                    },
                 )
             )
         }
@@ -680,6 +686,9 @@ class HushListenerService : NotificationListenerService() {
 
         /** 放回跳过窗口：放回一般在 1 秒后到达，Doze 等延迟场景放宽到 30 秒兜底。 */
         private const val SILENCE_SKIP_WINDOW_MS = 30_000L
+
+        /** 通知历史里「命中取证」的序列化器（见 [NotificationLog.traces]）。 */
+        private val TRACES = kotlinx.serialization.builtins.ListSerializer(MatchTrace.serializer())
 
         /** 放回后隔多久复查「是否二次响铃」：要等系统把发声时间戳更新进排名。 */
         private const val PUTBACK_CHECK_DELAY_MS = 3_000L

@@ -41,6 +41,10 @@
     <string name="stat_bar_count">%1$d 条</string>
     <string name="outcome_modified">已修改</string>
     <string name="outcome_silenced">已静音</string>
+    <string name="trace_trigger">触发器</string>
+    <string name="trace_condition">条件</string>
+    <string name="trace_action">动作</string>
+    <string name="trace_matches_all">无触发器 — 匹配该应用的所有通知</string>
     <string name="outcome_discarded">已丢弃</string>
     <string name="outcome_dismissed">已消除</string>
     <string name="outcome_snoozed">已稍后</string>
