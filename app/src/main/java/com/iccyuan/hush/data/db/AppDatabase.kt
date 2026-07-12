@@ -11,7 +11,7 @@ import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.data.model.Rule
 import com.iccyuan.hush.data.model.RuleFireStats
 
-@Database(entities = [Rule::class, NotificationLog::class, RuleFireStats::class], version = 10, exportSchema = true)
+@Database(entities = [Rule::class, NotificationLog::class, RuleFireStats::class], version = 11, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun ruleDao(): RuleDao
@@ -79,8 +79,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 新增「差一点命中」列：通知**没**被处理时，是哪条规则差一点、卡在了哪一关。
+                // 旧记录没有，留空即可——历史界面对空值只是不显示这一段。
+                db.execSQL("ALTER TABLE notification_log ADD COLUMN nearMisses TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         private val MIGRATIONS: Array<Migration> = arrayOf(
-            MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
+            MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9,
+            MIGRATION_9_10, MIGRATION_10_11,
         )
 
         fun get(context: Context): AppDatabase =

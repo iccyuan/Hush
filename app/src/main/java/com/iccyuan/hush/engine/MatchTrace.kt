@@ -28,3 +28,36 @@ data class MatchTrace(
     /** 该规则执行的动作。 */
     val actions: List<Action> = emptyList(),
 )
+
+/**
+ * 「差一点就命中」的规则：应用对上了，却卡在了后面某一关。
+ *
+ * 通知**没被处理**时，用户最想知道的恰恰是为什么——而这个问题此前只能靠翻 logcat 回答。
+ * 记下卡在哪一关、已经过了哪些关，历史里就能直接给出答案：
+ *
+ * ```
+ * 最接近的规则  拦截促销
+ *   ✓ 触发器   标题 包含「促销」
+ *   ✗ 条件     屏幕点亮时          ← 差在这里
+ * ```
+ *
+ * 只记「应用匹配上」的规则：连应用都不沾边的规则与这条通知毫无关系，列出来只是噪音。
+ */
+@Serializable
+data class NearMiss(
+    val ruleId: Long,
+    val ruleName: String,
+    /** 卡在了哪一关。 */
+    val blockedAt: Stage,
+    /**
+     * 已经命中的触发器。卡在触发器关时它可能非空——「全部满足」的规则挂了三个触发器、
+     * 命中两个，也照样不算数；把命中的那两个列出来，用户才知道差的是哪一个。
+     */
+    val passedTriggers: List<Trigger> = emptyList(),
+    /** 当时**不**成立的条件（卡在条件关时才有值）。 */
+    val failedConditions: List<Condition> = emptyList(),
+) {
+    /** 卡在哪一关。越靠后说明这条规则差得越少——历史里优先展示走得最远的那条。 */
+    @Serializable
+    enum class Stage { TRIGGER, CONDITION }
+}

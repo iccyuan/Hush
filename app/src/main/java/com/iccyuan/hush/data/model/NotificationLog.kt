@@ -32,6 +32,14 @@ data class NotificationLog(
      * 答不了「当时为什么命中」——那恰恰是用户翻历史时要问的。
      */
     val traces: String = "",
+    /**
+     * 「差一点就命中」的规则：应用对上了却卡在触发器或条件，序列化的
+     * [com.iccyuan.hush.engine.NearMiss] 列表（JSON）。仅在通知**未被处理**时才有值——
+     * 命中了的通知，该问的是「为什么命中」（见 [traces]），而不是「谁差一点」。
+     *
+     * 这是用户翻历史时最常问、此前却只能靠翻 logcat 回答的问题：这条通知怎么没被拦？
+     */
+    val nearMisses: String = "",
 ) {
     companion object {
         const val OUTCOME_NONE = "none"

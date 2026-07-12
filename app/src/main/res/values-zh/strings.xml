@@ -46,6 +46,12 @@
     <string name="trace_condition">条件</string>
     <string name="trace_action">动作</string>
     <string name="trace_matches_all">无触发器 — 匹配该应用的所有通知</string>
+    <string name="trace_near_miss">差一点命中</string>
+    <string name="trace_blocked_trigger">✗ 触发器</string>
+    <string name="trace_blocked_condition">✗ 条件（当时不成立）</string>
+    <string name="trace_passed_trigger">✓ 触发器</string>
+    <string name="trace_no_trigger_matched">没有触发器命中这条通知</string>
+    <string name="trace_partial_triggers">仅命中 %1$s — 该规则要求全部满足</string>
     <string name="outcome_discarded">已丢弃</string>
     <string name="outcome_dismissed">已消除</string>
     <string name="outcome_snoozed">已稍后</string>

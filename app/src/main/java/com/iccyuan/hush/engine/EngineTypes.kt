@@ -117,6 +117,8 @@ class Decision {
     val firedRuleIds: MutableSet<Long> = mutableSetOf()
     /** 每条命中规则「为什么命中」的取证记录，写入通知历史供用户回溯。见 [MatchTrace]。 */
     val traces: MutableList<MatchTrace> = mutableListOf()
+    /** 「差一点就命中」的规则（应用对上了，卡在触发器或条件）。见 [NearMiss]。 */
+    val nearMisses: MutableList<NearMiss> = mutableListOf()
 
     /** 当通知内容/提醒必须重新构建并重新发布时为 true。 */
     val needsRepost: Boolean

@@ -46,6 +46,12 @@
     <string name="trace_condition">Conditions</string>
     <string name="trace_action">Actions</string>
     <string name="trace_matches_all">No trigger — matches every notification from this app</string>
+    <string name="trace_near_miss">Nearly matched</string>
+    <string name="trace_blocked_trigger">✗ Trigger</string>
+    <string name="trace_blocked_condition">✗ Conditions (not met then)</string>
+    <string name="trace_passed_trigger">✓ Trigger</string>
+    <string name="trace_no_trigger_matched">No trigger matched this notification</string>
+    <string name="trace_partial_triggers">Only %1$s matched — this rule requires all of them</string>
     <string name="outcome_discarded">Discarded</string>
     <string name="outcome_dismissed">Dismissed</string>
     <string name="outcome_snoozed">Snoozed</string>

@@ -60,6 +60,7 @@ import com.iccyuan.hush.R
 import com.iccyuan.hush.data.db.BuzzJson
 import com.iccyuan.hush.data.model.NotificationLog
 import com.iccyuan.hush.engine.MatchTrace
+import com.iccyuan.hush.engine.NearMiss
 import com.iccyuan.hush.ui.Localize
 import kotlinx.serialization.builtins.ListSerializer
 import com.iccyuan.hush.ui.components.GlassScaffold
@@ -536,6 +537,7 @@ private fun LogRow(
                 DetailLine(stringResource(R.string.detail_package), log.packageName)
                 DetailLine(stringResource(R.string.detail_time), fullTimeOf(log.time))
                 MatchReason(log, ruleNames)
+                NearMissReason(log)
                 if (onCreateRule != null) {
                     TextButton(
                         onClick = onCreateRule,
@@ -643,6 +645,53 @@ private fun MatchReason(log: NotificationLog, ruleNames: Map<Long, String>) {
 }
 
 /**
+ * 展开后的「为什么**没**命中」：哪条规则差一点、卡在了哪一关。
+ *
+ * 通知没被处理时，用户最想问的就是这个——此前只能靠翻 logcat 才能回答。用 ✓/✗ 标出走到哪、
+ * 卡在哪，一眼就能看出差的是触发器还是时机。
+ */
+@Composable
+private fun NearMissReason(log: NotificationLog) {
+    if (log.matched || log.nearMisses.isBlank()) return
+    val misses = remember(log.nearMisses) {
+        runCatching { BuzzJson.decodeFromString(NEAR_MISS_LIST, log.nearMisses) }
+            .getOrDefault(emptyList())
+    }
+    if (misses.isEmpty()) return
+
+    for (miss in misses) {
+        DetailLine(stringResource(R.string.trace_near_miss), miss.ruleName)
+        when (miss.blockedAt) {
+            NearMiss.Stage.TRIGGER -> {
+                // 命中过一部分触发器，说明是「全部满足」的规则没凑齐——把凑齐的那些列出来，
+                // 用户才知道差的是哪一个；一个都没命中就直接说没命中。
+                val passed = if (miss.passedTriggers.isEmpty()) {
+                    stringResource(R.string.trace_no_trigger_matched)
+                } else {
+                    stringResource(
+                        R.string.trace_partial_triggers,
+                        summaries(miss.passedTriggers) { Localize.summary(it) },
+                    )
+                }
+                DetailLine(stringResource(R.string.trace_blocked_trigger), passed)
+            }
+            NearMiss.Stage.CONDITION -> {
+                if (miss.passedTriggers.isNotEmpty()) {
+                    DetailLine(
+                        stringResource(R.string.trace_passed_trigger),
+                        summaries(miss.passedTriggers) { Localize.summary(it) },
+                    )
+                }
+                DetailLine(
+                    stringResource(R.string.trace_blocked_condition),
+                    summaries(miss.failedConditions) { Localize.summary(it) },
+                )
+            }
+        }
+    }
+}
+
+/**
  * 把一组规则组件渲染成一行摘要。用 for 循环而非 joinToString：[Localize] 的摘要是
  * @Composable（要按当前语言取字符串资源），不能在普通 lambda 里调用。
  */
@@ -654,6 +703,7 @@ private fun <T> summaries(items: List<T>, summary: @Composable (T) -> String): S
 }
 
 private val TRACE_LIST = ListSerializer(MatchTrace.serializer())
+private val NEAR_MISS_LIST = ListSerializer(NearMiss.serializer())
 
 @Composable
 private fun EmptyHistory() {

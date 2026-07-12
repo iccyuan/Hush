@@ -29,6 +29,7 @@ import com.iccyuan.hush.data.db.BuzzJson
 import com.iccyuan.hush.engine.Decision
 import com.iccyuan.hush.engine.MatchContext
 import com.iccyuan.hush.engine.MatchTrace
+import com.iccyuan.hush.engine.NearMiss
 import com.iccyuan.hush.engine.RuleEngine
 import com.iccyuan.hush.engine.SideEffect
 import com.iccyuan.hush.engine.TemplateEngine
@@ -42,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.ListSerializer
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -450,9 +452,29 @@ class HushListenerService : NotificationListenerService() {
                         runCatching { BuzzJson.encodeToString(TRACES, decision.traces.toList()) }
                             .getOrDefault("")
                     },
+                    nearMisses = nearMissesJson(decision),
                 )
             )
+        }.onFailure {
+            // 别把它咽下去：写不进历史，用户看到的是「通知记录莫名少了几条」，而这里连一行线索
+            // 都不留，只能靠猜。历史写失败不该拖垮通知处理，但必须留下痕迹。
+            Logger.e("history insert failed for ${sbn.packageName}", it)
         }
+    }
+
+    /**
+     * 「差一点就命中」只对**未被处理**的通知有意义——命中了的通知，用户要问的是「为什么命中」
+     * （traces 已经答了），而不是「还有谁差一点」。
+     *
+     * 只留走得最远的几条：规则一多，「差一点」的名单会很长，而卡在条件关的（触发器都过了、
+     * 只差时机）显然比卡在触发器关的更接近，也更是用户想看的。
+     */
+    private fun nearMissesJson(decision: Decision): String {
+        if (decision.matched || decision.nearMisses.isEmpty()) return ""
+        val closest = decision.nearMisses
+            .sortedByDescending { it.blockedAt.ordinal }
+            .take(MAX_NEAR_MISSES)
+        return runCatching { BuzzJson.encodeToString(NEAR_MISSES, closest) }.getOrDefault("")
     }
 
     private fun applyDecision(
@@ -716,7 +738,13 @@ class HushListenerService : NotificationListenerService() {
         private const val PERSISTENT_EVAL_INTERVAL_MS = 30_000L
 
         /** 通知历史里「命中取证」的序列化器（见 [NotificationLog.traces]）。 */
-        private val TRACES = kotlinx.serialization.builtins.ListSerializer(MatchTrace.serializer())
+        private val TRACES = ListSerializer(MatchTrace.serializer())
+
+        /** 「差一点就命中」的序列化器（见 [NotificationLog.nearMisses]）。 */
+        private val NEAR_MISSES = ListSerializer(NearMiss.serializer())
+
+        /** 历史里最多展示几条「差一点」：再多就成了噪音，用户看的是最接近的那一两条。 */
+        private const val MAX_NEAR_MISSES = 3
 
         /** 放回后隔多久复查「是否二次响铃」：要等系统把发声时间戳更新进排名。 */
         private const val PUTBACK_CHECK_DELAY_MS = 3_000L

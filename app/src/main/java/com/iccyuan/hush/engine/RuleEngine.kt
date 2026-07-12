@@ -106,8 +106,31 @@ class RuleEngine {
 
             val captures = mutableMapOf<String, String>()
             val firedTriggers = mutableListOf<Trigger>()
-            if (!triggersMatch(rule, ctx, captures, firedTriggers)) continue
-            if (!conditionsHold(rule, ctx)) continue
+            // 应用已经对上了，却卡在后面某一关——这才是用户翻历史时想问的「差在哪」。
+            // 应用都不沾边的规则与这条通知毫无关系，不记（那只是噪音）。
+            if (!triggersMatch(rule, ctx, captures, firedTriggers)) {
+                decision.nearMisses.add(
+                    NearMiss(
+                        ruleId = rule.id,
+                        ruleName = rule.name,
+                        blockedAt = NearMiss.Stage.TRIGGER,
+                        passedTriggers = firedTriggers,
+                    )
+                )
+                continue
+            }
+            if (!conditionsHold(rule, ctx)) {
+                decision.nearMisses.add(
+                    NearMiss(
+                        ruleId = rule.id,
+                        ruleName = rule.name,
+                        blockedAt = NearMiss.Stage.CONDITION,
+                        passedTriggers = firedTriggers,
+                        failedConditions = failingConditions(rule, ctx),
+                    )
+                )
+                continue
+            }
 
             ctx.captures.putAll(captures)
             applyActions(rule, ctx, decision, readOnly)
@@ -159,8 +182,11 @@ class RuleEngine {
     }
 
     /**
-     * [firedTriggers] 收集**实际命中**的触发器，供 [MatchTrace] 向用户解释「为什么命中」。
-     * ALL 逻辑下全部触发器都得成立，故全部记入；ANY 逻辑下只记真正说了算的那些。
+     * [firedTriggers] 收集**实际命中**的触发器，供 [MatchTrace] / [NearMiss] 向用户解释
+     * 「为什么命中」与「差在哪」。
+     *
+     * 命中与否都要收集：「全部满足」的规则挂了三个触发器却只命中两个，正是最典型的「差一点」，
+     * 用户要看的就是那命中的两个——不然只知道"没命中"，仍不知道差的是哪一个。
      */
     private fun triggersMatch(
         rule: Rule,
@@ -170,17 +196,23 @@ class RuleEngine {
     ): Boolean {
         if (rule.matchesEverything) return true
         val hits = rule.triggers.filter { evalTrigger(it, ctx, captures) }
-        val matched = when (rule.triggerLogic) {
+        firedTriggers?.addAll(hits)
+        return when (rule.triggerLogic) {
             LogicMode.ALL -> hits.size == rule.triggers.size
             LogicMode.ANY -> hits.isNotEmpty()
         }
-        if (matched) firedTriggers?.addAll(hits)
-        return matched
     }
 
     /** 当前成立的条件——用来解释「为什么是此刻生效」（时段、充电、Wi-Fi 等）。 */
     private fun holdingConditions(rule: Rule, ctx: MatchContext): List<Condition> =
-        rule.conditions.filter { runCatching { evalCondition(it, rule, ctx) }.getOrDefault(false) }
+        rule.conditions.filter { conditionHolds(it, rule, ctx) }
+
+    /** 当前**不**成立的条件——用来解释「为什么此刻没生效」。 */
+    private fun failingConditions(rule: Rule, ctx: MatchContext): List<Condition> =
+        rule.conditions.filterNot { conditionHolds(it, rule, ctx) }
+
+    private fun conditionHolds(c: Condition, rule: Rule, ctx: MatchContext): Boolean =
+        runCatching { evalCondition(c, rule, ctx) }.getOrDefault(false)
 
     private fun evalTrigger(
         trigger: Trigger,
