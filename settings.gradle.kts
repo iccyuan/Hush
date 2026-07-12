@@ -21,3 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "BuzzKill"
 include(":app")
+// 通知测试工具（NotifyTest）：验证静音/改写等规则效果的独立小应用，见 testapp/README.md。
+include(":testapp")
