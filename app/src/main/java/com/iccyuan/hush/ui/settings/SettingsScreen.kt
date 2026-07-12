@@ -40,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Tune
@@ -86,6 +87,9 @@ import androidx.compose.ui.platform.LocalView
 import com.iccyuan.hush.ui.common.rememberOnResume
 import com.iccyuan.hush.ui.components.GlassScaffold
 import com.iccyuan.hush.ui.components.TipBubble
+import com.iccyuan.hush.ui.theme.Alpha
+import com.iccyuan.hush.ui.theme.Sizes
+import com.iccyuan.hush.ui.theme.Spacing
 import com.iccyuan.hush.ui.components.HairlineDivider
 import com.iccyuan.hush.ui.components.IOSRow
 import com.iccyuan.hush.ui.components.IOSSegmented
@@ -170,28 +174,33 @@ fun SettingsScreen(
                         icon = Icons.Filled.NotificationsOff,
                         iconColor = IOSColors.Red,
                         onClick = { if (!paired) CompanionPairing.requestPairing(hostContext) },
+                        // 详情入口紧跟标题：完整原理（含「为什么要选一个蓝牙设备」）较长，收进气泡里，
+                        // 行内只留一句结论。这个 Box 就是气泡的锚点，尖角会指回它。
+                        titleAccessory = {
+                            Box {
+                                // 线框 ⓘ 而非实心：实心图标在一行文字旁太抢眼，像个警告；
+                                // 描边款与文字同重量，且贴近 iOS 的 info.circle 观感。
+                                Icon(
+                                    Icons.Outlined.Info,
+                                    contentDescription = stringResource(R.string.settings_channel_mute),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Alpha.Border),
+                                    modifier = Modifier
+                                        .size(Sizes.inlineIconTouch)
+                                        .clip(CircleShape)
+                                        .clickable { showChannelMuteInfo = true }
+                                        .padding(Spacing.xs),
+                                )
+                                TipBubble(
+                                    visible = showChannelMuteInfo,
+                                    onDismiss = { showChannelMuteInfo = false },
+                                    text = stringResource(R.string.settings_channel_mute_info),
+                                )
+                            }
+                        },
                         trailing = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // 详情入口：完整原理（含「为什么要选一个蓝牙设备」）较长，收进气泡，
-                                // 行内只留一句结论。Box 是气泡的锚点，尖角会指回这个 ⓘ。
-                                Box {
-                                    IconButton(onClick = { showChannelMuteInfo = true }) {
-                                        Icon(
-                                            Icons.Filled.Info,
-                                            contentDescription = stringResource(R.string.settings_channel_mute),
-                                            tint = IOSColors.Gray,
-                                        )
-                                    }
-                                    TipBubble(
-                                        visible = showChannelMuteInfo,
-                                        onDismiss = { showChannelMuteInfo = false },
-                                        text = stringResource(R.string.settings_channel_mute_info),
-                                    )
-                                }
-                                IOSSwitch(paired) { on ->
-                                    if (on) CompanionPairing.requestPairing(hostContext)
-                                    else CompanionPairing.unpair(context)
-                                }
+                            IOSSwitch(paired) { on ->
+                                if (on) CompanionPairing.requestPairing(hostContext)
+                                else CompanionPairing.unpair(context)
                             }
                         },
                     )

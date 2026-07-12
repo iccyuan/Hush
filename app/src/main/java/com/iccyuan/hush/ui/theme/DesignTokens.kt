@@ -64,6 +64,8 @@ object Sizes {
     /** 气泡指向锚点的小尖角。 */
     val bubbleArrowHeight = 8.dp
     val bubbleArrowWidth = 16.dp
-    /** Material 图标按钮的标准触控区尺寸——气泡据此贴在它下方、并把尖角对准它的中心。 */
-    val iconButton = 48.dp
+    /** 「详情」ⓘ 这类跟在标题后的行内小图标：与文字同量级，不能喧宾夺主。 */
+    val inlineIcon = 16.dp
+    /** 行内小图标的触控区：比图标本身大一圈以便点中，又不至于把行撑高。 */
+    val inlineIconTouch = 24.dp
 }

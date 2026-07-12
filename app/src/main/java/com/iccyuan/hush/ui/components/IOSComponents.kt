@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.iccyuan.hush.ui.theme.IOSColors
 import com.iccyuan.hush.ui.theme.LocalIsDarkTheme
+import com.iccyuan.hush.ui.theme.Spacing
 
 private val NavBarHeight = 44.dp
 
@@ -262,6 +263,8 @@ fun IOSRow(
     iconColor: Color = MaterialTheme.colorScheme.primary,
     onClick: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
+    /** 紧跟标题文字之后的小挂件（如「详情」ⓘ）——它属于标题，不该被挤到行尾和开关抢位置。 */
+    titleAccessory: @Composable (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -276,7 +279,15 @@ fun IOSRow(
             Spacer(Modifier.width(12.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            if (titleAccessory != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.width(Spacing.xs))
+                    titleAccessory()
+                }
+            } else {
+                Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            }
             if (subtitle != null) {
                 Text(
                     subtitle,
