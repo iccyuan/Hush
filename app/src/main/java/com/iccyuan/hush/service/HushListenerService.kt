@@ -14,6 +14,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import com.iccyuan.hush.data.InstalledApps
 import com.iccyuan.hush.data.NotificationLogRepository
 import com.iccyuan.hush.data.RuleRepository
 import com.iccyuan.hush.data.RuntimeStateStore
@@ -84,10 +85,12 @@ class HushListenerService : NotificationListenerService() {
     // 再次命中规则 → 再次 snooze，循环不止，且副作用（toast/webhook 等）会重复执行。
     private val inPlaceSilenced = ConcurrentHashMap<String, Long>()
 
-    // 应用安装/卸载/更新时，失效对应包名的应用标签缓存（见 [NotificationFields.appLabel]）。
+    // 应用安装/卸载/更新时，失效对应包名的应用标签缓存（见 [NotificationFields.appLabel]），
+    // 并清掉应用选择器的整表缓存——否则新装的应用要等本进程重启才会出现在选择列表里。
     private val packageChangeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             intent.data?.schemeSpecificPart?.let { NotificationFields.invalidateAppLabel(it) }
+            InstalledApps.invalidate()
         }
     }
 
