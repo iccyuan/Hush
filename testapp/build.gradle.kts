@@ -63,3 +63,6 @@ android {
         }
     }
 }
+
+// 构建期守卫：禁止绕过 Logger 直接调 android.util.Log。
+apply(from = rootProject.file("gradle/logging-guard.gradle.kts"))

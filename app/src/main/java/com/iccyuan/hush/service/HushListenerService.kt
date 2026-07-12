@@ -55,6 +55,10 @@ class HushListenerService : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val engine = RuleEngine()
 
+    // 静音是这里最费解、最需要现场排查的一块（放回二次响铃、渠道改写、节流），单独一个前缀，
+    // logcat 里 `grep silence` 就能把它整条链路拎出来。
+    private val silenceLog = Logger.scoped("silence")
+
     private lateinit var repository: RuleRepository
     private lateinit var logRepository: NotificationLogRepository
     private lateinit var settings: SettingsStore
@@ -309,7 +313,7 @@ class HushListenerService : NotificationListenerService() {
                 return
             }
             if (fresh) {
-                Logger.i("silence: same key but postTime moved (${mark.postTime} → ${sbn.postTime}); " +
+                silenceLog.i("same key but postTime moved (${mark.postTime} → ${sbn.postTime}); " +
                     "treating as a new update, not the putback")
             }
         }
@@ -323,8 +327,9 @@ class HushListenerService : NotificationListenerService() {
             !persistentThrottle.due(sbn.key, SystemClock.elapsedRealtime())
         ) return
 
-        // 日志落在节流之后：否则每秒刷新的常驻通知会把 logcat 冲爆，真正要查的记录反而被挤掉。
-        Logger.i("posted from ${sbn.packageName}; rules=${activeRules.size}")
+        // 每条通知都会走到这里——用 d()，正式版里不输出：没人看，还平白耗电、把 logcat 冲爆。
+        // 位置也刻意放在节流之后，否则每秒刷新的常驻通知光靠这一行就能把日志挤满。
+        Logger.d("posted from ${sbn.packageName}; rules=${activeRules.size}")
 
         scope.launch {
             try {
@@ -503,10 +508,10 @@ class HushListenerService : NotificationListenerService() {
                 // 渠道已被改哑：系统压根不会为它发声/振动，无需再 snooze 掐断——通知原地不动，
                 // 既不会从通知栏消失再放回，也就不存在「放回时二次响铃」的问题。
                 ChannelSilencer.isSilenced(sbn.packageName) ->
-                    Logger.i("silence: channel already silenced, nothing to do for ${sbn.key}")
+                    silenceLog.i("channel already silenced, nothing to do for ${sbn.key}")
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
-                    Logger.i("silence: pre-R, leaving ${sbn.key} untouched")
-                isPersistent -> Logger.i("silence: persistent, skip snooze ${sbn.key}")
+                    silenceLog.i("pre-R, leaving ${sbn.key} untouched")
+                isPersistent -> silenceLog.i("persistent, skip snooze ${sbn.key}")
                 wouldAlert(sbn) && shouldSnooze() -> silenceInPlace(sbn)
             }
             decision.needsRepost -> {
@@ -554,10 +559,10 @@ class HushListenerService : NotificationListenerService() {
         val result = runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }
         if (result.isFailure) {
             inPlaceSilenced.remove(sbn.key)
-            Logger.w("silence: snooze failed for ${sbn.key}", result.exceptionOrNull())
+            silenceLog.w("snooze failed for ${sbn.key}", result.exceptionOrNull())
         } else {
             snoozedAtByKey[sbn.key] = snoozedAt
-            Logger.i("silence: snoozed ${sbn.key}")
+            silenceLog.i("snoozed ${sbn.key}")
         }
     }
 
@@ -570,7 +575,7 @@ class HushListenerService : NotificationListenerService() {
      */
     private fun shouldSnooze(): Boolean {
         if (!RuntimeStateStore.oemRealertsOnPutback) return true
-        Logger.w("silence: this ROM re-alerts on putback; skipping snooze — enable channel-level mute")
+        silenceLog.w("this ROM re-alerts on putback; skipping snooze — enable channel-level mute")
         return false
     }
 
@@ -614,7 +619,7 @@ class HushListenerService : NotificationListenerService() {
     }
 
     private fun silentBecause(reason: String, sbn: StatusBarNotification): Boolean {
-        Logger.i("silence: $reason, no alert expected, skip snooze ${sbn.key}")
+        silenceLog.i("$reason, no alert expected, skip snooze ${sbn.key}")
         return false
     }
 
@@ -647,7 +652,7 @@ class HushListenerService : NotificationListenerService() {
                 )
                 RuntimeStateStore.setOemRealertsOnPutback(true)
             } else {
-                Logger.i("silence: putback stayed silent for $key (lastAudibly=$alerted, snoozedAt=$snoozedAt)")
+                silenceLog.i("putback stayed silent for $key (lastAudibly=$alerted, snoozedAt=$snoozedAt)")
             }
         }
     }

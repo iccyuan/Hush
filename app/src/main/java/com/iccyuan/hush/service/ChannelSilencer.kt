@@ -28,6 +28,8 @@ import com.iccyuan.hush.util.Logger
  */
 object ChannelSilencer {
 
+    private val log = Logger.scoped("channel-silence")
+
     // 本进程已确认改哑过的包，用于让 [ensureSilenced] 在热路径上零开销。进程重启后为空，
     // 届时第一条通知会重新走一次 [silence]——它对已静默的渠道是幂等的（不改、也不写快照）。
     private val silenced = java.util.Collections.synchronizedSet(mutableSetOf<String>())
@@ -60,16 +62,16 @@ object ChannelSilencer {
      */
     fun silence(listener: NotificationListenerService, pkg: String, userId: Int): Boolean {
         if (!isAvailable(listener)) {
-            Logger.w("channel-silence: unavailable (no companion association); pkg=$pkg")
+            log.w("unavailable (no companion association); pkg=$pkg")
             return false
         }
         val user = userHandle(userId)
         val channels = runCatching { listener.getNotificationChannels(pkg, user) }
-            .onFailure { Logger.e("channel-silence: cannot read channels of $pkg", it) }
+            .onFailure { log.e("cannot read channels of $pkg", it) }
             .getOrNull()
             .orEmpty()
         if (channels.isEmpty()) {
-            Logger.w("channel-silence: no channels for $pkg")
+            log.w("no channels for $pkg")
             return false
         }
 
@@ -86,14 +88,14 @@ object ChannelSilencer {
                 .onSuccess { changed++ }
                 .onFailure {
                     allSilent = false
-                    Logger.e("channel-silence: update failed for ${channel.id} of $pkg", it)
+                    log.e("update failed for ${channel.id} of $pkg", it)
                 }
         }
         // 标记依据是「此刻该应用的渠道全都不发声了」，而不是「这次改了几个」——渠道可能在上一次
         // 运行里就已改哑（进程重启后内存缓存是空的）。若不这样，热路径会一直误以为还没静音，
         // 每条通知都白白 snooze 一次，通知也就跟着闪一下。
         if (allSilent) silenced.add(pkg)
-        Logger.i("channel-silence: silenced $changed/${channels.size} channels of $pkg (allSilent=$allSilent)")
+        log.i("silenced $changed/${channels.size} channels of $pkg (allSilent=$allSilent)")
         return allSilent
     }
 
@@ -103,7 +105,7 @@ object ChannelSilencer {
         if (saved.isEmpty()) return
         if (!isAvailable(listener)) {
             // 关联被解除后无法再写回——保留快照，等能力恢复时还有机会还原。
-            Logger.w("channel-silence: cannot restore $pkg, association gone")
+            log.w("cannot restore $pkg, association gone")
             return
         }
         val user = userHandle(saved.first().userId)
@@ -122,11 +124,11 @@ object ChannelSilencer {
             channel.enableVibration(snap.vibrationEnabled)
             runCatching { listener.updateNotificationChannel(pkg, user, channel) }
                 .onSuccess { restored++ }
-                .onFailure { Logger.e("channel-silence: restore failed for ${snap.channelId} of $pkg", it) }
+                .onFailure { log.e("restore failed for ${snap.channelId} of $pkg", it) }
         }
         SilencedChannelStore.forget(listener, pkg)
         silenced.remove(pkg)
-        Logger.i("channel-silence: restored $restored channels of $pkg")
+        log.i("restored $restored channels of $pkg")
     }
 
     /** 由用户空间 id 构造 UserHandle：uid = userId * 100000 + appId，取 appId=0 即可定位该用户。 */
