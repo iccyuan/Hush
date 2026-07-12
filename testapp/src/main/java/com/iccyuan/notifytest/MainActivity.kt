@@ -34,9 +34,23 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         // adb 自动化路径：带 extras 时执行动作后直接退出，不显示界面。
-        if (intent.getStringExtra("mode") == "play") {
-            RingtoneManager.getRingtone(this, Settings.System.DEFAULT_RINGTONE_URI)?.play()
-            return // 保持 Activity 存活让铃声播完；由调用方 force-stop。
+        when (intent.getStringExtra("mode")) {
+            "play" -> {
+                RingtoneManager.getRingtone(this, Settings.System.DEFAULT_RINGTONE_URI)?.play()
+                return // 保持 Activity 存活让铃声播完；由调用方 force-stop。
+            }
+            // 常驻通知（前台服务）只能由应用自己拉起——adb 直接 start-foreground-service 会被
+            // 系统以「权限未导出」拒绝，所以借这个入口代劳。
+            "ongoing" -> {
+                OngoingService.start(this)
+                finish()
+                return
+            }
+            "ongoing-stop" -> {
+                OngoingService.stop(this)
+                finish()
+                return
+            }
         }
         intent.getStringExtra("tag")?.let { tag ->
             Notifier.post(
@@ -45,6 +59,7 @@ class MainActivity : Activity() {
                 title = intent.getStringExtra("title") ?: tag,
                 text = intent.getStringExtra("text") ?: "测试通知",
                 alertOnce = intent.getBooleanExtra("once", false),
+                ongoing = intent.getBooleanExtra("ongoing", false),
             )
             finish()
             return
@@ -90,6 +105,15 @@ class MainActivity : Activity() {
             } else {
                 Notifier.post(this, tag, "更新 $tag", "同 key 静默更新 ${now()}", alertOnce = true)
             }
+        }
+        // 常驻通知（VPN / 播放器那种）：前台服务每秒刷新一次通知里的数字。用来验证 Hush
+        // 对这类通知的求值节流——既不该每次都重跑规则（白烧电），也不该干脆不跑（规则会失效）。
+        root.button("启动常驻通知（每秒刷新）") {
+            OngoingService.start(this)
+            Toast.makeText(this, "常驻通知已启动，每秒刷新", Toast.LENGTH_SHORT).show()
+        }
+        root.button("停止常驻通知") {
+            OngoingService.stop(this)
         }
         root.button("打开本应用通知设置（检查横幅开关）") {
             startActivity(

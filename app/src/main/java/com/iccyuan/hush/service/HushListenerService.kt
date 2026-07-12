@@ -93,6 +93,9 @@ class HushListenerService : NotificationListenerService() {
     private data class SilenceMark(val postTime: Long, val expiresAt: Long)
     private val inPlaceSilenced = ConcurrentHashMap<String, SilenceMark>()
 
+    // 常驻通知的求值节流（VPN / 播放器 / 下载会秒级刷新同一条通知）。见 [EvalThrottle]。
+    private val persistentThrottle = EvalThrottle(PERSISTENT_EVAL_INTERVAL_MS)
+
     // 每次就地静音的 snooze 时刻（墙钟），供放回后判定「这台机器放回时是否又响了一次」。
     // 见 [verifySilentPutback]——基准必须是 snooze 时刻而非放回时刻。
     private val snoozedAtByKey = ConcurrentHashMap<String, Long>()
@@ -294,7 +297,6 @@ class HushListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        Logger.i("posted from ${sbn.packageName}; master=$masterEnabled rules=${activeRules.size}")
         if (!masterEnabled) return
         // 切勿处理我们自己重新发布的副本——否则会陷入无限循环。
         if (sbn.packageName == packageName) return
@@ -312,6 +314,18 @@ class HushListenerService : NotificationListenerService() {
             }
         }
 
+        // 常驻通知（VPN / 音乐 / 下载 / 前台服务）会秒级重发同一条通知来刷新流量、进度这类数字
+        // ——实测某 VPN 每秒一次，一天八万多次。它们本就不进历史，可每一次仍会完整跑一遍规则：
+        // 采样设备状态、抽取字段、遍历全部规则，纯属白烧电。这类通知表示的是**持续状态**而非
+        // 事件，隔一会儿重算一次足矣，语义上没有损失（针对它们的规则最多晚 [PERSISTENT_EVAL_INTERVAL_MS]
+        // 生效，而它们本来就一直在那儿）。
+        if (NotificationFields.isPersistent(sbn) &&
+            !persistentThrottle.due(sbn.key, SystemClock.elapsedRealtime())
+        ) return
+
+        // 日志落在节流之后：否则每秒刷新的常驻通知会把 logcat 冲爆，真正要查的记录反而被挤掉。
+        Logger.i("posted from ${sbn.packageName}; rules=${activeRules.size}")
+
         scope.launch {
             try {
                 process(sbn)
@@ -326,6 +340,8 @@ class HushListenerService : NotificationListenerService() {
         // 当源通知被移除（用户清除或应用自行撤回）时，连带移除我们为其重新发布的副本，
         // 否则改写后的副本会滞留在通知栏。我们自己重发的副本由本应用拥有，跳过它以免误删/递归。
         if (sbn.packageName == packageName) return
+        // 通知没了，它的节流记录也就没有意义了——VPN 重连后的第一条应当立刻被求值。
+        persistentThrottle.forget(sbn.key)
         // 重新发布流程本身会调用 cancelNotification(key) 撤销源通知——这会让本方法以
         // REASON_LISTENER_CANCEL 收到同一条源通知的移除回调。此时绝不能连带撤销副本：
         // 副本和「源通知撤销」共用同一个由 sbn.key 派生的通知 id（见 NotificationModifier.
@@ -520,6 +536,7 @@ class HushListenerService : NotificationListenerService() {
         runCatching { cancelNotification(key) }
     }
 
+
     /**
      * 就地静音：短暂 snooze 源通知以掐断正在播放的声音/振动，到期后系统把原通知原样放回。
      * 先登记 key 再 snooze，确保放回回调到达时一定能被 [inPlaceSilenced] 跳过；snooze 失败
@@ -686,6 +703,12 @@ class HushListenerService : NotificationListenerService() {
 
         /** 放回跳过窗口：放回一般在 1 秒后到达，Doze 等延迟场景放宽到 30 秒兜底。 */
         private const val SILENCE_SKIP_WINDOW_MS = 30_000L
+
+        /**
+         * 常驻通知的最小重算间隔。它们表示持续状态（VPN 在连、歌在放、文件在下），刷新的只是
+         * 里面的数字，秒级重跑规则毫无意义；针对它们的规则最多晚这么久生效，而它们本就一直在那儿。
+         */
+        private const val PERSISTENT_EVAL_INTERVAL_MS = 30_000L
 
         /** 通知历史里「命中取证」的序列化器（见 [NotificationLog.traces]）。 */
         private val TRACES = kotlinx.serialization.builtins.ListSerializer(MatchTrace.serializer())
