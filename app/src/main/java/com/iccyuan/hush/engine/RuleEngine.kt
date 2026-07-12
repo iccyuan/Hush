@@ -52,7 +52,15 @@ class RuleEngine {
         return rule.triggers.any { it is Trigger.OngoingTrigger && it.mustBeOngoing }
     }
 
-    fun evaluate(ctx: MatchContext, rules: List<Rule>): Decision {
+    /**
+     * 对一条通知求值。
+     *
+     * [readOnly] = true 时**只算结论、不改任何状态**：不启动冷却、不写变量、不解除静音。
+     * 供通知助手（[com.iccyuan.hush.service.SilenceGate]）在通知提醒前抢先判断「是否只需静音」——
+     * 同一条通知随后仍会被监听器正常求值一次，状态变更必须只发生在那一次，否则冷却会被提前
+     * 消耗、变量被写两遍。
+     */
+    fun evaluate(ctx: MatchContext, rules: List<Rule>, readOnly: Boolean = false): Decision {
         val decision = Decision()
         // 被「静音应用」动作静音的应用：短路静音其所有通知——只是不发声不震动，横幅是否弹出、是否
         // 留在通知栏都跟随源通知本来的重要性，不额外拉高或压低。
@@ -67,7 +75,7 @@ class RuleEngine {
             val muteRuleId = VariableStore.mutedRuleId(ctx.packageName)
             val muteRule = rules.firstOrNull { it.id == muteRuleId }
             when {
-                muteRule == null -> VariableStore.unmuteApp(ctx.packageName)
+                muteRule == null -> if (!readOnly) VariableStore.unmuteApp(ctx.packageName)
                 conditionsHold(muteRule, ctx) -> {
                     decision.matched = true
                     decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)
@@ -89,7 +97,7 @@ class RuleEngine {
             if (!conditionsHold(rule, ctx)) continue
 
             ctx.captures.putAll(captures)
-            applyActions(rule, ctx, decision)
+            applyActions(rule, ctx, decision, readOnly)
 
             // 弹幕用于「替代」被屏蔽的通知，因此仅在该规则确实丢弃了通知时才显示——
             // 否则原生通知仍在、又叠加弹幕，既矛盾又会出现时有时无的竞态。默认排除常驻通知，
@@ -102,7 +110,7 @@ class RuleEngine {
 
             decision.matched = true
             decision.firedRuleIds.add(rule.id)
-            startCooldownIfAny(rule, ctx)
+            if (!readOnly) startCooldownIfAny(rule, ctx)
 
             if (decision.discard || rule.stopProcessing) break
         }
@@ -283,14 +291,20 @@ class RuleEngine {
         }
     }
 
-    private fun applyActions(rule: Rule, ctx: MatchContext, decision: Decision) {
+    private fun applyActions(rule: Rule, ctx: MatchContext, decision: Decision, readOnly: Boolean = false) {
         for (action in rule.actions) {
-            applyAction(action, rule.id, ctx, decision)
+            applyAction(action, rule.id, ctx, decision, readOnly)
             if (decision.discard) return
         }
     }
 
-    private fun applyAction(action: Action, ruleId: Long, ctx: MatchContext, decision: Decision) {
+    private fun applyAction(
+        action: Action,
+        ruleId: Long,
+        ctx: MatchContext,
+        decision: Decision,
+        readOnly: Boolean = false,
+    ) {
         when (action) {
             is Action.ReplaceTextAction -> {
                 val current = currentField(action.field, ctx, decision)
@@ -337,7 +351,9 @@ class RuleEngine {
                     SideEffect.Notify(TemplateEngine.render(action.template, ctx))
                 )
             is Action.SetVariableAction ->
-                VariableStore.setVariable(action.name, TemplateEngine.render(action.valueTemplate, ctx))
+                if (!readOnly) {
+                    VariableStore.setVariable(action.name, TemplateEngine.render(action.valueTemplate, ctx))
+                }
             is Action.WebhookAction ->
                 decision.sideEffects.add(
                     SideEffect.Webhook(
@@ -360,7 +376,7 @@ class RuleEngine {
                     )
                 )
             is Action.MuteAppAction -> {
-                decision.sideEffects.add(SideEffect.MuteApp(ctx.packageName, ruleId))
+                decision.sideEffects.add(SideEffect.MuteApp(ctx.packageName, ruleId, ctx.userId))
                 // 「静音」= 不发声不震动但仍弹出，而非丢弃（与「丢弃」动作区分开）；见 evaluate() 顶部
                 // 对后续通知的同等处理。设置当前这条——否则触发静音的这一条会被漏过，仍按原生提醒。
                 decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)

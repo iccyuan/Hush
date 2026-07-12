@@ -19,11 +19,27 @@ object RuntimeStateStore {
     private const val KEY_VARS = "variables"
     private const val KEY_COOLDOWNS = "cooldowns"
     private const val KEY_MUTES = "mutes"
+    private const val KEY_OEM_REALERTS = "oem_realerts_on_putback"
 
     private val stringMap = MapSerializer(String.serializer(), String.serializer())
     private val longMap = MapSerializer(String.serializer(), Long.serializer())
 
     @Volatile private var initialized = false
+    private var prefsRef: android.content.SharedPreferences? = null
+
+    /**
+     * 这台机器是否会在 snooze 放回时**重新播放提示音**（破坏 Android 11+ 的静默放回约定，
+     * 实测 ColorOS 16 / Android 16 如此）。由服务在首次就地静音后实测判定并持久化，
+     * 之后就地静音会顺带静音通知音量流把那声响铃吞掉。
+     */
+    @Volatile var oemRealertsOnPutback: Boolean = false
+        private set
+
+    fun setOemRealertsOnPutback(value: Boolean) {
+        if (oemRealertsOnPutback == value) return
+        oemRealertsOnPutback = value
+        runCatching { prefsRef?.edit()?.putBoolean(KEY_OEM_REALERTS, value)?.apply() }
+    }
 
     fun init(context: Context) {
         if (initialized) return
@@ -31,6 +47,8 @@ object RuntimeStateStore {
             if (initialized) return
             val app = context.applicationContext
             val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            prefsRef = prefs
+            oemRealertsOnPutback = prefs.getBoolean(KEY_OEM_REALERTS, false)
             val now = System.currentTimeMillis()
 
             val vars = decode(prefs.getString(KEY_VARS, null), stringMap, emptyMap())

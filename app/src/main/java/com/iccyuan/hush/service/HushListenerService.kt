@@ -36,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.retry
@@ -84,6 +85,15 @@ class HushListenerService : NotificationListenerService() {
     // 记录这些 key（值为跳过窗口的截止时刻），以便跳过放回的那一次——否则放回的通知会
     // 再次命中规则 → 再次 snooze，循环不止，且副作用（toast/webhook 等）会重复执行。
     private val inPlaceSilenced = ConcurrentHashMap<String, Long>()
+
+    // 每次就地静音的 snooze 时刻（墙钟），供放回后判定「这台机器放回时是否又响了一次」。
+    // 见 [verifySilentPutback]——基准必须是 snooze 时刻而非放回时刻。
+    private val snoozedAtByKey = ConcurrentHashMap<String, Long>()
+
+    // 通知音量流的临时静音状态（仅在确认会二次响铃的机型上使用）。见 [suppressNotificationSound]。
+    private val soundSuppressLock = Any()
+    private var soundSuppressed = false
+    private var unmuteJob: Job? = null
 
     // 应用安装/卸载/更新时，失效对应包名的应用标签缓存（见 [NotificationFields.appLabel]），
     // 并清掉应用选择器的整表缓存——否则新装的应用要等本进程重启才会出现在选择列表里。
@@ -209,6 +219,16 @@ class HushListenerService : NotificationListenerService() {
         channels.ensureBaseChannels()
         // 恢复并持久化运行时状态（冷却 / 静音 / 变量），使其跨进程重启依然有效。
         RuntimeStateStore.init(this)
+        // 兜底：若上次进程是在音量流静音期间被杀的，这里恢复回来（正常路径已在放回后恢复）。
+        soundSuppressed = true
+        restoreNotificationSound()
+        // 静音解除的入口分散在 UI 与引擎多处，统一在这里挂钩，确保被改哑的渠道一定会被还原。
+        VariableStore.setUnmuteListener { pkg ->
+            scope.launch {
+                runCatching { ChannelSilencer.restore(this@HushListenerService, pkg) }
+                    .onFailure { Logger.e("channel-restore failed for $pkg", it) }
+            }
+        }
         // 围栏穿越的那一刻 → 触发位置事件规则。
         GeofenceManager.crossingListener = { key, entered -> onGeofenceEvent(key, entered) }
         ContextCompat.registerReceiver(
@@ -415,6 +435,26 @@ class HushListenerService : NotificationListenerService() {
         decision.sideEffects.filterIsInstance<SideEffect.AutoReply>().forEach {
             AutoReplyHelper.reply(this, sbn, it.message)
         }
+        // 「静音应用」：优先把目标应用自己的渠道改成不发声不振动——系统层面直接静音，通知原样保留。
+        // 这是唯一能同时做到「完全静音」与「不动原通知」的途径（就地静音依赖 snooze 放回静默，
+        // 部分 ROM 会在放回时重放完整提醒；重发副本又会让通知脱离原应用）。需要配套设备关联，
+        // 未关联时静默降级为就地静音。
+        //
+        // 两条路径都要覆盖：本次刚触发静音（MuteApp 副作用），以及该应用早已在静音名单里
+        // （引擎在 evaluate 顶部短路，不再产生副作用）——后者用幂等的 ensureSilenced 补齐，
+        // 以防渠道改写因进程重启、升级、当时尚未关联配套设备而没落实。
+        val muting = decision.sideEffects.filterIsInstance<SideEffect.MuteApp>().firstOrNull()
+        val userId = sbn.key.substringBefore("|").toIntOrNull() ?: 0
+        when {
+            muting != null -> scope.launch {
+                runCatching { ChannelSilencer.silence(this@HushListenerService, muting.pkg, muting.userId) }
+                    .onFailure { Logger.e("channel-silence failed for ${muting.pkg}", it) }
+            }
+            VariableStore.isAppMuted(sbn.packageName) -> scope.launch {
+                runCatching { ChannelSilencer.ensureSilenced(this@HushListenerService, sbn.packageName, userId) }
+                    .onFailure { Logger.e("channel-silence(ensure) failed for ${sbn.packageName}", it) }
+            }
+        }
         sideEffects.execute(decision.sideEffects)
 
         // 弹幕会替代原生通知——但只有在弹幕确实能够显示（已授予悬浮窗权限）时
@@ -434,6 +474,10 @@ class HushListenerService : NotificationListenerService() {
             // Android 11 以下 snooze 放回时会再次响铃，就地静音不可用——宁可放过这一声，
             // 也不重发副本。
             decision.silenceOnly(originalImportance) -> when {
+                // 渠道已被改哑：系统压根不会为它发声/振动，无需再 snooze 掐断——通知原地不动，
+                // 既不会从通知栏消失再放回，也就不存在「放回时二次响铃」的问题。
+                ChannelSilencer.isSilenced(sbn.packageName) ->
+                    Logger.i("silence: channel already silenced, nothing to do for ${sbn.key}")
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
                     Logger.i("silence: pre-R, leaving ${sbn.key} untouched")
                 isPersistent -> Logger.i("silence: persistent, skip snooze ${sbn.key}")
@@ -467,18 +511,76 @@ class HushListenerService : NotificationListenerService() {
     }
 
     /**
-     * 就地静音：短暂 snooze 源通知以掐断正在播放的声音/振动，到期后系统把原通知原样、
-     * 静默地放回。先登记 key 再 snooze，确保放回回调到达时一定能被 [inPlaceSilenced] 跳过；
-     * snooze 失败则收回登记（不做任何回退——保留原通知优先于掐断这一声）。
+     * 就地静音：短暂 snooze 源通知以掐断正在播放的声音/振动，到期后系统把原通知原样放回。
+     * 先登记 key 再 snooze，确保放回回调到达时一定能被 [inPlaceSilenced] 跳过；snooze 失败
+     * 则收回登记（不做任何回退——保留原通知优先于掐断这一声）。
+     *
+     * Android 11+ 本应保证放回是静默的，但部分 OEM（实测 ColorOS 16 / Android 16）会在放回
+     * 时**重新播放提示音**。[RuntimeStateStore.oemRealertsOnPutback] 记录该机型是否如此：
+     * 一旦确认，就在 snooze 的同时临时静音「通知」音量流，把放回的那声响铃吞掉
+     * （见 [suppressNotificationSound]）。未确认的机型不做多余抑制，避免无谓的全局副作用。
      */
     private fun silenceInPlace(sbn: StatusBarNotification) {
         inPlaceSilenced[sbn.key] = SystemClock.elapsedRealtime() + SILENCE_SKIP_WINDOW_MS
+        if (RuntimeStateStore.oemRealertsOnPutback) suppressNotificationSound()
+        val snoozedAt = System.currentTimeMillis()
         val result = runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }
         if (result.isFailure) {
             inPlaceSilenced.remove(sbn.key)
             Logger.w("silence: snooze failed for ${sbn.key}", result.exceptionOrNull())
         } else {
+            snoozedAtByKey[sbn.key] = snoozedAt
             Logger.i("silence: snoozed ${sbn.key}")
+        }
+    }
+
+    /**
+     * 在放回窗口内临时静音「通知」音量流——系统在该流音量为 0 时根本不会播放提示音，
+     * 因此 OEM 在放回时重新触发的那声响铃会被吞掉；通知本身原样保留，不受影响。
+     *
+     * 代价是这 [SOUND_SUPPRESS_MS] 毫秒内其他应用的通知也不发声（振动、来电铃声不受影响），
+     * 所以只对确认会二次响铃的机型启用。用 ADJUST_MUTE 而非直接改音量：静音请求绑定在调用方
+     * 的 binder 上，进程若意外死亡系统会自动解除，不会把用户手机永久静音。多条通知并发时
+     * 共用一个静音窗口，最后一条负责恢复。
+     */
+    private fun suppressNotificationSound() {
+        val nm = getSystemService(android.app.NotificationManager::class.java)
+        if (nm?.isNotificationPolicyAccessGranted != true) {
+            Logger.w("silence: no DND access; cannot suppress putback re-alert")
+            return
+        }
+        val am = getSystemService(android.media.AudioManager::class.java) ?: return
+        synchronized(soundSuppressLock) {
+            if (!soundSuppressed) {
+                soundSuppressed = runCatching {
+                    am.adjustStreamVolume(
+                        android.media.AudioManager.STREAM_NOTIFICATION,
+                        android.media.AudioManager.ADJUST_MUTE,
+                        0,
+                    )
+                }.onFailure { Logger.w("silence: mute stream failed", it) }.isSuccess
+            }
+            unmuteJob?.cancel()
+            unmuteJob = scope.launch {
+                delay(SOUND_SUPPRESS_MS)
+                restoreNotificationSound()
+            }
+        }
+    }
+
+    /** 解除通知音量流的临时静音。幂等；服务销毁与启动时都会兜底调用一次。 */
+    private fun restoreNotificationSound() {
+        synchronized(soundSuppressLock) {
+            if (!soundSuppressed) return
+            val am = getSystemService(android.media.AudioManager::class.java)
+            runCatching {
+                am?.adjustStreamVolume(
+                    android.media.AudioManager.STREAM_NOTIFICATION,
+                    android.media.AudioManager.ADJUST_UNMUTE,
+                    0,
+                )
+            }.onFailure { Logger.w("silence: unmute stream failed", it) }
+            soundSuppressed = false
         }
     }
 
@@ -527,39 +629,62 @@ class HushListenerService : NotificationListenerService() {
     }
 
     /**
-     * 诊断：就地静音的放回到达后，延迟复查系统的「最近发声/振动」时间戳，确认放回确实是
-     * 静默的。AOSP 在 Android 11+ 保证放回不重新提醒，但部分 OEM ROM 会破坏该约定——
-     * 若发现二次响铃，以 warning 记录，便于现场从 logcat 定位机型问题。
+     * 就地静音的放回到达后，复查系统的「最近发声」时间戳，判定这台机器是否在放回时**又响了一次**。
+     *
+     * 基准必须是 **snooze 时刻**，不能是放回回调到达的时刻：系统先播放提示音、写下时间戳，
+     * 之后才回调 onNotificationPosted，因此二次响铃的时间戳总是比放回回调早几毫秒——拿放回
+     * 时刻作基准会把它当成"响在放回之前"，永远判定为静默（曾经如此，实测漏判）。而 snooze
+     * 早于放回约一秒，任何晚于它的发声都只可能来自放回。
+     *
+     * 一旦确认，持久化到 [RuntimeStateStore.oemRealertsOnPutback]：此后该机型的每次就地静音都
+     * 会顺带静音通知音量流，把放回的响铃吞掉（见 [suppressNotificationSound]）。
      */
     private fun verifySilentPutback(key: String) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
-        val putbackAt = System.currentTimeMillis()
+        val snoozedAt = snoozedAtByKey.remove(key) ?: return
+        if (RuntimeStateStore.oemRealertsOnPutback) return // 已确认，无需再验
         scope.launch {
-            delay(3_000)
+            delay(PUTBACK_CHECK_DELAY_MS)
             val ranking = android.service.notification.NotificationListenerService.Ranking()
             val found = runCatching { currentRanking?.getRanking(key, ranking) }.getOrNull() ?: return@launch
             if (!found) return@launch
             val alerted = ranking.lastAudiblyAlertedMillis
-            if (alerted >= putbackAt) {
-                Logger.w("silence: putback RE-ALERTED for $key (alerted=$alerted, putback=$putbackAt) — OEM breaks silent putback")
+            if (alerted > snoozedAt) {
+                Logger.w(
+                    "silence: putback RE-ALERTED for $key (alerted=$alerted > snoozedAt=$snoozedAt); " +
+                        "this ROM breaks silent putback — will mute the notification stream from now on"
+                )
+                RuntimeStateStore.setOemRealertsOnPutback(true)
             } else {
-                Logger.i("silence: putback stayed silent for $key (lastAudibly=$alerted, putback=$putbackAt)")
+                Logger.i("silence: putback stayed silent for $key (lastAudibly=$alerted, snoozedAt=$snoozedAt)")
             }
         }
     }
 
     /**
-     * 全屏检测（沉浸弹幕用）。无系统 API 可从后台服务直接读取「沉浸/全屏」状态，
-     * 这里用「屏幕点亮 + 横屏」作为务实的近似——覆盖最常见的横屏看视频、玩游戏场景。
-     * 竖屏全屏视频暂不计入。
+     * 全屏检测（沉浸弹幕用）：屏幕点亮 + 横屏 + **状态栏已隐藏**。
+     *
+     * 只看横屏是不够的——平板、折叠屏展开态本来就常驻横屏（实测一台 3168×1440 的横屏设备：
+     * 桌面、聊天、任何场景都被判成"在看视频"，于是**所有通知都被弹幕丢弃**，表现为通知凭空消失）。
+     * 真正的沉浸全屏必然隐藏状态栏，因此以它作为最后一道判据；取不到 insets 时保守地认为
+     * 状态栏可见（即不当作全屏，宁可不弹弹幕，也不能把通知吞掉）。
      */
     private fun isFullscreen(): Boolean {
+        val pm = getSystemService(android.os.PowerManager::class.java)
+        if (pm?.isInteractive != true) return false
         val landscape = resources.configuration.orientation ==
             android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val pm = getSystemService(android.os.PowerManager::class.java)
-        val interactive = pm?.isInteractive == true
-        return interactive && landscape
+        if (!landscape) return false
+        return !statusBarVisible()
     }
+
+    /** 状态栏当前是否可见。读不到时返回 true（保守：不视为全屏）。 */
+    private fun statusBarVisible(): Boolean = runCatching {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return@runCatching true
+        val wm = getSystemService(android.view.WindowManager::class.java) ?: return@runCatching true
+        wm.currentWindowMetrics.windowInsets
+            .isVisible(android.view.WindowInsets.Type.statusBars())
+    }.getOrDefault(true)
 
     private fun recordFires(decision: Decision) {
         if (decision.firedRuleIds.isEmpty()) return
@@ -577,6 +702,8 @@ class HushListenerService : NotificationListenerService() {
         wifiCallback = null
         runCatching { unregisterReceiver(packageChangeReceiver) }
         if (tts.isInitialized()) tts.value.shutdown()
+        // 绝不能把用户的通知音量流留在静音状态。
+        restoreNotificationSound()
         scope.cancel()
     }
 
@@ -587,6 +714,15 @@ class HushListenerService : NotificationListenerService() {
 
         /** 放回跳过窗口：放回一般在 1 秒后到达，Doze 等延迟场景放宽到 30 秒兜底。 */
         private const val SILENCE_SKIP_WINDOW_MS = 30_000L
+
+        /**
+         * 通知音量流的静音窗口：需覆盖 snooze 时长 + 放回到达 + 放回响铃的完整播放，
+         * 又要尽量短，以免波及其他应用的通知声。实测放回在 snooze 后约 1.2s 到达。
+         */
+        private const val SOUND_SUPPRESS_MS = 2_500L
+
+        /** 放回后隔多久复查「是否二次响铃」：要等系统把发声时间戳更新进排名。 */
+        private const val PUTBACK_CHECK_DELAY_MS = 3_000L
 
         /** 当监听器处于连接状态时非空；供 UI 用于显示状态。 */
         @Volatile

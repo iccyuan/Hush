@@ -68,7 +68,8 @@ sealed class SideEffect {
         val contentType: String,
         val body: String,
     ) : SideEffect()
-    data class MuteApp(val pkg: String, val ruleId: Long) : SideEffect()
+    /** [userId]：该应用所属用户空间（本体通常 0，应用分身如 999）——渠道级静音需要它定位目标。 */
+    data class MuteApp(val pkg: String, val ruleId: Long, val userId: Int = 0) : SideEffect()
     data class Danmaku(val text: String) : SideEffect()
     data class Digest(
         val pkg: String,

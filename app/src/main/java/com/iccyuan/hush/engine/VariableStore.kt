@@ -21,6 +21,17 @@ object VariableStore {
     /** 任一状态发生变化时触发；由 Android 层用于将快照异步落盘。 */
     @Volatile private var onChange: (() -> Unit)? = null
 
+    /**
+     * 某应用的静音被解除时触发（包名）。解除的入口分散在多处——规则被停用/删除、静音规则的
+     * 条件不再成立、总开关关闭——渠道级静音必须在**每一处**都把目标应用的渠道还原回去，
+     * 否则用户的应用会被永久改哑。集中在这里挂钩，避免漏掉任何一条路径。
+     */
+    @Volatile private var onUnmuted: ((String) -> Unit)? = null
+
+    fun setUnmuteListener(callback: ((String) -> Unit)?) {
+        onUnmuted = callback
+    }
+
     fun setVariable(name: String, value: String) {
         if (name.isNotBlank()) {
             variables[name] = value
@@ -54,23 +65,29 @@ object VariableStore {
 
     /** 解除单个应用的静音（用于其静音规则的条件此刻不再成立时）。 */
     fun unmuteApp(pkg: String) {
-        if (mutedBy.remove(pkg) != null) onChange?.invoke()
+        if (mutedBy.remove(pkg) != null) {
+            onChange?.invoke()
+            onUnmuted?.invoke(pkg)
+        }
     }
 
     /** 解除由指定规则设置的所有静音（规则被停用/删除时调用）。 */
     fun unmuteByRule(ruleId: Long) {
-        // 可能有多个包由同一规则静音；一次性移除并在确有变化时触发持久化。
-        if (mutedBy.entries.removeAll { it.value == ruleId }) {
-            onChange?.invoke()
-        }
+        // 可能有多个包由同一规则静音；先取出再移除，以便逐个通知还原其渠道。
+        val affected = mutedBy.entries.filter { it.value == ruleId }.map { it.key }
+        if (affected.isEmpty()) return
+        affected.forEach { mutedBy.remove(it) }
+        onChange?.invoke()
+        affected.forEach { onUnmuted?.invoke(it) }
     }
 
     /** 解除全部静音（总开关关闭时调用）。 */
     fun unmuteAll() {
-        if (mutedBy.isNotEmpty()) {
-            mutedBy.clear()
-            onChange?.invoke()
-        }
+        if (mutedBy.isEmpty()) return
+        val affected = mutedBy.keys.toList()
+        mutedBy.clear()
+        onChange?.invoke()
+        affected.forEach { onUnmuted?.invoke(it) }
     }
 
     fun clear() {

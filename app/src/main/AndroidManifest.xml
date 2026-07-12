@@ -17,6 +17,10 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 静音兜底所需：部分 OEM（如 ColorOS 16）在 snooze 放回时会重新播放提示音，破坏
+         Android 11+ 的静默放回约定。此权限允许在放回窗口内临时静音「通知」音量流，把那声
+         响铃吞掉——见 HushListenerService.suppressNotificationSound。 -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -56,6 +60,20 @@
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Notification assistant (optional): silences notifications before the system
+             plays their sound, so mute needs no snooze and the original notification is
+             left untouched. Requires the user to pick this app as the system's notification
+             assistant; the listener's in-place silence remains the fallback when it isn't set. -->
+        <service
+            android:name=".service.HushAssistantService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_ASSISTANT_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationAssistantService" />
             </intent-filter>
         </service>
 
