@@ -176,7 +176,8 @@
     <string name="settings_channel_mute">System-level mute</string>
     <string name="settings_channel_mute_on">On — mute turns off the app\'s own sound and vibration</string>
     <string name="settings_channel_mute_off">Off — mute is ineffective on some devices</string>
-    <string name="settings_channel_mute_footer">Once enabled, muting an app turns off sound and vibration on its own notification channels: notifications still appear and still peek, the system just never alerts for them. Original settings are restored when the mute is lifted.\n\nAndroid only grants this to apps with an associated companion device: tap to pick any nearby Bluetooth device from the system dialog. It never needs to be connected, and this app never talks to it.</string>
+    <string name="settings_channel_mute_footer">Makes "Mute app" actually work, with notifications still shown. Tap ⓘ for how.</string>
+    <string name="settings_channel_mute_info">Once enabled, muting an app turns off sound and vibration on its own notification channels: notifications still appear, still peek, still open on tap and still update — the system just never alerts for them. Original settings are restored when the mute is lifted.\n\nWithout it, muting can only intercept the alert after the fact, and some ROMs (such as ColorOS 16) replay the sound and vibration afterwards, defeating it.\n\nAndroid only grants this to apps with an associated companion device: pick any nearby Bluetooth device from the system dialog. It never needs to be connected, and this app never talks to it or reads any data from it.</string>
     <string name="settings_log">Log activity</string>
     <string name="settings_hide_recents">Hide from recents</string>
     <string name="settings_hide_recents_desc">Keep the app out of the recent-apps list</string>

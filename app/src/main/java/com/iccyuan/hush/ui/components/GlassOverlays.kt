@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -26,9 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.iccyuan.hush.ui.theme.Radius
+import com.iccyuan.hush.ui.theme.Sizes
+import com.iccyuan.hush.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -41,13 +46,20 @@ private fun Modifier.composedClickable(onTap: () -> Unit): Modifier {
     return this.clickable(interactionSource = interaction, indication = null, onClick = onTap)
 }
 
-/** 在合成中渲染的居中毛玻璃对话框（因此它会模糊背景）。 */
+/**
+ * 在合成中渲染的居中毛玻璃对话框（因此它会模糊背景）。
+ *
+ * 高度封顶到屏幕的 [MAX_DIALOG_HEIGHT_FRACTION]：内容一长（如长篇说明）就会把底部的按钮顶出
+ * 屏幕，用户便无从关闭。需要滚动的正文，请在 content 里对其用
+ * `Modifier.weight(1f, fill = false).verticalScroll(...)`，让按钮行始终留在可见区域。
+ */
 @Composable
 fun GlassDialog(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
+    val maxHeight = LocalConfiguration.current.screenHeightDp.dp * Sizes.dialogMaxHeightFraction
     Box(
         Modifier
             .fillMaxSize()
@@ -57,12 +69,13 @@ fun GlassDialog(
     ) {
         Column(
             Modifier
-                .padding(28.dp)
-                .widthIn(max = 440.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .padding(Spacing.xl)
+                .widthIn(max = Sizes.dialogMaxWidth)
+                .heightIn(max = maxHeight)
+                .clip(RoundedCornerShape(Radius.lg))
                 .glassPanel(haze)
                 .composedClickable {} // 吞噬点击，以免触发关闭
-                .padding(20.dp),
+                .padding(Spacing.lg),
             content = content,
         )
     }

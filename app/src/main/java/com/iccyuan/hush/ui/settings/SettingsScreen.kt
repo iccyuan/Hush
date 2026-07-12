@@ -59,6 +59,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,7 +82,10 @@ import com.iccyuan.hush.data.LanguageStore
 import com.iccyuan.hush.data.ThemeStore
 import com.iccyuan.hush.data.UpdateChecker
 import com.iccyuan.hush.service.NotificationAccess
+import androidx.compose.ui.platform.LocalView
+import com.iccyuan.hush.ui.common.rememberOnResume
 import com.iccyuan.hush.ui.components.GlassScaffold
+import com.iccyuan.hush.ui.components.TipBubble
 import com.iccyuan.hush.ui.components.HairlineDivider
 import com.iccyuan.hush.ui.components.IOSRow
 import com.iccyuan.hush.ui.components.IOSSegmented
@@ -150,10 +155,11 @@ fun SettingsScreen(
             // （不发声不振动、通知原样保留）。未开通时静音退回到 snooze 掐断，在部分 ROM 上会失效。
             if (CompanionPairing.isSupported(context)) {
                 // 关联状态由系统持有：弹窗关闭后回到前台时重新读一次即可（无需接收 Activity 结果）。
-                val paired = com.iccyuan.hush.ui.common.rememberOnResume { CompanionPairing.isPaired(context) }
+                val paired = rememberOnResume { CompanionPairing.isPaired(context) }
                 // 发起关联要顺出宿主 Activity，必须用 View 的 context：LocalContext 已被
                 // ProvideAppLocale 换成脱离 Activity 链的 ContextImpl（多语言所需）。
-                val hostContext = androidx.compose.ui.platform.LocalView.current.context
+                val hostContext = LocalView.current.context
+                var showChannelMuteInfo by remember { mutableStateOf(false) }
                 InsetGroupedSection(footer = stringResource(R.string.settings_channel_mute_footer)) {
                     IOSRow(
                         title = stringResource(R.string.settings_channel_mute),
@@ -165,9 +171,27 @@ fun SettingsScreen(
                         iconColor = IOSColors.Red,
                         onClick = { if (!paired) CompanionPairing.requestPairing(hostContext) },
                         trailing = {
-                            IOSSwitch(paired) { on ->
-                                if (on) CompanionPairing.requestPairing(hostContext)
-                                else CompanionPairing.unpair(context)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // 详情入口：完整原理（含「为什么要选一个蓝牙设备」）较长，收进气泡，
+                                // 行内只留一句结论。Box 是气泡的锚点，尖角会指回这个 ⓘ。
+                                Box {
+                                    IconButton(onClick = { showChannelMuteInfo = true }) {
+                                        Icon(
+                                            Icons.Filled.Info,
+                                            contentDescription = stringResource(R.string.settings_channel_mute),
+                                            tint = IOSColors.Gray,
+                                        )
+                                    }
+                                    TipBubble(
+                                        visible = showChannelMuteInfo,
+                                        onDismiss = { showChannelMuteInfo = false },
+                                        text = stringResource(R.string.settings_channel_mute_info),
+                                    )
+                                }
+                                IOSSwitch(paired) { on ->
+                                    if (on) CompanionPairing.requestPairing(hostContext)
+                                    else CompanionPairing.unpair(context)
+                                }
                             }
                         },
                     )

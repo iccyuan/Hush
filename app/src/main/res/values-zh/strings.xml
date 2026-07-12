@@ -176,7 +176,8 @@
     <string name="settings_channel_mute">系统级静音</string>
     <string name="settings_channel_mute_on">已开通 — 静音直接关掉应用的提示音与振动</string>
     <string name="settings_channel_mute_off">未开通 — 静音在部分机型上会失效</string>
-    <string name="settings_channel_mute_footer">开通后，「静音应用」会直接关掉目标应用通知渠道的声音与振动：通知照常显示、照常弹横幅，只是系统不再为它发声。解除静音时原设置会自动还原。\n\n系统要求本应用先关联一个「配套设备」才开放该能力：点开后从弹窗里任选一个附近的蓝牙设备即可，不需要真的连接它，本应用也不会与之通信。</string>
+    <string name="settings_channel_mute_footer">让「静音应用」真正生效，且通知照常显示。点 ⓘ 了解原理。</string>
+    <string name="settings_channel_mute_info">开通后，「静音应用」会直接关掉目标应用通知渠道的声音与振动：通知照常显示、照常弹横幅、点击跳转与后续更新都不受影响，只是系统不再为它发声。解除静音时原设置会自动还原。\n\n不开通的话，静音只能靠临时拦截来实现——部分机型（如 ColorOS 16）会在拦截后重新播放提示音与振动，静音就此失效。\n\n系统要求本应用先关联一个「配套设备」才开放该能力：点开后从弹窗里任选一个附近的蓝牙设备即可，不需要真的连接它，本应用也不会与之通信、不读取任何设备数据。</string>
     <string name="settings_log">记录活动</string>
     <string name="settings_hide_recents">隐藏后台</string>
     <string name="settings_hide_recents_desc">不在「最近任务」列表中显示本应用</string>
