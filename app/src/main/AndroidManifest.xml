@@ -17,24 +17,9 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- 静音兜底所需：部分 OEM（如 ColorOS 16）在 snooze 放回时会重新播放提示音，破坏
-         Android 11+ 的静默放回约定。此权限允许在放回窗口内临时静音「通知」音量流，把那声
-         响铃吞掉——见 HushListenerService.suppressNotificationSound。 -->
-    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <!-- 「系统级静音」所需：Android 只对持有配套设备关联的应用开放「改写其他应用通知渠道」
-         的能力（NotificationListenerService.updateNotificationChannel）。关联时系统会列出附近的
-         蓝牙设备供用户选择，故需扫描权限；本应用不与所选设备通信、也不需要它保持连接。 -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission
-        android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30" />
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />
-    <uses-feature
-        android:name="android.hardware.bluetooth"
-        android:required="false" />
+    <!-- 「系统级静音」（渠道级）不需要额外权限：Android 的准入条件是「持有一个配套设备关联」，
+         而关联时的设备扫描与选择由**系统弹窗**代劳，本应用无需蓝牙/定位运行时权限，也不与
+         所选设备通信。见 ui/settings/CompanionPairing.kt。 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

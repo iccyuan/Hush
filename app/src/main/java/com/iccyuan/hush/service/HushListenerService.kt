@@ -36,7 +36,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.retry
@@ -90,10 +89,6 @@ class HushListenerService : NotificationListenerService() {
     // 见 [verifySilentPutback]——基准必须是 snooze 时刻而非放回时刻。
     private val snoozedAtByKey = ConcurrentHashMap<String, Long>()
 
-    // 通知音量流的临时静音状态（仅在确认会二次响铃的机型上使用）。见 [suppressNotificationSound]。
-    private val soundSuppressLock = Any()
-    private var soundSuppressed = false
-    private var unmuteJob: Job? = null
 
     // 应用安装/卸载/更新时，失效对应包名的应用标签缓存（见 [NotificationFields.appLabel]），
     // 并清掉应用选择器的整表缓存——否则新装的应用要等本进程重启才会出现在选择列表里。
@@ -219,9 +214,6 @@ class HushListenerService : NotificationListenerService() {
         channels.ensureBaseChannels()
         // 恢复并持久化运行时状态（冷却 / 静音 / 变量），使其跨进程重启依然有效。
         RuntimeStateStore.init(this)
-        // 兜底：若上次进程是在音量流静音期间被杀的，这里恢复回来（正常路径已在放回后恢复）。
-        soundSuppressed = true
-        restoreNotificationSound()
         // 静音解除的入口分散在 UI 与引擎多处，统一在这里挂钩，确保被改哑的渠道一定会被还原。
         VariableStore.setUnmuteListener { pkg ->
             scope.launch {
@@ -481,7 +473,7 @@ class HushListenerService : NotificationListenerService() {
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
                     Logger.i("silence: pre-R, leaving ${sbn.key} untouched")
                 isPersistent -> Logger.i("silence: persistent, skip snooze ${sbn.key}")
-                wouldAlert(sbn) -> silenceInPlace(sbn)
+                wouldAlert(sbn) && shouldSnooze() -> silenceInPlace(sbn)
             }
             decision.needsRepost -> {
                 modifier.repost(sbn, decision, appName)
@@ -515,14 +507,11 @@ class HushListenerService : NotificationListenerService() {
      * 先登记 key 再 snooze，确保放回回调到达时一定能被 [inPlaceSilenced] 跳过；snooze 失败
      * 则收回登记（不做任何回退——保留原通知优先于掐断这一声）。
      *
-     * Android 11+ 本应保证放回是静默的，但部分 OEM（实测 ColorOS 16 / Android 16）会在放回
-     * 时**重新播放提示音**。[RuntimeStateStore.oemRealertsOnPutback] 记录该机型是否如此：
-     * 一旦确认，就在 snooze 的同时临时静音「通知」音量流，把放回的那声响铃吞掉
-     * （见 [suppressNotificationSound]）。未确认的机型不做多余抑制，避免无谓的全局副作用。
+     * 这条路只是渠道级静音（[ChannelSilencer]）不可用时的兜底，且在放回会二次响铃的机型上
+     * 根本不该走——见 [shouldSnooze]。
      */
     private fun silenceInPlace(sbn: StatusBarNotification) {
         inPlaceSilenced[sbn.key] = SystemClock.elapsedRealtime() + SILENCE_SKIP_WINDOW_MS
-        if (RuntimeStateStore.oemRealertsOnPutback) suppressNotificationSound()
         val snoozedAt = System.currentTimeMillis()
         val result = runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }
         if (result.isFailure) {
@@ -535,53 +524,16 @@ class HushListenerService : NotificationListenerService() {
     }
 
     /**
-     * 在放回窗口内临时静音「通知」音量流——系统在该流音量为 0 时根本不会播放提示音，
-     * 因此 OEM 在放回时重新触发的那声响铃会被吞掉；通知本身原样保留，不受影响。
+     * 这台机器上，snooze 掐断还值不值得做。
      *
-     * 代价是这 [SOUND_SUPPRESS_MS] 毫秒内其他应用的通知也不发声（振动、来电铃声不受影响），
-     * 所以只对确认会二次响铃的机型启用。用 ADJUST_MUTE 而非直接改音量：静音请求绑定在调用方
-     * 的 binder 上，进程若意外死亡系统会自动解除，不会把用户手机永久静音。多条通知并发时
-     * 共用一个静音窗口，最后一条负责恢复。
+     * 部分 OEM（实测 ColorOS 16 / Android 16）会在放回时**重放完整提醒**（声音 + 振动），
+     * 于是 snooze 非但没静音，反而把提醒推迟一秒再完整响一次——比什么都不做还怪。确认是这种
+     * 机型后就不再 snooze：诚实地响一次，并让用户去开「系统级静音」（渠道级静音不受此影响）。
      */
-    private fun suppressNotificationSound() {
-        val nm = getSystemService(android.app.NotificationManager::class.java)
-        if (nm?.isNotificationPolicyAccessGranted != true) {
-            Logger.w("silence: no DND access; cannot suppress putback re-alert")
-            return
-        }
-        val am = getSystemService(android.media.AudioManager::class.java) ?: return
-        synchronized(soundSuppressLock) {
-            if (!soundSuppressed) {
-                soundSuppressed = runCatching {
-                    am.adjustStreamVolume(
-                        android.media.AudioManager.STREAM_NOTIFICATION,
-                        android.media.AudioManager.ADJUST_MUTE,
-                        0,
-                    )
-                }.onFailure { Logger.w("silence: mute stream failed", it) }.isSuccess
-            }
-            unmuteJob?.cancel()
-            unmuteJob = scope.launch {
-                delay(SOUND_SUPPRESS_MS)
-                restoreNotificationSound()
-            }
-        }
-    }
-
-    /** 解除通知音量流的临时静音。幂等；服务销毁与启动时都会兜底调用一次。 */
-    private fun restoreNotificationSound() {
-        synchronized(soundSuppressLock) {
-            if (!soundSuppressed) return
-            val am = getSystemService(android.media.AudioManager::class.java)
-            runCatching {
-                am?.adjustStreamVolume(
-                    android.media.AudioManager.STREAM_NOTIFICATION,
-                    android.media.AudioManager.ADJUST_UNMUTE,
-                    0,
-                )
-            }.onFailure { Logger.w("silence: unmute stream failed", it) }
-            soundSuppressed = false
-        }
+    private fun shouldSnooze(): Boolean {
+        if (!RuntimeStateStore.oemRealertsOnPutback) return true
+        Logger.w("silence: this ROM re-alerts on putback; skipping snooze — enable channel-level mute")
+        return false
     }
 
     /**
@@ -636,8 +588,9 @@ class HushListenerService : NotificationListenerService() {
      * 时刻作基准会把它当成"响在放回之前"，永远判定为静默（曾经如此，实测漏判）。而 snooze
      * 早于放回约一秒，任何晚于它的发声都只可能来自放回。
      *
-     * 一旦确认，持久化到 [RuntimeStateStore.oemRealertsOnPutback]：此后该机型的每次就地静音都
-     * 会顺带静音通知音量流，把放回的响铃吞掉（见 [suppressNotificationSound]）。
+     * 一旦确认，持久化到 [RuntimeStateStore.oemRealertsOnPutback]：此后不再走 snooze 掐断
+     * （它在这类机型上只会把提醒推迟一秒再完整响一次，见 [shouldSnooze]），静音改由渠道级
+     * 方案承担——那条路不经过 snooze，不受此 ROM 行为影响。
      */
     private fun verifySilentPutback(key: String) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
@@ -702,8 +655,6 @@ class HushListenerService : NotificationListenerService() {
         wifiCallback = null
         runCatching { unregisterReceiver(packageChangeReceiver) }
         if (tts.isInitialized()) tts.value.shutdown()
-        // 绝不能把用户的通知音量流留在静音状态。
-        restoreNotificationSound()
         scope.cancel()
     }
 
@@ -714,12 +665,6 @@ class HushListenerService : NotificationListenerService() {
 
         /** 放回跳过窗口：放回一般在 1 秒后到达，Doze 等延迟场景放宽到 30 秒兜底。 */
         private const val SILENCE_SKIP_WINDOW_MS = 30_000L
-
-        /**
-         * 通知音量流的静音窗口：需覆盖 snooze 时长 + 放回到达 + 放回响铃的完整播放，
-         * 又要尽量短，以免波及其他应用的通知声。实测放回在 snooze 后约 1.2s 到达。
-         */
-        private const val SOUND_SUPPRESS_MS = 2_500L
 
         /** 放回后隔多久复查「是否二次响铃」：要等系统把发声时间戳更新进排名。 */
         private const val PUTBACK_CHECK_DELAY_MS = 3_000L

@@ -148,24 +148,26 @@ fun SettingsScreen(
             }
             // 系统级静音：需要一次配套设备关联，之后「静音应用」才能直接改目标应用的通知渠道
             // （不发声不振动、通知原样保留）。未开通时静音退回到 snooze 掐断，在部分 ROM 上会失效。
-            if (companionSupported(context)) {
-                val (paired, startPairing) = rememberCompanionPairing(context)
+            if (CompanionPairing.isSupported(context)) {
+                // 关联状态由系统持有：弹窗关闭后回到前台时重新读一次即可（无需接收 Activity 结果）。
+                val paired = com.iccyuan.hush.ui.common.rememberOnResume { CompanionPairing.isPaired(context) }
+                // 发起关联要顺出宿主 Activity，必须用 View 的 context：LocalContext 已被
+                // ProvideAppLocale 换成脱离 Activity 链的 ContextImpl（多语言所需）。
+                val hostContext = androidx.compose.ui.platform.LocalView.current.context
                 InsetGroupedSection(footer = stringResource(R.string.settings_channel_mute_footer)) {
                     IOSRow(
                         title = stringResource(R.string.settings_channel_mute),
                         subtitle = stringResource(
-                            if (paired.value) R.string.settings_channel_mute_on
+                            if (paired) R.string.settings_channel_mute_on
                             else R.string.settings_channel_mute_off
                         ),
                         icon = Icons.Filled.NotificationsOff,
                         iconColor = IOSColors.Red,
-                        onClick = { if (!paired.value) startPairing() },
+                        onClick = { if (!paired) CompanionPairing.requestPairing(hostContext) },
                         trailing = {
-                            IOSSwitch(paired.value) { on ->
-                                if (on) startPairing() else {
-                                    CompanionPairing.unpair(context)
-                                    paired.value = false
-                                }
+                            IOSSwitch(paired) { on ->
+                                if (on) CompanionPairing.requestPairing(hostContext)
+                                else CompanionPairing.unpair(context)
                             }
                         },
                     )
