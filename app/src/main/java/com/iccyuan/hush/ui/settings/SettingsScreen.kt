@@ -64,6 +64,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -158,8 +159,12 @@ fun SettingsScreen(
             // 系统级静音：需要一次配套设备关联，之后「静音应用」才能直接改目标应用的通知渠道
             // （不发声不振动、通知原样保留）。未开通时静音退回到 snooze 掐断，在部分 ROM 上会失效。
             if (CompanionPairing.isSupported(context)) {
-                // 关联状态由系统持有：弹窗关闭后回到前台时重新读一次即可（无需接收 Activity 结果）。
-                val paired = rememberOnResume { CompanionPairing.isPaired(context) }
+                // 关联状态由系统持有。开通要走系统弹窗，结果只能等回到前台再读；而关闭是本进程内
+                // 同步完成的，必须当场反映到开关上——只靠 onResume 回读的话，用户关掉后开关会一直
+                // 停在「开」，看起来像关不掉。
+                var paired by remember { mutableStateOf(CompanionPairing.isPaired(context)) }
+                val pairedOnResume = rememberOnResume { CompanionPairing.isPaired(context) }
+                LaunchedEffect(pairedOnResume) { paired = pairedOnResume }
                 // 发起关联要顺出宿主 Activity，必须用 View 的 context：LocalContext 已被
                 // ProvideAppLocale 换成脱离 Activity 链的 ContextImpl（多语言所需）。
                 val hostContext = LocalView.current.context
@@ -199,8 +204,11 @@ fun SettingsScreen(
                         },
                         trailing = {
                             IOSSwitch(paired) { on ->
-                                if (on) CompanionPairing.requestPairing(hostContext)
-                                else CompanionPairing.unpair(context)
+                                if (on) {
+                                    CompanionPairing.requestPairing(hostContext)
+                                } else if (CompanionPairing.unpair(context)) {
+                                    paired = false
+                                }
                             }
                         },
                     )

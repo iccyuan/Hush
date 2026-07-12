@@ -76,12 +76,21 @@ object CompanionPairing {
         }.onFailure { Logger.e("companion: cannot start chooser", it) }
     }
 
-    /** 撤销全部关联（用户关闭该能力时调用）。 */
-    fun unpair(context: Context) {
+    /** 撤销全部关联（用户关闭该能力时调用）。返回是否已不再持有任何关联。 */
+    fun unpair(context: Context): Boolean {
         runCatching {
-            val cdm = context.getSystemService(CompanionDeviceManager::class.java) ?: return
-            cdm.associations.forEach { address -> runCatching { cdm.disassociate(address) } }
+            val cdm = context.getSystemService(CompanionDeviceManager::class.java) ?: return false
+            // Android 13 起按关联 id 解除；老的 disassociate(MAC) 已废弃，在新系统上未必生效。
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                cdm.myAssociations.forEach { runCatching { cdm.disassociate(it.id) } }
+            } else {
+                @Suppress("DEPRECATION")
+                cdm.associations.forEach { address -> runCatching { cdm.disassociate(address) } }
+            }
         }.onFailure { Logger.e("companion: unpair failed", it) }
+        val stillPaired = isPaired(context)
+        Logger.i("companion: unpair done, stillPaired=$stillPaired")
+        return !stillPaired
     }
 
     private const val REQUEST_CODE = 0xC0DE

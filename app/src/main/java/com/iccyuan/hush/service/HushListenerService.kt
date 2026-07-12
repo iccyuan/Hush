@@ -80,10 +80,16 @@ class HushListenerService : NotificationListenerService() {
     // 最近一次连接的 Wi-Fi SSID：断开事件用它做「指定 Wi-Fi」过滤（断开后已读不到）。
     @Volatile private var lastSsid: String? = null
 
-    // 「就地静音」short-snooze 后系统会把原通知放回并再次回调 onNotificationPosted。
-    // 记录这些 key（值为跳过窗口的截止时刻），以便跳过放回的那一次——否则放回的通知会
-    // 再次命中规则 → 再次 snooze，循环不止，且副作用（toast/webhook 等）会重复执行。
-    private val inPlaceSilenced = ConcurrentHashMap<String, Long>()
+    // 「就地静音」short-snooze 后系统会把原通知放回并再次回调 onNotificationPosted。登记这些
+    // 通知，以便跳过放回的那一次——否则放回的通知会再次命中规则 → 再次 snooze，循环不止，
+    // 且副作用（toast/webhook 等）会重复执行。
+    //
+    // 必须连 postTime 一起比对，只认「原样放回」的那一条：光凭 key 相同是不够的——聊天类应用
+    // 正是用同一个 key 反复更新同一条通知来展示新消息的，那些更新会被误当成放回而整个跳过，
+    // 表现为「连续消息在通知记录里丢失」，且新消息根本不走规则。放回是系统把原通知原样放回，
+    // postTime 不变；应用的新更新则会带上新的 postTime。
+    private data class SilenceMark(val postTime: Long, val expiresAt: Long)
+    private val inPlaceSilenced = ConcurrentHashMap<String, SilenceMark>()
 
     // 每次就地静音的 snooze 时刻（墙钟），供放回后判定「这台机器放回时是否又响了一次」。
     // 见 [verifySilentPutback]——基准必须是 snooze 时刻而非放回时刻。
@@ -290,11 +296,17 @@ class HushListenerService : NotificationListenerService() {
         if (!masterEnabled) return
         // 切勿处理我们自己重新发布的副本——否则会陷入无限循环。
         if (sbn.packageName == packageName) return
-        // 就地静音后由系统放回的原通知：跳过处理（本来就已静默）。见 [inPlaceSilenced]。
-        inPlaceSilenced.remove(sbn.key)?.let { deadline ->
-            if (SystemClock.elapsedRealtime() < deadline) {
+        // 就地静音后由系统原样放回的那一条：跳过处理（它本来就已静默）。只认 postTime 未变的，
+        // 否则会把应用「用同一个 key 更新出的新消息」也一并吞掉。见 [inPlaceSilenced]。
+        inPlaceSilenced.remove(sbn.key)?.let { mark ->
+            val fresh = SystemClock.elapsedRealtime() < mark.expiresAt
+            if (fresh && sbn.postTime == mark.postTime) {
                 verifySilentPutback(sbn.key)
                 return
+            }
+            if (fresh) {
+                Logger.i("silence: same key but postTime moved (${mark.postTime} → ${sbn.postTime}); " +
+                    "treating as a new update, not the putback")
             }
         }
 
@@ -511,7 +523,10 @@ class HushListenerService : NotificationListenerService() {
      * 根本不该走——见 [shouldSnooze]。
      */
     private fun silenceInPlace(sbn: StatusBarNotification) {
-        inPlaceSilenced[sbn.key] = SystemClock.elapsedRealtime() + SILENCE_SKIP_WINDOW_MS
+        inPlaceSilenced[sbn.key] = SilenceMark(
+            postTime = sbn.postTime,
+            expiresAt = SystemClock.elapsedRealtime() + SILENCE_SKIP_WINDOW_MS,
+        )
         val snoozedAt = System.currentTimeMillis()
         val result = runCatching { snoozeNotification(sbn.key, SILENCE_SNOOZE_MS) }
         if (result.isFailure) {
