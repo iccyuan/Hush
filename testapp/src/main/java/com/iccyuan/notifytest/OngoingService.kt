@@ -25,6 +25,8 @@ class OngoingService : Service() {
         override fun run() {
             ticks++
             notificationManager().notify(NOTIFICATION_ID, buildNotification())
+            // 打日志才能分清「服务没在刷新」和「刷新了但监听器收不到」——两者现象一样。
+            android.util.Log.i("NotifyTest", "ongoing tick #$ticks")
             handler.postDelayed(this, 1_000)
         }
     }
