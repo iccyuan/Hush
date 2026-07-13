@@ -23,8 +23,10 @@ import com.iccyuan.hush.util.Logger
  * 外观与行为由全局 [DanmakuConfig] 驱动（字号 / 颜色 / 背景透明度 / 速度 / 行数 / 顶部偏移），
  * 由服务在设置变化时通过 [updateConfig] 推入。为避免刷屏与重叠：
  *  - **去重**：相同文字在 [DEDUP_MS] 内只显示一次。
- *  - **排队分行**：为每行维护「下一条可进入的时刻」，新弹幕分配到最早空闲的行，必要时延后进入，
- *    使同一行的弹幕保持间距、互不重叠；积压过久则丢弃，避免无限排队。
+ *  - **排队分行**：为每行维护「下一条可进入的时刻」，新弹幕分配到最早空闲的行，必要时延后进入。
+ *    进入时刻按这条弹幕的**实测胶囊宽度**预留（见 [entryClearMs]）：尾部离开右缘、再留出行内
+ *    间距后，下一条才能进入——同一行因此成为真正的队列，长文字也不会被追尾重叠。
+ *    积压过久则丢弃，避免无限排队。
  *
  * 需要「在其他应用上层显示」权限。
  */
@@ -33,13 +35,27 @@ object DanmakuController {
     private const val DEDUP_MS = 2500L
     private const val MAX_QUEUE_DELAY = 8000L
 
+    /** 同一行相邻两条弹幕之间的最小间距（占屏宽比例）。 */
+    private const val ROW_GAP_FRACTION = 0.08f
+
+    /** 同一行相邻两条的最小时间间隔下限（毫秒），防止极短文字挤成串。 */
+    private const val MIN_ROW_INTERVAL_MS = 700L
+
     private val main = Handler(Looper.getMainLooper())
 
     @Volatile
     private var config = DanmakuConfig()
 
+    /** 等待进入某一行的一条弹幕。 */
+    private class Pending(val app: Context, val text: String, val cfg: DanmakuConfig, val enqueuedAt: Long)
+
     // 以下状态仅在主线程访问。
-    private var rowFreeAt = LongArray(config.rows)
+    /** 每行入口的「预计空闲时刻」——只用于选行和积压丢弃的估算；真正的放行由行队列驱动。 */
+    private var rowEstFreeAt = LongArray(config.rows)
+    /** 每行的等待队列：入口被占用时后续弹幕在此排队，前一条尾部离开入口后依次放行。 */
+    private var rowQueues = Array(config.rows) { ArrayDeque<Pending>() }
+    /** 每行入口当前是否被占用（有弹幕正在进入，或队列尚未排空）。 */
+    private var rowBusy = BooleanArray(config.rows)
     private val inflight = HashMap<String, Int>()   // 相同文字：当前排队中 + 屏幕上的条数
     private val recentEnd = HashMap<String, Long>()  // 相同文字：上次离场时刻（离场后短暂冷却）
 
@@ -94,7 +110,15 @@ object DanmakuController {
     /** 由服务在设置变化时调用，更新全局弹幕外观/行为。 */
     fun updateConfig(c: DanmakuConfig) {
         config = c
-        main.post { if (rowFreeAt.size != c.rows) rowFreeAt = LongArray(c.rows) }
+        main.post { if (rowEstFreeAt.size != c.rows) resetRows(c.rows) }
+    }
+
+    /** 行数变化时重建各行状态；排队中尚未上屏的弹幕直接丢弃（并释放其去重占位）。 */
+    private fun resetRows(rows: Int) {
+        rowQueues.forEach { q -> q.forEach { endText(it.text) } }
+        rowEstFreeAt = LongArray(rows)
+        rowQueues = Array(rows) { ArrayDeque() }
+        rowBusy = BooleanArray(rows)
     }
 
     fun canShow(context: Context): Boolean = Settings.canDrawOverlays(context)
@@ -123,18 +147,57 @@ object DanmakuController {
             recentEnd[text]?.let { if (now - it < DEDUP_MS) return }
         }
 
-        if (rowFreeAt.size != cfg.rows) rowFreeAt = LongArray(cfg.rows)
-        // 选最早空闲的行。
+        if (rowEstFreeAt.size != cfg.rows) resetRows(cfg.rows)
+        // 选预计最早空闲的行。
         var row = 0
-        for (i in 1 until cfg.rows) if (rowFreeAt[i] < rowFreeAt[row]) row = i
-        val startAt = maxOf(now, rowFreeAt[row])
-        val delay = startAt - now
-        if (delay > MAX_QUEUE_DELAY) return // 积压过久：丢弃这一条，避免无限排队。
-        // 预留该行下一条的最早进入时刻（约为时长的 42%，保证同行两条之间留有间距）。
-        rowFreeAt[row] = startAt + (cfg.durationMs * 42 / 100).coerceAtLeast(700)
+        for (i in 1 until cfg.rows) if (rowEstFreeAt[i] < rowEstFreeAt[row]) row = i
+        if (rowEstFreeAt[row] - now > MAX_QUEUE_DELAY) return // 积压过久：丢弃这一条，避免无限排队。
+        // 估算下一条的最早进入时刻：这条的尾部离开右缘、再留出行内间距之后。
+        // （以前按固定「42% 时长」预留，胶囊一旦宽过约四成屏宽就会被下一条追尾重叠。）
+        rowEstFreeAt[row] = maxOf(now, rowEstFreeAt[row]) + entryClearMs(app, text, cfg)
         // 占位：从此刻起到该弹幕离场，相同文字都会被去重跳过。
         inflight[text] = (inflight[text] ?: 0) + 1
-        main.postDelayed({ showOnRow(app, text, row, cfg) }, delay)
+        val item = Pending(app, text, cfg, now)
+        // 入口空闲则立刻进入，否则排到该行队尾——真正的放行时机由 openRowEntry 按
+        // **前一条动画实际开始的时刻**推算，窗口首建/布局的延迟不会蚕食行内间距。
+        if (rowBusy[row]) rowQueues[row].addLast(item) else { rowBusy[row] = true; showOnRow(item, row) }
+    }
+
+    /** 某行入口空出（前一条尾部已离开右缘并留出间距）：放行队列中的下一条；排队过久的丢弃。 */
+    private fun openRowEntry(row: Int) {
+        if (row >= rowQueues.size) return // 行数中途调小：该行已不存在。
+        val now = SystemClock.uptimeMillis()
+        while (true) {
+            val next = rowQueues[row].removeFirstOrNull()
+            if (next == null) { rowBusy[row] = false; return }
+            if (now - next.enqueuedAt > MAX_QUEUE_DELAY) { endText(next.text); continue }
+            showOnRow(next, row)
+            return
+        }
+    }
+
+    /** 胶囊的水平内边距（px）。抽出来是为了让 [entryClearMs] 的宽度估算与实际渲染保持一致。 */
+    private fun pillPadH(cfg: DanmakuConfig, density: Float): Int =
+        (cfg.fontSizeSp * density * 0.85f).toInt()
+
+    /**
+     * 这条弹幕从开始进入到「尾部离开右缘并留出行内间距」所需的毫秒数——在此之前同一行
+     * 不能放下一条，否则后车必然追上前车的尾部。宽度用与实际 TextView 相同的字号/字重/
+     * 字距实测；速度与 [showOnRow] 一致（屏宽 / durationMs，恒定速度）。
+     */
+    private fun entryClearMs(app: Context, text: String, cfg: DanmakuConfig): Long {
+        val metrics = app.resources.displayMetrics
+        val paint = android.text.TextPaint().apply {
+            textSize = android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_SP, cfg.fontSizeSp, metrics,
+            )
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            letterSpacing = 0.01f
+        }
+        val pillWidth = paint.measureText(text) + pillPadH(cfg, metrics.density) * 2
+        val gap = metrics.widthPixels * ROW_GAP_FRACTION
+        val speedPxPerMs = metrics.widthPixels.toFloat() / cfg.durationMs.coerceAtLeast(1L).toFloat()
+        return ((pillWidth + gap) / speedPxPerMs).toLong().coerceAtLeast(MIN_ROW_INTERVAL_MS)
     }
 
     /** 一条弹幕离场（正常结束或添加失败）时调用：释放同文字占位并记录离场时刻用于冷却。 */
@@ -144,13 +207,20 @@ object DanmakuController {
         recentEnd[text] = SystemClock.uptimeMillis()
     }
 
-    private fun showOnRow(app: Context, text: String, row: Int, cfg: DanmakuConfig) {
-        val root = ensureOverlay(app) ?: run { endText(text); return }
+    private fun showOnRow(item: Pending, row: Int) {
+        val app = item.app
+        val text = item.text
+        val cfg = item.cfg
+        val root = ensureOverlay(app) ?: run {
+            endText(text)
+            openRowEntry(row) // 失败也要放行该行，否则队列会卡死。
+            return
+        }
         val metrics = app.resources.displayMetrics
         val density = metrics.density
         val screenWidth = metrics.widthPixels
 
-        val padH = (cfg.fontSizeSp * density * 0.85f).toInt()
+        val padH = pillPadH(cfg, density)
         val padV = (cfg.fontSizeSp * density * 0.34f).toInt()
 
         val tv = TextView(app).apply {
@@ -196,6 +266,7 @@ object DanmakuController {
             Logger.w("danmaku addView failed: ${it.message}")
             endText(text)
             teardownOverlayIfEmpty()
+            openRowEntry(row) // 失败也要放行该行，否则队列会卡死。
             return
         }
 
@@ -218,6 +289,11 @@ object DanmakuController {
                     teardownOverlayIfEmpty()
                 }
                 .start()
+            // 入口占用从动画**实际开始**起算：等这条的尾部离开右缘并留出行内间距后再放行下一条。
+            // （若从入队排期起算，悬浮窗首次创建/首帧布局的延迟会蚕食间距，出现首尾相贴甚至重叠。）
+            val clear = entryClearMs(app, text, cfg)
+            rowEstFreeAt[row] = maxOf(rowEstFreeAt[row], SystemClock.uptimeMillis() + clear)
+            main.postDelayed({ openRowEntry(row) }, clear)
         }
     }
 
