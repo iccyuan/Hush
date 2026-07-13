@@ -23,4 +23,7 @@ interface RuleFireStatsDao {
         ensureRow(ruleId)
         bumpFireCount(ruleId)
     }
+
+    @Query("DELETE FROM rule_fire_stats")
+    suspend fun clear()
 }

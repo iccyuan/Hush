@@ -44,4 +44,8 @@ interface RuleDao {
 
     @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM rules")
     suspend fun maxSortOrder(): Int
+
+    /** 迁移 8→9 后 rules.fireCount 仅作旧数据回退（见 AppDatabase），清空统计时须一并清零。 */
+    @Query("UPDATE rules SET fireCount = 0")
+    suspend fun clearLegacyFireCounts()
 }

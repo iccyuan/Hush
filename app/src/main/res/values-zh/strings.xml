@@ -486,6 +486,8 @@
     <string name="insights_top_rules">命中最多的规则</string>
     <string name="insights_fires">命中 %d 次</string>
     <string name="insights_none">暂无数据</string>
+    <string name="insights_clear_title">清空统计？</string>
+    <string name="insights_clear_msg">将删除全部通知记录，并把所有规则的命中次数清零。此操作无法撤销。</string>
 
     <!-- 位置触发器 (F1) -->
     <string name="cat_trig_location">位置</string>

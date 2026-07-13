@@ -38,4 +38,11 @@ class InsightsViewModel(app: Application) : AndroidViewModel(app) {
             topRules = rules,
         )
     }
+
+    /** 清空统计：删除通知记录（总数/最吵应用的数据源），并清零所有规则的触发计数。 */
+    fun clearStats() = viewModelScope.launch {
+        logRepo.clear()
+        ruleRepo.clearFireCounts()
+        refresh()
+    }
 }

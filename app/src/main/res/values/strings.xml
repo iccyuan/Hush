@@ -486,6 +486,8 @@
     <string name="insights_top_rules">Top rules</string>
     <string name="insights_fires">%d fires</string>
     <string name="insights_none">No data yet</string>
+    <string name="insights_clear_title">Clear statistics?</string>
+    <string name="insights_clear_msg">This deletes the notification history and resets all rule fire counts. It cannot be undone.</string>
 
     <!-- Location trigger (F1) -->
     <string name="cat_trig_location">Location</string>

@@ -44,6 +44,15 @@ class RuleRepository private constructor(
     suspend fun setEnabled(id: Long, enabled: Boolean) = dao.setEnabled(id, enabled)
     suspend fun incrementFireCount(id: Long) = fireStatsDao.incrementFireCount(id)
 
+    /**
+     * 清零所有规则的触发计数（统计页「清空」用）。[allOnce] 在独立表没有对应行时
+     * 会回退读 rules.fireCount 旧列，所以两处都得清，否则老计数会“复活”。
+     */
+    suspend fun clearFireCounts() {
+        fireStatsDao.clear()
+        dao.clearLegacyFireCounts()
+    }
+
     suspend fun reorder(orderedIds: List<Long>) {
         orderedIds.forEachIndexed { index, id -> dao.setSortOrder(id, index) }
     }
