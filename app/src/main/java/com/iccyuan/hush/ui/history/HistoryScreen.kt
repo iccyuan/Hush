@@ -14,6 +14,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,7 +38,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,14 +47,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
@@ -66,15 +64,16 @@ import kotlinx.serialization.builtins.ListSerializer
 import com.iccyuan.hush.ui.components.GlassScaffold
 import com.iccyuan.hush.ui.components.HairlineDivider
 import com.iccyuan.hush.ui.components.InsetGroupedSection
-import com.iccyuan.hush.ui.components.cardFrost
+import com.iccyuan.hush.ui.components.ListRowPlacementSpec
+import com.iccyuan.hush.ui.components.groupSegmentShape
 import com.iccyuan.hush.ui.components.iosPressable
+import com.iccyuan.hush.ui.components.rowFrost
 import com.iccyuan.hush.ui.theme.Alpha
 import com.iccyuan.hush.ui.theme.IOSColors
 import com.iccyuan.hush.ui.theme.Spacing
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Calendar
+import kotlin.math.roundToInt
 
 private enum class Grouping { DAY, WEEK }
 
@@ -88,11 +87,6 @@ private val ChartBarGap = 2.dp
 private val ChartBarMinHeight = 4.dp         // 空桶也留一点高度，便于点击
 private val ChartBarRange = 44.dp            // 满桶相对最小高度的额外高度
 
-// 列表条目「位移」动画：柔和的缓入缓出补间，无弹簧回弹（避免突兀）。仅用于位置变化，不做淡入淡出。
-private val ListPlacementSpec = tween<androidx.compose.ui.unit.IntOffset>(
-    durationMillis = 240,
-    easing = FastOutSlowInEasing,
-)
 
 /**
  * 一周从哪天开始——与**应用语言**绑定，而非系统区域：中文→周一，英文→周日，其余语言用该地区默认。
@@ -123,23 +117,8 @@ fun HistoryScreen(
     val selectedApp by vm.selectedApp.collectAsStateWithLifecycle()
     val canLoadMore by vm.canLoadMore.collectAsStateWithLifecycle()
     val ruleNames by vm.ruleNames.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    // 增量解析应用图标：只为尚未缓存的新包名解析，避免每次「加载更多」都重解析全部。
-    val appIcons = remember { mutableStateMapOf<String, ImageBitmap>() }
-    LaunchedEffect(logs) {
-        val missing = logs.map { it.packageName }.distinct().filter { it !in appIcons }
-        if (missing.isNotEmpty()) {
-            val resolved = withContext(Dispatchers.IO) {
-                missing.mapNotNull { pkg ->
-                    runCatching {
-                        pkg to context.packageManager.getApplicationIcon(pkg).toBitmap(ICON_PX, ICON_PX).asImageBitmap()
-                    }.getOrNull()
-                }
-            }
-            resolved.forEach { (pkg, bmp) -> appIcons[pkg] = bmp }
-        }
-    }
+    // 应用图标缓存与解析在 VM 里（跨标签切换存活、随预热的日志流增量解析），这里只读。
+    val appIcons = vm.appIcons
     var grouping by remember { mutableStateOf(Grouping.DAY) }
     val weekStart = rememberWeekStart()
 
@@ -164,7 +143,9 @@ fun HistoryScreen(
             Box(Modifier.fillMaxSize().padding(padding)) { EmptyHistory() }
             return@GlassScaffold
         }
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        // 只让出顶部（导航栏）；底部不整体让出，改由列表的 contentPadding 承担——
+        // 这样列表从毛玻璃底栏下方穿过，而不是被顶在底栏上方留出一条空隙。
+        Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             // 固定表头：统计 + 分组切换 + 应用过滤始终保持固定，无需滚回顶部即可更改。
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Spacer(Modifier.height(Spacing.xs))
@@ -203,10 +184,11 @@ fun HistoryScreen(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
+                // 底部让位以 contentPadding 表达：内容能滚到底栏下方，滚到底时最后一行仍在底栏之上。
+                contentPadding = PaddingValues(bottom = padding.calculateBottomPadding() + Spacing.sm),
             ) {
-                groups.forEach { (header, items) ->
-                    // 稳定 key（按分组标题）让 LazyColumn 能识别条目增删/重排。
+                groups.forEachIndexed { gi, (header, items) ->
+                    // 稳定 key（分组标题 / 日志 id）让 LazyColumn 能识别条目增删/重排。
                     // 只保留「位移」动画（去掉淡入淡出与弹簧回弹）：加载更多/删除时下方条目柔和上移，
                     // 不闪不弹；按天/周切换直接换位而非整屏淡出淡入，避免突兀。
                     item(key = "h:$header", contentType = "header") {
@@ -217,33 +199,40 @@ fun HistoryScreen(
                             modifier = Modifier.animateItem(
                                 fadeInSpec = null,
                                 fadeOutSpec = null,
-                                placementSpec = ListPlacementSpec,
-                            ).padding(start = Spacing.xxl, top = Spacing.xs),
+                                placementSpec = ListRowPlacementSpec,
+                            ).padding(
+                                start = Spacing.xxl,
+                                top = if (gi == 0) Spacing.xs else Spacing.lg + Spacing.xs,
+                                bottom = Spacing.lg,
+                            ),
                         )
                     }
-                    item(key = "s:$header", contentType = "section") {
-                        // animateContentSize：组内某行被删除后，卡片高度平滑收缩，而非瞬间跳变。
-                        InsetGroupedSection(
-                            modifier = Modifier
+                    // 每条日志各自是一个 lazy item，而不是整组塞进一个 item：滚动时按行增量组合，
+                    // 进到一个上百条的分组不再卡一大帧；展开/删除也只重测量所在的那一行。
+                    // 「一张卡」的观感由首/尾行的圆角拼出来（见 groupSegmentShape），
+                    // 行底色用 rowFrost（静态、无逐行实时模糊）。
+                    itemsIndexed(items, key = { _, log -> "r:${log.id}" }, contentType = { _, _ -> "row" }) { i, log ->
+                        Column(
+                            Modifier
                                 .animateItem(
                                     fadeInSpec = null,
                                     fadeOutSpec = null,
-                                    placementSpec = ListPlacementSpec,
+                                    placementSpec = ListRowPlacementSpec,
                                 )
-                                .animateContentSize(animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)),
+                                .padding(horizontal = Spacing.lg)
+                                .clip(groupSegmentShape(i, items.size))
+                                .rowFrost(),
                         ) {
-                            items.forEachIndexed { i, log ->
-                                if (i > 0) HairlineDivider(startInset = Spacing.lg)
-                                SwipeableLogRow(
-                                    log = log,
-                                    ruleNames = ruleNames,
-                                    icon = appIcons[log.packageName],
-                                    onDelete = { vm.delete(log) },
-                                    onCreateRule = onCreateRule?.let { cb ->
-                                        { vm.createRuleFrom(log) { id -> cb(id) } }
-                                    },
-                                )
-                            }
+                            if (i > 0) HairlineDivider(startInset = Spacing.lg)
+                            SwipeableLogRow(
+                                log = log,
+                                ruleNames = ruleNames,
+                                icon = appIcons[log.packageName],
+                                onDelete = { vm.delete(log) },
+                                onCreateRule = onCreateRule?.let { cb ->
+                                    { vm.createRuleFrom(log) { id -> cb(id) } }
+                                },
+                            )
                         }
                     }
                 }
@@ -253,7 +242,7 @@ fun HistoryScreen(
                             Modifier.fillMaxWidth().padding(Spacing.lg).animateItem(
                                 fadeInSpec = null,
                                 fadeOutSpec = null,
-                                placementSpec = ListPlacementSpec,
+                                placementSpec = ListRowPlacementSpec,
                             ),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -264,7 +253,6 @@ fun HistoryScreen(
                         }
                     }
                 }
-                item(key = "bottom_spacer", contentType = "spacer") { Spacer(Modifier.height(Spacing.xl)) }
             }
         }
     }
@@ -273,18 +261,23 @@ fun HistoryScreen(
 @Composable
 private fun StatsCard(times: List<Long>, grouping: Grouping, firstDow: Int) {
     val weekdays = stringArrayResource(R.array.weekday_full)
-    val hours = IntArray(24)
-    val days = IntArray(7)
-    val cal = Calendar.getInstance()
-    times.forEach {
-        cal.timeInMillis = it
-        hours[cal.get(Calendar.HOUR_OF_DAY)]++
-        // 周分布按本地一周起始日排序（与「按周」列表分组一致）：slot 0 = 一周起始日。
-        days[(cal.get(Calendar.DAY_OF_WEEK) - firstDow + 7) % 7]++
+    // times 可达上千条且 Calendar 逐条换算不便宜；直方图缓存到实际输入上，
+    // 别在每次点击柱子（selected 变化）引起的重组里白白重算一遍。
+    val (hourDist, dayDist) = remember(times, firstDow) {
+        val hours = IntArray(24)
+        val days = IntArray(7)
+        val cal = Calendar.getInstance()
+        times.forEach {
+            cal.timeInMillis = it
+            hours[cal.get(Calendar.HOUR_OF_DAY)]++
+            // 周分布按本地一周起始日排序（与「按周」列表分组一致）：slot 0 = 一周起始日。
+            days[(cal.get(Calendar.DAY_OF_WEEK) - firstDow + 7) % 7]++
+        }
+        hours.toList() to days.toList()
     }
     // 图表跟随分组：按天=24 小时分布，按周=一周内各天分布（起始日随地区）。
     val byWeek = grouping == Grouping.WEEK
-    val values = if (byWeek) days.toList() else hours.toList()
+    val values = if (byWeek) dayDist else hourDist
     val peak = values.indices.maxByOrNull { values[it] } ?: 0
     val maxVal = (values.maxOrNull() ?: 1).coerceAtLeast(1)
     // 点击某根柱：选中并在概要行显示其数值；再次点击取消。分组切换时清空选中。
@@ -425,15 +418,19 @@ private fun SwipeableLogRow(
     val offsetX = remember { androidx.compose.animation.core.Animatable(0f) }
 
     Box(Modifier.fillMaxWidth()) {
-        // 在行后方的尾部边缘露出删除按钮。
+        // 删除按钮不再垫在整行底下（行底色是半透明的 rowFrost，垫底会透出红色），
+        // 而是与前景同步从行的右缘滑入：关闭时整体停在裁剪区之外，完全不可见。
         Box(
-            Modifier.matchParentSize().background(IOSColors.Red),
+            Modifier
+                .matchParentSize()
+                .offset { androidx.compose.ui.unit.IntOffset((revealPx + offsetX.value).roundToInt(), 0) },
             contentAlignment = Alignment.CenterEnd,
         ) {
             Column(
                 Modifier
                     .width(80.dp)
                     .fillMaxHeight()
+                    .background(IOSColors.Red)
                     .clickable {
                         scope.launch { offsetX.animateTo(0f) }
                         onDelete()
@@ -449,12 +446,11 @@ private fun SwipeableLogRow(
                 Text(stringResource(R.string.delete), style = MaterialTheme.typography.labelSmall, color = Color.White)
             }
         }
-        // 前景（磨砂效果，关闭时遮住红色按钮），拖动时随之滑动。
+        // 前景随拖动滑动；底色由所在分组行（rowFrost）提供，这里保持透明。
         Box(
             Modifier
-                .offset { androidx.compose.ui.unit.IntOffset(offsetX.value.toInt(), 0) }
+                .offset { androidx.compose.ui.unit.IntOffset(offsetX.value.roundToInt(), 0) }
                 .fillMaxWidth()
-                .cardFrost()
                 .draggable(
                     orientation = androidx.compose.foundation.gestures.Orientation.Horizontal,
                     state = androidx.compose.foundation.gestures.rememberDraggableState { delta ->
@@ -720,11 +716,24 @@ private fun EmptyHistory() {
     }
 }
 
-private fun timeOf(t: Long): String =
-    java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(t))
+/**
+ * 行时间格式化器按语言缓存：SimpleDateFormat 的构造要解析模式串，不该在每条行的
+ * 每次重组里新建。SimpleDateFormat 非线程安全，此缓存仅供主线程的组合阶段使用。
+ */
+private var timeFmtCache: Pair<java.util.Locale, Pair<java.text.SimpleDateFormat, java.text.SimpleDateFormat>>? = null
 
-private fun fullTimeOf(t: Long): String =
-    java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(t))
+private fun timeFmts(): Pair<java.text.SimpleDateFormat, java.text.SimpleDateFormat> {
+    val locale = java.util.Locale.getDefault()
+    timeFmtCache?.let { (cached, fmts) -> if (cached == locale) return fmts }
+    val fmts = java.text.SimpleDateFormat("HH:mm", locale) to
+        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", locale)
+    timeFmtCache = locale to fmts
+    return fmts
+}
+
+private fun timeOf(t: Long): String = timeFmts().first.format(java.util.Date(t))
+
+private fun fullTimeOf(t: Long): String = timeFmts().second.format(java.util.Date(t))
 
 private fun groupLogs(
     logs: List<NotificationLog>,

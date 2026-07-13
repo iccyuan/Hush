@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.iccyuan.hush.ui.theme.Alpha
 import com.iccyuan.hush.ui.theme.IOSColors
 import com.iccyuan.hush.ui.theme.LocalIsDarkTheme
 import dev.chrisbanes.haze.HazeState
@@ -59,6 +60,19 @@ fun Modifier.cardFrost(): Modifier {
     } else {
         this.background(container)
     }
+}
+
+/**
+ * 滚动列表行的静态磨砂底色：与 [cardFrost] 同色，但**不做实时模糊**。
+ * 模糊源（[GlassBackdrop]）本身已被重度模糊，hazeChild 再模糊一遍几乎不改变观感，
+ * 却让每个可见行都背上一次逐帧 blur——这是长列表滚动掉帧的大头。
+ * 长列表里的行一律用这个；独立的少量卡片才用 [cardFrost]。
+ */
+@Composable
+fun Modifier.rowFrost(): Modifier {
+    val dark = LocalIsDarkTheme.current
+    val container = if (dark) IOSColors.SurfaceDark else IOSColors.SurfaceLight
+    return this.background(container.copy(alpha = Alpha.Frost))
 }
 
 /**

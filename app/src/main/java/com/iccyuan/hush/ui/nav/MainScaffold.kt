@@ -4,10 +4,12 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -20,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,8 +36,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.iccyuan.hush.R
+import com.iccyuan.hush.ui.components.BottomTabBarHeight
+import com.iccyuan.hush.ui.components.GlassBackdrop
+import com.iccyuan.hush.ui.components.LocalCardHazeState
+import com.iccyuan.hush.ui.components.LocalHazeState
+import com.iccyuan.hush.ui.components.rememberAppHazeState
 import com.iccyuan.hush.ui.history.HistoryScreen
+import com.iccyuan.hush.ui.history.HistoryViewModel
 import com.iccyuan.hush.ui.list.RuleListScreen
 import com.iccyuan.hush.ui.settings.SettingsScreen
 
@@ -56,6 +66,10 @@ fun MainScaffold(
 ) {
     var tab by rememberSaveable { mutableStateOf(MainTab.RULES) }
     var addSession by remember { mutableIntStateOf(0) }
+    // 提前创建历史页的 ViewModel（它的数据流是 Eagerly 预热的，见 HistoryViewModel）：
+    // 应用一启动就开始加载，等用户切到「通知记录」时首帧即有内容可画，
+    // 而不是先画空态、数据到了再整屏换内容——那就是切入时的顿挫感。
+    val historyVm: HistoryViewModel = viewModel()
     val bar: @Composable () -> Unit = {
         BottomTabBar(
             current = tab,
@@ -65,36 +79,47 @@ fun MainScaffold(
             },
         )
     }
-    // 标签切换用淡入淡出过渡（二级页由 NavHost 负责 iOS 滑动动画）。底部栏在各页内相同，
-    // 交叉淡化时视觉上重叠不变，仅内容与选中态平滑切换。
-    androidx.compose.animation.AnimatedContent(
-        targetState = tab,
-        transitionSpec = {
-            androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220))
-                .togetherWith(androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)))
-        },
-        label = "tab",
-    ) { t ->
-        when (t) {
-            MainTab.RULES -> RuleListScreen(
-                onOpenRule = onOpenRule,
-                onNewRule = { addSession++; tab = MainTab.ADD },
-                bottomBar = bar,
-            )
-            MainTab.HISTORY -> HistoryScreen(bottomBar = bar, onCreateRule = onOpenRule)
-            MainTab.ADD -> androidx.compose.runtime.key(addSession) {
-                RuleEditorScreen(
-                    ruleId = 0L,
-                    onDone = { tab = MainTab.RULES },
-                    bottomBar = bar,
-                    vm = androidx.lifecycle.viewmodel.compose.viewModel(key = "new-rule-$addSession"),
-                )
+    // 模糊背景提到标签容器这一层共享：各标签页的 GlassScaffold 复用它（见其 sharedHaze 分支），
+    // 切换页面时不再重建全屏 blur，交叉淡化期间也只有一份背景在画。
+    val haze = rememberAppHazeState()
+    Box(Modifier.fillMaxSize()) {
+        GlassBackdrop(haze)
+        CompositionLocalProvider(
+            LocalHazeState provides haze,
+            LocalCardHazeState provides haze,
+        ) {
+            // 标签切换用淡入淡出过渡（二级页由 NavHost 负责 iOS 滑动动画）。底部栏在各页内相同，
+            // 交叉淡化时视觉上重叠不变，仅内容与选中态平滑切换。
+            androidx.compose.animation.AnimatedContent(
+                targetState = tab,
+                transitionSpec = {
+                    androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220))
+                        .togetherWith(androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)))
+                },
+                label = "tab",
+            ) { t ->
+                when (t) {
+                    MainTab.RULES -> RuleListScreen(
+                        onOpenRule = onOpenRule,
+                        onNewRule = { addSession++; tab = MainTab.ADD },
+                        bottomBar = bar,
+                    )
+                    MainTab.HISTORY -> HistoryScreen(bottomBar = bar, onCreateRule = onOpenRule, vm = historyVm)
+                    MainTab.ADD -> androidx.compose.runtime.key(addSession) {
+                        RuleEditorScreen(
+                            ruleId = 0L,
+                            onDone = { tab = MainTab.RULES },
+                            bottomBar = bar,
+                            vm = androidx.lifecycle.viewmodel.compose.viewModel(key = "new-rule-$addSession"),
+                        )
+                    }
+                    MainTab.SETTINGS -> SettingsScreen(
+                        bottomBar = bar,
+                        onOpenInsights = onOpenInsights,
+                        onOpenCategory = onOpenSettingsCategory,
+                    )
+                }
             }
-            MainTab.SETTINGS -> SettingsScreen(
-                bottomBar = bar,
-                onOpenInsights = onOpenInsights,
-                onOpenCategory = onOpenSettingsCategory,
-            )
         }
     }
 }
@@ -102,7 +127,7 @@ fun MainScaffold(
 @Composable
 private fun BottomTabBar(current: MainTab, onSelect: (MainTab) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().height(54.dp),
+        Modifier.fillMaxWidth().height(BottomTabBarHeight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TabItem(

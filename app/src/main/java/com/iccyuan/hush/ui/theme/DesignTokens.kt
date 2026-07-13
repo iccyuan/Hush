@@ -24,6 +24,8 @@ object Alpha {
     const val Border = 0.55f
     /** 弱化的图标、拖拽手柄、淡分隔线。 */
     const val Muted = 0.40f
+    /** 静态磨砂表面（见 Glass.kt 的 rowFrost）：够实以保证文字对比度，又能透出底色。 */
+    const val Frost = 0.72f
 }
 
 /** 未通过 Material 排版体系表达的原始字号。 */

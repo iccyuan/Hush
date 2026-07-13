@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +60,9 @@ import com.iccyuan.hush.ui.components.HairlineDivider
 import com.iccyuan.hush.ui.components.IOSRow
 import com.iccyuan.hush.ui.components.IOSSwitch
 import com.iccyuan.hush.ui.components.InsetGroupedSection
-import com.iccyuan.hush.ui.components.cardFrost
+import com.iccyuan.hush.ui.components.ListRowPlacementSpec
+import com.iccyuan.hush.ui.components.groupSegmentShape
+import com.iccyuan.hush.ui.components.rowFrost
 import com.iccyuan.hush.ui.theme.Alpha
 import com.iccyuan.hush.ui.theme.IOSColors
 
@@ -87,39 +90,54 @@ fun RuleListScreen(
             }
         },
     ) { padding ->
+        // 不再用 spacedBy 排间距：规则行现在是逐行的 lazy item（拼成一张卡），行间不能有缝，
+        // 区块之间的间距改由各 item 自己的 padding 表达。
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            item { Spacer(Modifier.height(4.dp)) }
+            item(key = "top_spacer", contentType = "spacer") { Spacer(Modifier.height(4.dp)) }
 
             if (!accessGranted) {
-                item {
-                    AccessBanner(onGrant = {
-                        context.startActivity(NotificationAccess.settingsIntent())
-                    })
+                item(key = "access", contentType = "banner") {
+                    Box(Modifier.padding(top = 18.dp)) {
+                        AccessBanner(onGrant = {
+                            context.startActivity(NotificationAccess.settingsIntent())
+                        })
+                    }
                 }
             }
 
             if (rules.isEmpty()) {
-                item { EmptyState() }
+                item(key = "empty", contentType = "empty") {
+                    Box(Modifier.padding(top = 18.dp)) { EmptyState() }
+                }
             } else {
-                item {
-                    InsetGroupedSection {
-                        rules.forEachIndexed { index, rule ->
-                            SwipeableRuleRow(
-                                rule = rule,
-                                onClick = { onOpenRule(rule.id) },
-                                onToggle = { vm.setEnabled(rule, it) },
-                                onRequestDelete = { pendingDelete = rule },
+                // 每条规则各自是一个 lazy item（而非整组塞进一个 item）：滚动按行增量组合，
+                // 行底色用 rowFrost（静态、无逐行实时模糊），卡片观感由首尾行圆角拼出。
+                itemsIndexed(rules, key = { _, r -> r.id }, contentType = { _, _ -> "rule" }) { i, rule ->
+                    Column(
+                        Modifier
+                            .animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = null,
+                                placementSpec = ListRowPlacementSpec,
                             )
-                            if (index < rules.lastIndex) HairlineDivider(startInset = 16.dp)
-                        }
+                            .padding(start = 16.dp, end = 16.dp, top = if (i == 0) 18.dp else 0.dp)
+                            .clip(groupSegmentShape(i, rules.size))
+                            .rowFrost(),
+                    ) {
+                        if (i > 0) HairlineDivider(startInset = 16.dp)
+                        SwipeableRuleRow(
+                            rule = rule,
+                            onClick = { onOpenRule(rule.id) },
+                            onToggle = { vm.setEnabled(rule, it) },
+                            onRequestDelete = { pendingDelete = rule },
+                        )
                     }
                 }
             }
-            item { Spacer(Modifier.height(24.dp)) }
+            item(key = "bottom_spacer", contentType = "spacer") { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
@@ -143,27 +161,29 @@ private fun SwipeableRuleRow(
         enableDismissFromStartToEnd = false,
         enableDismissFromEndToStart = true,
         backgroundContent = {
+            // 行底色是半透明的 rowFrost（由所在分组行提供），红色背景若一直垫在整行底下会透出来。
+            // 改为与前景同步从右缘滑入：位移在绘制阶段读（graphicsLayer），拖动不触发重组。
+            // 图标锚在滑入条带的前缘（盒子的 start 侧）——盒子整体右移了一个行宽，锚在 end 侧会跑出屏幕。
             Box(
                 Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        translationX = size.width + runCatching { state.requireOffset() }.getOrDefault(0f)
+                    }
                     .background(IOSColors.Red)
-                    .padding(end = 24.dp),
-                contentAlignment = Alignment.CenterEnd,
+                    .padding(start = 24.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
                 Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = Color.White)
             }
         },
     ) {
-        // 使用磨砂玻璃表面（而非纯色），让卡片的模糊效果透出来，同时
-        // 在该行被滑动之前仍完全遮住红色的删除背景。
-        Box(Modifier.cardFrost()) {
-            IOSRow(
-                title = rule.name,
-                subtitle = summarize(rule),
-                onClick = onClick,
-                trailing = { IOSSwitch(checked = rule.enabled, onCheckedChange = onToggle) },
-            )
-        }
+        IOSRow(
+            title = rule.name,
+            subtitle = summarize(rule),
+            onClick = onClick,
+            trailing = { IOSSwitch(checked = rule.enabled, onCheckedChange = onToggle) },
+        )
     }
 }
 

@@ -1,6 +1,7 @@
 package com.iccyuan.hush.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.ZeroCornerSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material3.Icon
@@ -40,17 +42,49 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.iccyuan.hush.ui.theme.IOSColors
 import com.iccyuan.hush.ui.theme.LocalIsDarkTheme
 import com.iccyuan.hush.ui.theme.Spacing
 
 private val NavBarHeight = 44.dp
+
+/** 底部标签栏高度：MainScaffold 的 TabBar 与 GlassScaffold 的内容预留必须一致，否则会多出一条空隙。 */
+val BottomTabBarHeight = 54.dp
+
+/**
+ * 列表条目「位移」动画：柔和的缓入缓出补间，无弹簧回弹（避免突兀）。仅用于位置变化，
+ * 不做淡入淡出。供各列表页的 Modifier.animateItem(placementSpec = …) 共用。
+ */
+val ListRowPlacementSpec = tween<IntOffset>(
+    durationMillis = 240,
+    easing = FastOutSlowInEasing,
+)
+
+/**
+ * 分组卡片拆成逐行 lazy item 之后（滚动按行增量组合、展开/删除只动一行），
+ * 用首/尾行的圆角把「一张卡」的观感拼回来；中间行保持直角。
+ * clip 在中间行也要保留：滑动删除的前景滑出行边界时靠它裁剪。
+ */
+@Composable
+fun groupSegmentShape(index: Int, count: Int): Shape {
+    val card = MaterialTheme.shapes.medium
+    return when {
+        count == 1 -> card
+        index == 0 -> card.copy(bottomStart = ZeroCornerSize, bottomEnd = ZeroCornerSize)
+        index == count - 1 -> card.copy(topStart = ZeroCornerSize, topEnd = ZeroCornerSize)
+        else -> RectangleShape
+    }
+}
 
 /**
  * 全屏 iOS 风格容器：柔和的渐变背景，内容在毛玻璃导航栏
@@ -70,15 +104,19 @@ fun GlassScaffold(
     // 唯一的模糊源——彩色背景。卡片和栏都是它的 hazeChild。
     // （第二个包裹内容的 haze 源会破坏其中嵌套卡片的 hazeChild 捕获，
     // 这就是它们被渲染成一片平白的原因。）
-    val haze = rememberAppHazeState()
+    // 若上层（如 MainScaffold 的标签容器）已经提供了共享模糊源，则复用它、不再自建背景：
+    // 标签交叉淡化期间两个页面同时在画，各自再建一份全屏模糊背景，进入页面的第一帧
+    // 就要多付一次 blur，这是切页顿挫的来源之一。
+    val sharedHaze = LocalHazeState.current
+    val haze = sharedHaze ?: rememberAppHazeState()
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val navBars = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val bottomBarHeight = if (bottomBar != null) 64.dp else 0.dp
+    val bottomBarHeight = if (bottomBar != null) BottomTabBarHeight else 0.dp
 
     Box(modifier.fillMaxSize()) {
         // 淡彩色背景是唯一的模糊源；卡片、栏和对话框
         // 都对其进行磨砂处理。
-        GlassBackdrop(haze)
+        if (sharedHaze == null) GlassBackdrop(haze)
 
         Box(Modifier.fillMaxSize()) {
             CompositionLocalProvider(
@@ -248,7 +286,8 @@ fun Modifier.iosPressable(onClick: (() -> Unit)?): Modifier {
     )
     return if (onClick != null) {
         this
-            .background(bg)
+            // 在绘制阶段读动画色：按压反馈只触发重绘，不逐帧重组整行。
+            .drawBehind { drawRect(bg) }
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
     } else this
 }
