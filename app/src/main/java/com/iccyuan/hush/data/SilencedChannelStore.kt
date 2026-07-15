@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.content.Context
 import android.media.AudioAttributes
 import com.iccyuan.hush.data.db.BuzzJson
+import com.tencent.mmkv.MMKV
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 
@@ -16,7 +17,9 @@ import kotlinx.serialization.builtins.ListSerializer
  */
 object SilencedChannelStore {
 
-    private const val PREFS = "hush_silenced_channels"
+    private const val MMKV_ID = "hush_silenced_channels"
+    /** 老版本的 SharedPreferences 文件名，仅用于一次性迁移。 */
+    private const val LEGACY_PREFS = "hush_silenced_channels"
 
     @Serializable
     data class ChannelSnapshot(
@@ -55,8 +58,24 @@ object SilencedChannelStore {
 
     private val listSerializer = ListSerializer(ChannelSnapshot.serializer())
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    @Volatile private var kvRef: MMKV? = null
+
+    private fun kv(context: Context): MMKV = kvRef ?: synchronized(this) {
+        kvRef ?: run {
+            val store = MMKV.mmkvWithID(MMKV_ID)
+            // 老版本存在 SharedPreferences 里的快照一次性搬进 MMKV；搬完清空老文件。
+            runCatching {
+                val prefs = context.applicationContext
+                    .getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+                if (prefs.all.isNotEmpty()) {
+                    store.importFromSharedPreferences(prefs)
+                    prefs.edit().clear().apply()
+                }
+            }
+            kvRef = store
+            store
+        }
+    }
 
     /** 记下某渠道静音前的声音/振动设置。同一渠道重复静音时保留**最早**的那份（真正的原始值）。 */
     fun remember(context: Context, pkg: String, userId: Int, channel: NotificationChannel) {
@@ -77,21 +96,20 @@ object SilencedChannelStore {
     }
 
     fun snapshotsFor(context: Context, pkg: String): List<ChannelSnapshot> {
-        val json = prefs(context).getString(pkg, null) ?: return emptyList()
+        val json = kv(context).decodeString(pkg) ?: return emptyList()
         return runCatching { BuzzJson.decodeFromString(listSerializer, json) }.getOrDefault(emptyList())
     }
 
     fun forget(context: Context, pkg: String) {
-        prefs(context).edit().remove(pkg).apply()
+        kv(context).removeValueForKey(pkg)
     }
 
-    fun packages(context: Context): Set<String> = prefs(context).all.keys
+    fun packages(context: Context): Set<String> =
+        kv(context).allKeys()?.toSet() ?: emptySet()
 
     private fun write(context: Context, pkg: String, snaps: List<ChannelSnapshot>) {
         runCatching {
-            prefs(context).edit()
-                .putString(pkg, BuzzJson.encodeToString(listSerializer, snaps))
-                .apply()
+            kv(context).encode(pkg, BuzzJson.encodeToString(listSerializer, snaps))
         }
     }
 }

@@ -6,6 +6,7 @@ import com.iccyuan.hush.data.RuntimeStateStore
 import com.iccyuan.hush.service.ChannelManager
 import com.iccyuan.hush.service.KeepAliveService
 import com.iccyuan.hush.service.ListenerWatchdog
+import com.tencent.mmkv.MMKV
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,6 +15,8 @@ import kotlinx.coroutines.launch
 class HushApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // MMKV 必须先于任何使用它的存储（RuntimeStateStore / SilencedChannelStore）初始化。
+        MMKV.initialize(this)
         // 在首条通知到达之前确保基础通知渠道已存在。
         ChannelManager(this).ensureBaseChannels()
 

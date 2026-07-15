@@ -123,6 +123,8 @@ dependencies {
     implementation(libs.androidx.splashscreen)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    // 高频运行时状态（冷却/静音/变量）与渠道快照的持久化：mmap 写入，微秒级、无 IO 抖动。
+    implementation(libs.mmkv)
     implementation(libs.haze)
     implementation(libs.haze.materials)
     // 高德地图（选点）+ 定位/地理围栏（运行时监控，不依赖 Google Play 服务）。
