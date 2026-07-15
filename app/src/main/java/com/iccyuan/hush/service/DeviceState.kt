@@ -24,6 +24,9 @@ object DeviceState {
         AudioDeviceInfo.TYPE_USB_HEADSET,
     )
 
+    /** 该音频输出设备是否属于「耳机」（有线 / 蓝牙 / USB）。采样与设备变化监听共用同一口径。 */
+    fun isHeadphone(device: AudioDeviceInfo): Boolean = device.type in HEADPHONE_TYPES
+
     /**
      * @param sampleHeadphones / [sampleWifi] 仅当存在用到对应条件的启用规则时才置 true——
      * 否则跳过这些查询，不为每条通知做无谓的耳机/网络探测。
@@ -64,7 +67,7 @@ object DeviceState {
         // 耳机：任一有线/蓝牙/USB 音频输出设备即视为已连接（无需权限）。仅在有规则用到时才探测。
         val headphones = if (sampleHeadphones) {
             context.getSystemService(AudioManager::class.java)
-                ?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.any { it.type in HEADPHONE_TYPES } ?: false
+                ?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.any(::isHeadphone) ?: false
         } else false
 
         // Wi-Fi：当前活动网络是否走 Wi-Fi 传输（只看传输类型，不读 SSID，无需定位权限）。仅在有规则用到时才查询。

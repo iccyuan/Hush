@@ -70,6 +70,9 @@ class HushListenerService : NotificationListenerService() {
     // 「朗读」功能的用户在服务启动时白白付出这份开销。
     private val tts = lazy { TtsManager(this) }
     private lateinit var sideEffects: SideEffectExecutor
+    // 「静音应用」条件翻转的主动监听：条件不成立立刻还原渠道、恢复成立立刻改哑，
+    // 不必等下一条通知到达。监听按需挂载，无带条件的静音时零常驻开销。
+    private lateinit var muteMonitor: MuteConditionMonitor
 
     @Volatile private var activeRules: List<Rule> = emptyList()
     @Volatile private var masterEnabled: Boolean = true
@@ -134,6 +137,8 @@ class HushListenerService : NotificationListenerService() {
             .onFailure { Logger.e("geofence sync failed", it) }
         runCatching { syncWifiEventMonitor() }
             .onFailure { Logger.e("wifi monitor sync failed", it) }
+        // 规则变化可能改动静音规则的条件，或删掉/新增带条件的静音——重算一次监听与渠道状态。
+        if (::muteMonitor.isInitialized) muteMonitor.resync("rules-changed")
     }
 
     /** 按需注册/注销 Wi-Fi 网络回调；初始状态先 seed，避免注册瞬间把「已连」误报成一次连接事件。 */
@@ -205,6 +210,8 @@ class HushListenerService : NotificationListenerService() {
     private fun onGeofenceEvent(key: String, entered: Boolean) {
         if (!masterEnabled) return
         Logger.i("geofence event: $key entered=$entered")
+        // 位置条件的静音复用这条事件流，无需自建监听（见 MuteConditionMonitor）。
+        if (::muteMonitor.isInitialized) muteMonitor.resync("geofence")
         scope.launch {
             try {
                 val device = DeviceState.sample(this@HushListenerService, needsHeadphones, true, needsLocation)
@@ -231,11 +238,14 @@ class HushListenerService : NotificationListenerService() {
         channels.ensureBaseChannels()
         // 恢复并持久化运行时状态（冷却 / 静音 / 变量），使其跨进程重启依然有效。
         RuntimeStateStore.init(this)
+        muteMonitor = MuteConditionMonitor(this, scope) { activeRules }
         // 静音解除的入口分散在 UI 与引擎多处，统一在这里挂钩，确保被改哑的渠道一定会被还原。
         VariableStore.setUnmuteListener { pkg ->
             scope.launch {
                 runCatching { ChannelSilencer.restore(this@HushListenerService, pkg) }
                     .onFailure { Logger.e("channel-restore failed for $pkg", it) }
+                // 静音少了一个，对应的条件监听可能就不再需要了。
+                muteMonitor.resync("unmuted")
             }
         }
         // 围栏穿越的那一刻 → 触发位置事件规则。
@@ -381,6 +391,16 @@ class HushListenerService : NotificationListenerService() {
 
         val decision = engine.evaluate(ctx, activeRules)
 
+        // 「静音应用」处于暂停期（应用在静音名单里，但设置静音的规则条件此刻不成立，如已过
+        // 静音时段）：引擎只是不再输出静音决定，而渠道级静音是系统层的持久改写——不主动还原
+        // 的话，暂停期的通知照样无声无振动，表现为「非命中时段也被静音」。条件翻转通常已由
+        // [MuteConditionMonitor] 在翻转瞬间处理，这里是它晚醒/漏事件时的兜底；还原幂等
+        // （没有快照时直接返回），回到时段内命中路径的 ensureSilenced 会重新改哑。
+        if (decision.appMuteActive == false) {
+            runCatching { ChannelSilencer.restore(this, sbn.packageName) }
+                .onFailure { silenceLog.e("channel-restore(suspended) failed for ${sbn.packageName}", it) }
+        }
+
         // 沉浸弹幕：开启且当前处于全屏（横屏看视频/玩游戏）时，把原本仍会原生弹出的通知
         // 改为弹幕呈现——强制丢弃原生通知并注入一条弹幕，交由下方 discard 路径统一处理。
         // 常驻通知不参与（不替换、不弹幕）。
@@ -494,21 +514,36 @@ class HushListenerService : NotificationListenerService() {
         // 未关联时静默降级为就地静音。
         //
         // 两条路径都要覆盖：本次刚触发静音（MuteApp 副作用），以及该应用早已在静音名单里
-        // （引擎在 evaluate 顶部短路，不再产生副作用）——后者用幂等的 ensureSilenced 补齐，
-        // 以防渠道改写因进程重启、升级、当时尚未关联配套设备而没落实。
+        // 且静音**此刻生效**（引擎在 evaluate 顶部短路，不再产生副作用）——后者用幂等的
+        // ensureSilenced 补齐，以防渠道改写因进程重启、升级、当时尚未关联配套设备而没落实。
+        // 判据必须是 appMuteActive 而非「在静音名单里」：静音暂停期间（条件不成立）该应用的
+        // 通知若命中了其他规则，绝不能借机把刚还原的渠道又改哑回去。
         val muting = decision.sideEffects.filterIsInstance<SideEffect.MuteApp>().firstOrNull()
         val userId = sbn.key.substringBefore("|").toIntOrNull() ?: 0
         when {
-            muting != null -> scope.launch {
-                runCatching { ChannelSilencer.silence(this@HushListenerService, muting.pkg, muting.userId) }
-                    .onFailure { Logger.e("channel-silence failed for ${muting.pkg}", it) }
+            muting != null -> {
+                muteMonitor.noteUserId(muting.pkg, muting.userId)
+                scope.launch {
+                    runCatching { ChannelSilencer.silence(this@HushListenerService, muting.pkg, muting.userId) }
+                        .onFailure { Logger.e("channel-silence failed for ${muting.pkg}", it) }
+                }
             }
-            VariableStore.isAppMuted(sbn.packageName) -> scope.launch {
-                runCatching { ChannelSilencer.ensureSilenced(this@HushListenerService, sbn.packageName, userId) }
-                    .onFailure { Logger.e("channel-silence(ensure) failed for ${sbn.packageName}", it) }
+            decision.appMuteActive == true -> {
+                muteMonitor.noteUserId(sbn.packageName, userId)
+                // 带上本条通知的渠道 id：静音后应用新建的渠道（聊天应用常为新会话建渠道）
+                // 不在已改哑名单里，ensureSilenced 据此识别并补一次改哑。
+                val channelId = sbn.notification.channelId
+                scope.launch {
+                    runCatching {
+                        ChannelSilencer.ensureSilenced(this@HushListenerService, sbn.packageName, userId, channelId)
+                    }.onFailure { Logger.e("channel-silence(ensure) failed for ${sbn.packageName}", it) }
+                }
             }
         }
         sideEffects.execute(decision.sideEffects)
+        // 静音名单刚多了一员（VariableStore.muteApp 已在上面同步执行）：让监听器按这条
+        // 静音规则的条件挂上需要的翻转监听。
+        if (muting != null) muteMonitor.resync("mute-added")
 
         // 弹幕会替代原生通知——但只有在弹幕确实能够显示（已授予悬浮窗权限）时
         // 才抑制原生通知，否则通知会悄无声息地消失。
@@ -527,9 +562,10 @@ class HushListenerService : NotificationListenerService() {
             // Android 11 以下 snooze 放回时会再次响铃，就地静音不可用——宁可放过这一声，
             // 也不重发副本。
             decision.silenceOnly(originalImportance) -> when {
-                // 渠道已被改哑：系统压根不会为它发声/振动，无需再 snooze 掐断——通知原地不动，
-                // 既不会从通知栏消失再放回，也就不存在「放回时二次响铃」的问题。
-                ChannelSilencer.isSilenced(sbn.packageName) ->
+                // 本条通知所在渠道已被改哑：系统压根不会为它发声/振动，无需再 snooze 掐断——
+                // 通知原地不动，既不会从通知栏消失再放回，也就不存在「放回时二次响铃」的问题。
+                // 静音后新建的渠道不在此列：那一声要靠下面的 snooze 掐断，渠道随后被补齐改哑。
+                ChannelSilencer.isSilenced(sbn.packageName, sbn.notification.channelId) ->
                     silenceLog.i("channel already silenced, nothing to do for ${sbn.key}")
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R ->
                     silenceLog.i("pre-R, leaving ${sbn.key} untouched")
@@ -714,6 +750,7 @@ class HushListenerService : NotificationListenerService() {
     override fun onDestroy() {
         super.onDestroy()
         GeofenceManager.crossingListener = null
+        if (::muteMonitor.isInitialized) muteMonitor.shutdown()
         wifiCallback?.let { cb ->
             runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) }
         }

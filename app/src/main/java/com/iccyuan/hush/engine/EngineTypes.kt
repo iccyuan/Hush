@@ -120,6 +120,16 @@ class Decision {
     /** 「差一点就命中」的规则（应用对上了，卡在触发器或条件）。见 [NearMiss]。 */
     val nearMisses: MutableList<NearMiss> = mutableListOf()
 
+    /**
+     * 应用级静音（「静音应用」动作）此刻对该通知的生效状态：null = 该应用不在静音名单；
+     * true = 生效（本决定已按静音短路）；false = 在名单里、但设置静音的规则条件此刻不成立
+     * （如已过静音时段）——静音暂停，通知照常处理。
+     *
+     * 服务必须消费 false：渠道级静音是系统层的持久改写，引擎这边判定“暂不静音”只是不再
+     * 输出静音决定，被改哑的渠道不主动还原的话，暂停期的通知照样无声无振动。
+     */
+    var appMuteActive: Boolean? = null
+
     /** 当通知内容/提醒必须重新构建并重新发布时为 true。 */
     val needsRepost: Boolean
         get() = !discard && (fieldEdits.isNotEmpty() || importance != null || sound != null)

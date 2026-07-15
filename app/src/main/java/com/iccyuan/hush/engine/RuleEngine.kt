@@ -77,6 +77,7 @@ class RuleEngine {
             when {
                 muteRule == null -> if (!readOnly) VariableStore.unmuteApp(ctx.packageName)
                 conditionsHold(muteRule, ctx) -> {
+                    decision.appMuteActive = true
                     decision.matched = true
                     decision.sound = SoundOverride(silent = true, vibration = VibrationPreset.NONE)
                     // 不改重要性、不改字段——这样 silenceOnly() 成立，服务会保留原通知
@@ -95,7 +96,9 @@ class RuleEngine {
                     )
                     return decision
                 }
-                // else：条件此刻不成立——不静音、不解除，继续常规求值。
+                // 条件此刻不成立——不静音、不解除，继续常规求值。标记「静音暂停」，
+                // 服务据此把渠道级静音改哑的渠道还原回去（否则系统层仍旧无声无振动）。
+                else -> decision.appMuteActive = false
             }
         }
 

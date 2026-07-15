@@ -231,12 +231,23 @@ class RuleEngineTest {
         assertTrue(first.matched)
         assertTrue(first.sound?.silent == true)
         VariableStore.muteApp("com.chat", 7)
-        // 时段内后续通知：仍静音。
-        assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "b", device = device(minuteOfDay = 13 * 60 + 30)), listOf(rule)).sound?.silent == true)
-        // 出了时段（15:00）：不再静音。
-        assertNull(engine.evaluate(ctx(pkg = "com.chat", text = "c", device = device(minuteOfDay = 15 * 60)), listOf(rule)).sound)
+        // 时段内后续通知：仍静音，且标记「静音生效」。
+        val inWindow = engine.evaluate(ctx(pkg = "com.chat", text = "b", device = device(minuteOfDay = 13 * 60 + 30)), listOf(rule))
+        assertTrue(inWindow.sound?.silent == true)
+        assertEquals(true, inWindow.appMuteActive)
+        // 出了时段（15:00）：不再静音，且标记「静音暂停」——服务据此把渠道级静音改哑的渠道
+        // 还原回去，否则非命中时段的通知在系统层仍旧无声无振动。
+        val outWindow = engine.evaluate(ctx(pkg = "com.chat", text = "c", device = device(minuteOfDay = 15 * 60)), listOf(rule))
+        assertNull(outWindow.sound)
+        assertEquals(false, outWindow.appMuteActive)
         // 回到时段（13:00）：自动恢复静音。
         assertTrue(engine.evaluate(ctx(pkg = "com.chat", text = "d", device = device(minuteOfDay = 13 * 60)), listOf(rule)).sound?.silent == true)
+    }
+
+    @Test fun appMuteActiveIsNullWhenAppNotMuted() {
+        // 不在静音名单里的应用：appMuteActive 保持 null，服务不应对它做任何渠道还原/改哑。
+        val d = engine.evaluate(ctx(pkg = "com.other", text = "x"), listOf(textRule(1, "nope")))
+        assertNull(d.appMuteActive)
     }
 
     // --- 时间窗口条件：全面核验（in/out/跨午夜/星期/边界）---

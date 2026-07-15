@@ -30,9 +30,12 @@ object ChannelSilencer {
 
     private val log = Logger.scoped("channel-silence")
 
-    // 本进程已确认改哑过的包，用于让 [ensureSilenced] 在热路径上零开销。进程重启后为空，
-    // 届时第一条通知会重新走一次 [silence]——它对已静默的渠道是幂等的（不改、也不写快照）。
-    private val silenced = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+    // 本进程已确认改哑的渠道：包名 -> 当时全部渠道 id。除了让 [ensureSilenced] 在热路径上
+    // 零开销外，还用来识别「应用在静音之后才新建的渠道」——聊天类应用常为新会话动态建渠道，
+    // 只按包名短路的话，新渠道永远不会被改哑，静音期间新会话的通知照样响。陌生渠道 id
+    // 意味着要再走一次 [silence] 补齐。进程重启后为空，届时第一条通知会重新走一次
+    // [silence]——它对已静默的渠道是幂等的（不改、也不写快照）。
+    private val silencedChannels = java.util.concurrent.ConcurrentHashMap<String, Set<String>>()
 
     /** 该能力当前是否可用：Android 8.0+ 且已关联配套设备。 */
     fun isAvailable(context: Context): Boolean {
@@ -44,9 +47,19 @@ object ChannelSilencer {
      * 确保 [pkg] 的渠道处于静音状态。用于「应用已在静音名单里」的常态路径——静音是长期状态，
      * 而渠道改写可能因进程重启、升级、当时未关联配套设备等原因没能落实，这里每次通知到达时
      * 补齐一次（命中内存缓存时直接返回，不触碰系统）。
+     *
+     * [channelId] 为本条通知所属的渠道：已缓存的包若出现陌生渠道 id，说明应用在静音后又
+     * 新建了渠道，需要重新 [silence] 把它一并改哑；传 null（如条件翻转的主动重算，手上
+     * 没有具体通知）则只做包级检查。
      */
-    fun ensureSilenced(listener: NotificationListenerService, pkg: String, userId: Int) {
-        if (pkg in silenced) return
+    fun ensureSilenced(
+        listener: NotificationListenerService,
+        pkg: String,
+        userId: Int,
+        channelId: String? = null,
+    ) {
+        val known = silencedChannels[pkg]
+        if (known != null && (channelId == null || channelId in known)) return
         if (!isAvailable(listener)) return
         silence(listener, pkg, userId)
     }
@@ -93,8 +106,9 @@ object ChannelSilencer {
         }
         // 标记依据是「此刻该应用的渠道全都不发声了」，而不是「这次改了几个」——渠道可能在上一次
         // 运行里就已改哑（进程重启后内存缓存是空的）。若不这样，热路径会一直误以为还没静音，
-        // 每条通知都白白 snooze 一次，通知也就跟着闪一下。
-        if (allSilent) silenced.add(pkg)
+        // 每条通知都白白 snooze 一次，通知也就跟着闪一下。记录的是当时的全部渠道 id，
+        // 供 [ensureSilenced] 识别之后新建的渠道。
+        if (allSilent) silencedChannels[pkg] = channels.mapTo(mutableSetOf()) { it.id }
         log.i("silenced $changed/${channels.size} channels of $pkg (allSilent=$allSilent)")
         return allSilent
     }
@@ -113,8 +127,16 @@ object ChannelSilencer {
             .associateBy(NotificationChannel::getId)
 
         var restored = 0
+        var kept = 0
         for (snap in saved) {
             val channel = live[snap.channelId] ?: continue
+            // 静音期间用户在系统设置里亲手改过的渠道（已不再是我们写入的「无声不振动」状态），
+            // 以用户的新设置为准，不用旧快照覆盖——用户显式表达过的意图，比我们的备份更新。
+            if (channel.sound != null || channel.shouldVibrate()) {
+                kept++
+                log.i("channel ${snap.channelId} of $pkg changed by user during mute; keeping their settings")
+                continue
+            }
             channel.setSound(snap.soundUri?.let(android.net.Uri::parse), snap.audioAttributes())
             // 顺序要紧：NotificationChannel.setVibrationPattern(null) 会顺手把振动开关置为 false
             // （见其实现：mVibrationEnabled = pattern != null && pattern.isNotEmpty()）。
@@ -127,16 +149,23 @@ object ChannelSilencer {
                 .onFailure { log.e("restore failed for ${snap.channelId} of $pkg", it) }
         }
         SilencedChannelStore.forget(listener, pkg)
-        silenced.remove(pkg)
-        log.i("restored $restored channels of $pkg")
+        silencedChannels.remove(pkg)
+        log.i("restored $restored channels of $pkg (kept $kept user-changed)")
     }
 
     /** 由用户空间 id 构造 UserHandle：uid = userId * 100000 + appId，取 appId=0 即可定位该用户。 */
     private fun userHandle(userId: Int): UserHandle =
         UserHandle.getUserHandleForUid(userId * 100_000)
 
-    /** 该应用的渠道当前是否已被我们改哑（据此可跳过监听器那套 snooze 掐断）。 */
-    fun isSilenced(pkg: String): Boolean = pkg in silenced
+    /**
+     * 这条通知所在的渠道当前是否已被我们改哑（据此可跳过监听器那套 snooze 掐断）。
+     * [channelId] 为 null 时退化为包级判断；陌生渠道 id（静音后新建的）返回 false——
+     * 它还没被改哑，这一声要靠 snooze 掐断，渠道随后由 [ensureSilenced] 补齐。
+     */
+    fun isSilenced(pkg: String, channelId: String? = null): Boolean {
+        val known = silencedChannels[pkg] ?: return false
+        return channelId == null || channelId in known
+    }
 
     /** 供设置页展示：当前有多少个应用的渠道处于被本应用静音的状态。 */
     fun silencedPackages(context: Context): Set<String> = SilencedChannelStore.packages(context)
