@@ -445,7 +445,15 @@ class HushListenerService : NotificationListenerService() {
     ) {
         val extras = sbn.notification.extras
         val title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString().orEmpty()
+        // 正文取信息量最大的那份：EXTRA_TEXT 只是折叠态的一行摘要——长文通知（BigTextStyle）
+        // 的完整正文在 EXTRA_BIG_TEXT，多行通知（InboxStyle）在 EXTRA_TEXT_LINES。只存
+        // EXTRA_TEXT 的话，历史里的长通知永远只有开头一截，展开详情也无从看全。
+        val text = listOf(
+            extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString().orEmpty(),
+            extras.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT)?.toString().orEmpty(),
+            extras.getCharSequenceArray(android.app.Notification.EXTRA_TEXT_LINES)
+                ?.joinToString("\n") { it.toString() }.orEmpty(),
+        ).maxBy { it.length }
         // 空白通知（既无标题也无正文）无展示价值，不记入历史。
         if (title.isBlank() && text.isBlank()) return
         val outcome = when {

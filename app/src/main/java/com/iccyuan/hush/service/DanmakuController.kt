@@ -251,9 +251,17 @@ object DanmakuController {
 
         // 弹幕作为子 View 加入常驻悬浮窗（[ensureOverlay]），而非各自新开一个窗口；
         // topMargin 决定其所在行，translationX 负责水平滚动。
+        //
+        // 宽度必须是**无约束实测后的显式值**：WRAP_CONTENT 会被父容器按 AT_MOST 钳到
+        // 一个屏宽，超出的文字被 singleLine 直接裁掉——长弹幕显示不全；而显式宽度在
+        // 测量时走 EXACTLY，不受父容器大小限制，胶囊要多宽有多宽（反正是滚动出来的）。
+        tv.measure(
+            android.view.View.MeasureSpec.UNSPECIFIED,
+            android.view.View.MeasureSpec.UNSPECIFIED,
+        )
         val rowHeight = (cfg.fontSizeSp * density * 1.35f + padV * 2 + density * 8f).toInt()
         val lp = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
+            tv.measuredWidth,
             FrameLayout.LayoutParams.WRAP_CONTENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
